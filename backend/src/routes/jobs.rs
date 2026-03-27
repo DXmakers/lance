@@ -18,6 +18,7 @@ pub fn router() -> Router<AppState> {
         .route("/:id", get(get_job))
         .route("/:id/bids", get(bids::list_bids).post(bids::create_bid))
         .route("/:id/milestones/:mid/release", post(milestones::release_milestone))
+        .route("/:id/accept-bid", post(accept_bid))
         .route("/:id/dispute", post(crate::routes::disputes::open_dispute_for_job))
 }
 
@@ -71,5 +72,30 @@ async fn create_job(
     .bind(req.client_address)
     .fetch_one(&state.pool)
     .await?;
+    Ok(Json(job))
+}
+
+pub async fn accept_bid(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    Json(req): Json<serde_json::Value>,
+) -> Result<Json<Job>> {
+    let freelancer_address = req["freelancer_address"]
+        .as_str()
+        .ok_or_else(|| crate::error::AppError::BadRequest("freelancer_address is required".into()))?;
+
+    let job = sqlx::query_as::<_, Job>(
+        r#"UPDATE jobs 
+           SET status = 'in_progress', freelancer_address = $1, updated_at = NOW()
+           WHERE id = $2
+           RETURNING id, title, description, budget_usdc, milestones, client_address,
+                     freelancer_address, status, metadata_hash, on_chain_job_id,
+                     created_at, updated_at"#
+    )
+    .bind(freelancer_address)
+    .bind(id)
+    .fetch_one(&state.pool)
+    .await?;
+
     Ok(Json(job))
 }

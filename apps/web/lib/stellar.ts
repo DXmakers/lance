@@ -1,6 +1,5 @@
 import { StellarWalletsKit, Networks } from "@creit.tech/stellar-wallets-kit";
 
-// TODO: See docs/ISSUES.md — "Wallet Connection"
 let kit: StellarWalletsKit | null = null;
 
 export function getWalletsKit(): StellarWalletsKit {
@@ -17,12 +16,19 @@ export function getWalletsKit(): StellarWalletsKit {
 
 /** Opens wallet select modal and returns the connected public key. */
 export async function connectWallet(): Promise<string> {
-  // TODO: implement — see docs/ISSUES.md
-  throw new Error("connectWallet not implemented — see docs/ISSUES.md");
+  const kit = getWalletsKit();
+  await kit.openModal({
+    onWalletSelected: async (option) => {
+      kit.setWallet(option.id);
+    },
+  });
+  const { address } = await kit.getAddress();
+  return address;
 }
 
 /** Signs an XDR transaction string via the connected wallet. */
 export async function signTransaction(xdr: string): Promise<string> {
-  // TODO: implement — see docs/ISSUES.md
-  throw new Error("signTransaction not implemented — see docs/ISSUES.md");
+  const kit = getWalletsKit();
+  const { signedXDR } = await kit.signTransaction(xdr);
+  return signedXDR;
 }
