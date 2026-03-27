@@ -22,7 +22,7 @@ export async function connectWallet(): Promise<string> {
 }
 
 /** Signs an XDR transaction string via the connected wallet. */
-export async function signTransaction(xdr: string): Promise<string> {
+export async function signTransaction(_: string): Promise<string> {
   // TODO: implement — see docs/ISSUES.md
   throw new Error("signTransaction not implemented — see docs/ISSUES.md");
 }
