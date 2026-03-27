@@ -15,6 +15,11 @@ export const api = {
     get: (id: string) => request<Job>(`/jobs/${id}`),
     create: (body: CreateJobBody) =>
       request<Job>("/jobs", { method: "POST", body: JSON.stringify(body) }),
+    acceptBid: (jobId: string, freelancerAddress: string) =>
+      request<Job>(`/jobs/${jobId}/accept-bid`, {
+        method: "POST",
+        body: JSON.stringify({ freelancer_address: freelancerAddress }),
+      }),
   },
   bids: {
     list: (jobId: string) => request<Bid[]>(`/jobs/${jobId}/bids`),
@@ -36,6 +41,16 @@ export const api = {
       request<Evidence>(`/disputes/${id}/evidence`, {
         method: "POST",
         body: JSON.stringify(body),
+      }),
+  },
+  ipfs: {
+    upload: (formData: FormData) =>
+      fetch(`${API}/api/ipfs/upload`, {
+        method: "POST",
+        body: formData,
+      }).then((res) => {
+        if (!res.ok) throw new Error("Upload failed");
+        return res.json() as Promise<{ cid: string }>;
       }),
   },
 };
