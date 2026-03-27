@@ -1,152 +1,191 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Wallet } from "lucide-react";
-import { SiteShell } from "@/components/site-shell";
+import { FormEvent, useMemo, useState } from "react";
+
 import { api } from "@/lib/api";
-import { connectWallet, getConnectedWalletAddress } from "@/lib/stellar";
+import { connectWallet, signTransaction } from "@/lib/stellar";
+
+const DEFAULT_JOB = {
+  title: "Deterministic Soroban integration audit",
+  description: "Review escrow edge cases and provide a reproducible release plan.",
+  budget_usdc: "425.00",
+  milestones: "3",
+};
 
 export default function NewJobPage() {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [budget, setBudget] = useState(1000);
-  const [milestones, setMilestones] = useState(1);
-  const [walletAddress, setWalletAddress] = useState("GD...CLIENT");
-  const [loading, setLoading] = useState(false);
+  const [walletAddress, setWalletAddress] = useState("");
+  const [signature, setSignature] = useState("");
+  const [status, setStatus] = useState("Ready to prepare a mock Soroban transaction.");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState(DEFAULT_JOB);
 
-  async function ensureWallet() {
-    const connected = await getConnectedWalletAddress();
-    if (connected) {
-      setWalletAddress(connected);
-      return connected;
+  const encodedBudget = useMemo(() => {
+    return Math.round(Number(form.budget_usdc || 0) * 1_000_0000);
+  }, [form.budget_usdc]);
+
+  async function ensureWallet(): Promise<string> {
+    if (walletAddress) {
+      return walletAddress;
     }
 
-    const newlyConnected = await connectWallet();
-    setWalletAddress(newlyConnected);
-    return newlyConnected;
+    const address = await connectWallet();
+    setWalletAddress(address);
+    return address;
   }
 
-  async function handleSubmit(event: React.FormEvent) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
+    setIsSubmitting(true);
+    setStatus("Connecting wallet...");
 
     try {
-      const clientAddress = await ensureWallet().catch(() => walletAddress);
-      const job = await api.jobs.create({
-        title,
-        description,
-        budget_usdc: budget * 10_000_000,
-        milestones,
-        client_address: clientAddress,
+      const address = await ensureWallet();
+      setStatus("Requesting signature from wallet...");
+
+      const signed = await signTransaction(
+        JSON.stringify({
+          action: "create_job",
+          title: form.title,
+          budget_usdc: encodedBudget,
+          client_address: address,
+        }),
+      );
+      setSignature(signed);
+      setStatus("Signature captured. Writing job to mocked backend...");
+
+      await api.jobs.create({
+        title: form.title,
+        description: form.description,
+        budget_usdc: encodedBudget,
+        milestones: Number(form.milestones),
+        client_address: address,
       });
-      router.push(`/jobs/${job.id}`);
-    } catch {
-      alert("Failed to create job");
+
+      setStatus("Job created. Redirecting to the board...");
+      router.push("/jobs");
+      router.refresh();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Job submission failed.");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <SiteShell
-      eyebrow="Client Intake"
-      title="Post a new job with enough clarity that the right freelancer self-selects quickly."
-      description="This intake keeps the payload lightweight for the current backend while still pushing teams toward better briefs, cleaner budgets, and milestone discipline."
-    >
-      <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_25px_80px_-48px_rgba(15,23,42,0.5)] sm:p-8"
-        >
-          <div className="grid gap-6">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Title
-              </label>
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#0f172a,#020617_55%)] px-6 py-10 text-white">
+      <div className="mx-auto flex max-w-4xl flex-col gap-8">
+        <header className="space-y-3">
+          <Link href="/jobs" className="text-sm text-cyan-300 hover:text-cyan-200">
+            Back to jobs
+          </Link>
+          <h1 className="text-4xl font-semibold">Post a Job</h1>
+          <p className="max-w-2xl text-sm text-slate-300">
+            This flow intentionally signs a deterministic payload before persisting
+            a job so Playwright can validate post-signature UI state changes.
+          </p>
+        </header>
+
+        <div className="grid gap-6 md:grid-cols-[1.3fr_0.7fr]">
+          <form
+            onSubmit={onSubmit}
+            className="space-y-5 rounded-3xl border border-slate-800 bg-slate-950/70 p-6"
+          >
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-200">Title</span>
               <input
-                type="text"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
-                placeholder="Build a Soroban Smart Contract"
-                required
-                id="job-title"
+                value={form.title}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, title: event.target.value }))
+                }
+                className="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 outline-none transition focus:border-cyan-400"
               />
-            </div>
+            </label>
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Scope
-              </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-200">Description</span>
               <textarea
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                className="min-h-[180px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
-                placeholder="Describe requirements, acceptance criteria, and what counts as a complete milestone."
-                required
-                id="job-description"
+                value={form.description}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                rows={5}
+                className="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 outline-none transition focus:border-cyan-400"
               />
-            </div>
+            </label>
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Budget (USDC)
-                </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-200">Budget (USDC)</span>
                 <input
-                  type="number"
-                  value={budget}
-                  onChange={(event) => setBudget(Number(event.target.value))}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
-                  required
-                  min={100}
-                  id="job-budget"
+                  inputMode="decimal"
+                  value={form.budget_usdc}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      budget_usdc: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 outline-none transition focus:border-cyan-400"
                 />
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Milestones
-                </label>
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-200">Milestones</span>
                 <input
-                  type="number"
-                  value={milestones}
-                  onChange={(event) => setMilestones(Number(event.target.value))}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
-                  min="1"
-                  required
-                  id="job-milestones"
+                  inputMode="numeric"
+                  value={form.milestones}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      milestones: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 outline-none transition focus:border-cyan-400"
                 />
-              </div>
+              </label>
             </div>
 
             <button
               type="submit"
-              disabled={loading}
-              className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
-              id="submit-job"
+              disabled={isSubmitting}
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-cyan-300 px-6 py-3 font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
             >
-              {loading ? "Posting..." : "Post Job"}
+              {isSubmitting ? "Submitting..." : "Sign and Create Job"}
             </button>
-          </div>
-        </form>
+          </form>
 
-        <aside className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-slate-50 shadow-[0_25px_80px_-48px_rgba(15,23,42,0.75)] sm:p-8">
-          <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm">
-            <Wallet className="h-4 w-4 text-amber-300" />
-            Client wallet: {walletAddress}
-          </div>
-          <h2 className="mt-6 text-2xl font-semibold tracking-tight">
-            Better briefs produce smoother milestone releases.
-          </h2>
-          <ul className="mt-6 space-y-4 text-sm leading-6 text-slate-300">
-            <li>Explain what success looks like so the freelancer can submit evidence decisively.</li>
-            <li>Split the budget into meaningful milestones to keep approval moments clean.</li>
-            <li>Assume the dispute center may need to read this brief later and write accordingly.</li>
-          </ul>
-        </aside>
+          <aside className="space-y-4 rounded-3xl border border-cyan-400/20 bg-cyan-400/5 p-6">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">
+                Wallet
+              </p>
+              <p className="mt-2 break-all text-sm text-slate-100">
+                {walletAddress || "Not connected"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">
+                Signature
+              </p>
+              <p className="mt-2 break-all font-mono text-xs text-slate-300">
+                {signature || "Pending approval"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">
+                Status
+              </p>
+              <p className="mt-2 text-sm text-slate-200">{status}</p>
+            </div>
+          </aside>
+        </div>
       </div>
-    </SiteShell>
+    </main>
   );
 }
