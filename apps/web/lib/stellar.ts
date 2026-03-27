@@ -1,28 +1,75 @@
-import { StellarWalletsKit, Networks } from "@creit.tech/stellar-wallets-kit";
+import { Networks, StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 
-// TODO: See docs/ISSUES.md — "Wallet Connection"
-let kit: StellarWalletsKit | null = null;
+declare global {
+  interface Window {
+    __LANCE_E2E_WALLET__?: WalletAdapter;
+  }
+}
 
-export function getWalletsKit(): StellarWalletsKit {
-  if (!kit) {
-    kit = new StellarWalletsKit({
+export interface WalletAdapter {
+  connect(): Promise<string>;
+  signTransaction(xdr: string): Promise<string>;
+  disconnect?(): Promise<void>;
+}
+
+class StellarWalletKitAdapter implements WalletAdapter {
+  private readonly kit: StellarWalletsKit;
+
+  constructor() {
+    this.kit = new StellarWalletsKit({
       network:
         (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ??
         Networks.TESTNET,
       selectedWalletId: "freighter",
     });
   }
-  return kit;
+
+  async connect(): Promise<string> {
+    this.kit.openModal({ modalTitle: "Connect wallet" });
+    const { address } = await this.kit.getAddress();
+    return address;
+  }
+
+  async signTransaction(xdr: string): Promise<string> {
+    const { signedTxXdr } = await this.kit.signTransaction(xdr, {
+      networkPassphrase:
+        (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ??
+        Networks.TESTNET,
+    });
+    return signedTxXdr;
+  }
+
+  async disconnect(): Promise<void> {
+    await this.kit.disconnect();
+  }
 }
 
-/** Opens wallet select modal and returns the connected public key. */
+let adapter: WalletAdapter | null = null;
+
+function getWindowWallet(): WalletAdapter | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+  return window.__LANCE_E2E_WALLET__;
+}
+
+export function getWalletAdapter(): WalletAdapter {
+  const injected = getWindowWallet();
+  if (injected) {
+    return injected;
+  }
+
+  if (!adapter) {
+    adapter = new StellarWalletKitAdapter();
+  }
+
+  return adapter;
+}
+
 export async function connectWallet(): Promise<string> {
-  // TODO: implement — see docs/ISSUES.md
-  throw new Error("connectWallet not implemented — see docs/ISSUES.md");
+  return getWalletAdapter().connect();
 }
 
-/** Signs an XDR transaction string via the connected wallet. */
 export async function signTransaction(xdr: string): Promise<string> {
-  // TODO: implement — see docs/ISSUES.md
-  throw new Error("signTransaction not implemented — see docs/ISSUES.md");
+  return getWalletAdapter().signTransaction(xdr);
 }
