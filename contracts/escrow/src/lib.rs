@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env};
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, Symbol};
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
@@ -106,11 +106,7 @@ impl EscrowContract {
         if job.milestones_released == job.milestones {
             let remainder = job.total_amount - job.released_amount;
             if remainder > 0 {
-                token_client.transfer(
-                    &env.current_contract_address(),
-                    &job.freelancer,
-                    &remainder,
-                );
+                token_client.transfer(&env.current_contract_address(), &job.freelancer, &remainder);
                 job.released_amount += remainder;
             }
             job.status = EscrowStatus::Completed;
@@ -134,6 +130,8 @@ impl EscrowContract {
 
         job.status = EscrowStatus::Disputed;
         env.storage().persistent().set(&key, &job);
+        env.events()
+            .publish((Symbol::new(&env, "DisputeRaised"), job_id), caller);
     }
 
     /// Admin (AI judge authority) resolves dispute -- splits funds by BPS.
@@ -165,16 +163,16 @@ impl EscrowContract {
             );
         }
         if client_share > 0 {
-            token_client.transfer(
-                &env.current_contract_address(),
-                &job.client,
-                &client_share,
-            );
+            token_client.transfer(&env.current_contract_address(), &job.client, &client_share);
         }
 
         job.released_amount = job.total_amount;
         job.status = EscrowStatus::Resolved;
         env.storage().persistent().set(&key, &job);
+        env.events().publish(
+            (Symbol::new(&env, "DisputeResolved"), job_id),
+            freelancer_share_bps,
+        );
     }
 
     /// Client recoups funds if freelancer never responded.
@@ -190,11 +188,7 @@ impl EscrowContract {
         let remaining = job.total_amount - job.released_amount;
         if remaining > 0 {
             let token_client = token::Client::new(&env, &job.token);
-            token_client.transfer(
-                &env.current_contract_address(),
-                &job.client,
-                &remaining,
-            );
+            token_client.transfer(&env.current_contract_address(), &job.client, &remaining);
         }
 
         job.released_amount = job.total_amount;
