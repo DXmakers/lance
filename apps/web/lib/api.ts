@@ -11,32 +11,44 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   jobs: {
-    list: () => request<Job[]>("/jobs"),
-    get: (id: string) => request<Job>(`/jobs/${id}`),
+    list: () => request<Job[]>("/v1/jobs"),
+    get: (id: string) => request<Job>(`/v1/jobs/${id}`),
     create: (body: CreateJobBody) =>
-      request<Job>("/jobs", { method: "POST", body: JSON.stringify(body) }),
+      request<Job>("/v1/jobs", { method: "POST", body: JSON.stringify(body) }),
   },
   bids: {
-    list: (jobId: string) => request<Bid[]>(`/jobs/${jobId}/bids`),
+    list: (jobId: string) => request<Bid[]>(`/v1/jobs/${jobId}/bids`),
     create: (jobId: string, body: CreateBidBody) =>
-      request<Bid>(`/jobs/${jobId}/bids`, {
+      request<Bid>(`/v1/jobs/${jobId}/bids`, {
         method: "POST",
         body: JSON.stringify(body),
       }),
   },
   disputes: {
     open: (jobId: string, body: { opened_by: string }) =>
-      request<Dispute>(`/jobs/${jobId}/dispute`, {
+      request<Dispute>(`/v1/jobs/${jobId}/dispute`, {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    get: (id: string) => request<Dispute>(`/disputes/${id}`),
-    verdict: (id: string) => request<Verdict>(`/disputes/${id}/verdict`),
+    get: (id: string) => request<Dispute>(`/v1/disputes/${id}`),
+    verdict: (id: string) => request<Verdict>(`/v1/disputes/${id}/verdict`),
     submitEvidence: (id: string, body: EvidenceBody) =>
-      request<Evidence>(`/disputes/${id}/evidence`, {
+      request<Evidence>(`/v1/disputes/${id}/evidence`, {
         method: "POST",
         body: JSON.stringify(body),
       }),
+  },
+  uploads: {
+    pin: (file: File): Promise<{ cid: string; filename: string }> => {
+      const form = new FormData();
+      form.append("file", file);
+      return fetch(`${API}/api/v1/uploads`, { method: "POST", body: form }).then(
+        async (res) => {
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        }
+      );
+    },
   },
 };
 
@@ -52,6 +64,7 @@ export interface Job {
   freelancer_address?: string;
   status: string;
   metadata_hash?: string;
+  on_chain_job_id?: number;
   created_at: string;
   updated_at: string;
 }
