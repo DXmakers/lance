@@ -14,7 +14,12 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
-  const [publicKey, setPublicKey] = useState<string | null>(null);
+  const [publicKey, setPublicKey] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("wallet_address");
+    }
+    return null;
+  });
 
   const connect = useCallback(async () => {
     const kit = getWalletsKit();
@@ -46,14 +51,12 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     // Attempt to restore session on mount
-    const storedAddress = localStorage.getItem("wallet_address");
-    const storedId = localStorage.getItem("wallet_id");
-    if (storedAddress && storedId && publicKey === null) {
-      setPublicKey(storedAddress);
+    const storedId = typeof window !== "undefined" ? localStorage.getItem("wallet_id") : null;
+    if (storedId) {
       const kit = getWalletsKit();
       kit.setWallet(storedId);
     }
-  }, [publicKey]);
+  }, []);
 
   return (
     <WalletContext.Provider value={{ publicKey, isConnected: !!publicKey, connect, disconnect }}>
