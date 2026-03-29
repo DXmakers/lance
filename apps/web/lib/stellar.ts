@@ -17,12 +17,30 @@ export function getWalletsKit(): StellarWalletsKit {
 
 /** Opens wallet select modal and returns the connected public key. */
 export async function connectWallet(): Promise<string> {
-  // TODO: implement — see docs/ISSUES.md
-  throw new Error("connectWallet not implemented — see docs/ISSUES.md");
+  const kit = getWalletsKit();
+  return new Promise((resolve, reject) => {
+    kit.openModal({
+      onWalletSelected: async (wallet) => {
+        try {
+          kit.setWallet(wallet.id);
+          const { address } = await kit.getAddress();
+          resolve(address);
+        } catch (e) {
+          reject(e);
+        }
+      },
+    });
+  });
 }
 
 /** Signs an XDR transaction string via the connected wallet. */
 export async function signTransaction(xdr: string): Promise<string> {
-  // TODO: implement — see docs/ISSUES.md
-  throw new Error("signTransaction not implemented — see docs/ISSUES.md");
+  const kit = getWalletsKit();
+  const address = localStorage.getItem("wallet_address");
+  if (!address) throw new Error("Wallet not connected");
+
+  const { signedTxXdr } = await kit.signTransaction(xdr, {
+    publicKey: address,
+  });
+  return signedTxXdr;
 }

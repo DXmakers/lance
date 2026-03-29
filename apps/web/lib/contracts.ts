@@ -1,5 +1,7 @@
 // TODO: Soroban contract call helpers — see docs/ISSUES.md — "Contract Call Helpers"
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 /** Calls escrow.deposit — builds XDR, signs via Freighter, submits. */
 export async function depositEscrow(_params: {
   jobId: bigint;
