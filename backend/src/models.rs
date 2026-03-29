@@ -110,24 +110,7 @@ pub struct Verdict {
     pub created_at: DateTime<Utc>,
 }
 
-/// Structured JSON output from the AI Judge (OpenClaw).
-#[derive(Debug, Deserialize, Serialize)]
-pub struct LlmVerdict {
-    #[serde(rename = "Verdict Summary")]
-    pub summary: String,
-    #[serde(rename = "Liability")]
-    pub liability: String, // e.g., "Freelancer", "Client", "Split"
-    #[serde(rename = "Payout Split")]
-    pub payout_split: PayoutSplit,
-}
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct PayoutSplit {
-    #[serde(rename = "Freelancer Percentage")]
-    pub freelancer_percentage: f64,
-    #[serde(rename = "Client Percentage")]
-    pub client_percentage: f64,
-}
 
 // ── Appeal ────────────────────────────────────────────────────────────────────
 
