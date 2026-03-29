@@ -3,12 +3,13 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 import { Rocket, LayoutDashboard, Briefcase, PlusCircle } from "lucide-react";
+import { ToastProvider } from "@/components/ui/toast-provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Lance — Soroban Freelancing",
-  description: "Secure, on-chain freelance marketplace powered by Stellar and AI.",
+  title: "Lance - Decentralized Freelance Marketplace",
+  description: "Stellar-native freelance marketplace with AI-powered dispute resolution",
 };
 
 export default function RootLayout({

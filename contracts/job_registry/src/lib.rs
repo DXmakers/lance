@@ -299,4 +299,99 @@ mod test {
         cc.post_job(&1u64, &client, &hash, &5000i128);
         cc.post_job(&1u64, &client, &hash, &5000i128);
     }
+
+    #[test]
+    fn test_multiple_jobs_and_bids() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let client1 = Address::generate(&env);
+        let client2 = Address::generate(&env);
+        let freelancrs: Vec<Address> = Vec::from_array(&env, [
+            Address::generate(&env),
+            Address::generate(&env),
+            Address::generate(&env),
+        ]);
+
+        let contract_id = env.register_contract(None, JobRegistryContract);
+        let cc = JobRegistryContractClient::new(&env, &contract_id);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        cc.post_job(&1u64, &client1, &hash, &1000i128);
+        cc.post_job(&2u64, &client2, &hash, &2000i128);
+
+        let prop1 = Bytes::from_slice(&env, b"P1");
+        let prop2 = Bytes::from_slice(&env, b"P2");
+
+        for f in freelancrs.iter() {
+            cc.submit_bid(&1u64, &f, &prop1);
+            cc.submit_bid(&2u64, &f, &prop2);
+        }
+
+        assert_eq!(cc.get_bids(&1u64).len(), 3);
+        assert_eq!(cc.get_bids(&2u64).len(), 3);
+    }
+
+    #[test]
+    #[should_panic(expected = "only client can accept bids")]
+    fn test_unauthorized_accept_bid() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let rando = Address::generate(&env);
+
+        let contract_id = env.register_contract(None, JobRegistryContract);
+        let cc = JobRegistryContractClient::new(&env, &contract_id);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        cc.post_job(&1u64, &client, &hash, &1000i128);
+        cc.submit_bid(&1u64, &freelancer, &hash);
+        
+        cc.accept_bid(&1u64, &rando, &freelancer);
+    }
+
+    #[test]
+    #[should_panic(expected = "job not open")]
+    fn test_cannot_accept_bid_twice() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let client = Address::generate(&env);
+        let f1 = Address::generate(&env);
+        let f2 = Address::generate(&env);
+
+        let contract_id = env.register_contract(None, JobRegistryContract);
+        let cc = JobRegistryContractClient::new(&env, &contract_id);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        cc.post_job(&1u64, &client, &hash, &1000i128);
+        cc.submit_bid(&1u64, &f1, &hash);
+        cc.submit_bid(&1u64, &f2, &hash);
+
+        cc.accept_bid(&1u64, &client, &f1);
+        cc.accept_bid(&1u64, &client, &f2);
+    }
+
+    #[test]
+    #[should_panic(expected = "not the assigned freelancer")]
+    fn test_submit_deliverable_unauthorized() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let client = Address::generate(&env);
+        let f1 = Address::generate(&env);
+        let f2 = Address::generate(&env);
+
+        let contract_id = env.register_contract(None, JobRegistryContract);
+        let cc = JobRegistryContractClient::new(&env, &contract_id);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        cc.post_job(&1u64, &client, &hash, &1000i128);
+        cc.submit_bid(&1u64, &f1, &hash);
+        cc.accept_bid(&1u64, &client, &f1);
+
+        cc.submit_deliverable(&1u64, &f2, &hash);
+    }
 }

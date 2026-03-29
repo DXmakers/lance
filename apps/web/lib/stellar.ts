@@ -14,21 +14,39 @@ export function getWalletsKit(): StellarWalletsKit {
   return kit;
 }
 
-/** Opens wallet select modal and returns the connected public key. */
+/**
+ * Opens the wallet-select modal and returns the connected public key.
+ * Resolves once the user selects a wallet and the address is retrieved.
+ */
 export async function connectWallet(): Promise<string> {
-  const kit = getWalletsKit();
-  await kit.openModal({
-    onWalletSelected: async (option) => {
-      kit.setWallet(option.id);
-    },
+  if (process.env.NEXT_PUBLIC_E2E === "true") return "GD...CLIENT";
+  const walletsKit = getWalletsKit();
+  return new Promise<string>((resolve, reject) => {
+    walletsKit.openModal({
+      onWalletSelected: async () => {
+        try {
+          walletsKit.closeModal();
+          const { address } = await walletsKit.getAddress();
+          resolve(address);
+        } catch (err) {
+          reject(err);
+        }
+      },
+    });
   });
-  const { address } = await kit.getAddress();
-  return address;
 }
 
-/** Signs an XDR transaction string via the connected wallet. */
+/**
+ * Signs an XDR transaction string via the connected wallet.
+ * Returns the signed XDR string ready for submission to the Soroban RPC.
+ */
 export async function signTransaction(xdr: string): Promise<string> {
-  const kit = getWalletsKit();
-  const { signedXDR } = await kit.signTransaction(xdr);
-  return signedXDR;
+  if (process.env.NEXT_PUBLIC_E2E === "true") return xdr;
+  const walletsKit = getWalletsKit();
+  const networkPassphrase =
+    (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET;
+  const { signedTxXdr } = await walletsKit.signTransaction(xdr, {
+    networkPassphrase,
+  });
+  return signedTxXdr;
 }
