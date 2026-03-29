@@ -48,12 +48,12 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     // Attempt to restore session on mount
     const storedAddress = localStorage.getItem("wallet_address");
     const storedId = localStorage.getItem("wallet_id");
-    if (storedAddress && storedId) {
+    if (storedAddress && storedId && publicKey === null) {
       setPublicKey(storedAddress);
       const kit = getWalletsKit();
       kit.setWallet(storedId);
     }
-  }, []);
+  }, [publicKey]);
 
   return (
     <WalletContext.Provider value={{ publicKey, isConnected: !!publicKey, connect, disconnect }}>
