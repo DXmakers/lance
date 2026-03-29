@@ -16,8 +16,11 @@ declare module "@creit.tech/stellar-wallets-kit" {
 
   export class StellarWalletsKit {
     constructor(options: StellarWalletsKitOptions);
-    openModal(options?: Record<string, unknown>): void;
+    openModal(options?: {
+      onWalletSelected: (wallet: { id: string; name: string }) => void;
+    }): void;
     closeModal(): void;
+    setWallet(id: string): void;
     getAddress(): Promise<{ address: string }>;
     signTransaction(
       xdr: string,

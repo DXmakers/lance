@@ -29,7 +29,7 @@ export async function connectWallet(): Promise<string> {
           reject(e);
         }
       },
-    }).catch(reject);
+    });
   });
 }
 
@@ -39,9 +39,8 @@ export async function signTransaction(xdr: string): Promise<string> {
   const address = localStorage.getItem("wallet_address");
   if (!address) throw new Error("Wallet not connected");
 
-  const { signedXDR } = await kit.sign({
-    xdr,
+  const { signedTxXdr } = await kit.signTransaction(xdr, {
     publicKey: address,
   });
-  return signedXDR;
+  return signedTxXdr;
 }

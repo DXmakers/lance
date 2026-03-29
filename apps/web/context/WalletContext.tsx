@@ -13,7 +13,7 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
-export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [publicKey, setPublicKey] = useState<string | null>(null);
 
   const connect = useCallback(async () => {
@@ -21,7 +21,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       // The openModal method will handle the wallet selection and connection.
       // We listen for the wallet selection to set the active wallet and get the address.
-      await kit.openModal({
+      kit.openModal({
         onWalletSelected: async (wallet) => {
           kit.setWallet(wallet.id);
           const { address } = await kit.getAddress();
