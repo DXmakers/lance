@@ -1,10 +1,6 @@
-//! OpenClaw AI judge service — stub.
-//! TODO: See docs/ISSUES.md for full implementation spec.
-
-#![allow(dead_code)]
-
 use anyhow::Result;
-use serde::Deserialize;
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
 pub struct JudgeVerdict {
@@ -13,20 +9,44 @@ pub struct JudgeVerdict {
     pub reasoning: String,
 }
 
-pub struct JudgeService;
+#[derive(Serialize)]
+struct JudgeRequest<'a> {
+    job_spec: &'a str,
+    deliverable_hash: &'a str,
+    client_evidence: Vec<String>,
+    freelancer_evidence: Vec<String>,
+}
+
+pub struct JudgeService {
+    client: Client,
+    api_url: String,
+}
 
 impl JudgeService {
-    pub fn from_env() -> Self { Self }
+    pub fn from_env() -> Self {
+        Self {
+            client: Client::new(),
+            api_url: std::env::var("JUDGE_API_URL")
+                .unwrap_or_else(|_| "http://localhost:8080/judge".to_string()),
+        }
+    }
 
-    /// TODO: Call OpenClaw agent API with job spec + evidence.
-    /// See docs/ISSUES.md — "OpenClaw Full SDK Integration".
     pub async fn judge(
         &self,
-        _job_spec: &str,
-        _deliverable_hash: &str,
-        _client_evidence: Vec<String>,
-        _freelancer_evidence: Vec<String>,
+        job_spec: &str,
+        deliverable_hash: &str,
+        client_evidence: Vec<String>,
+        freelancer_evidence: Vec<String>,
     ) -> Result<JudgeVerdict> {
-        todo!("Implement OpenClaw judge — see docs/ISSUES.md")
+        let body = JudgeRequest { job_spec, deliverable_hash, client_evidence, freelancer_evidence };
+        let verdict: JudgeVerdict = self.client
+            .post(&self.api_url)
+            .json(&body)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
+        Ok(verdict)
     }
 }
