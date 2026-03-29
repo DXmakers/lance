@@ -1,5 +1,5 @@
-use crate::models::{LlmVerdict, Verdict};
-use anyhow::{anyhow, Context};
+use crate::models::LlmVerdict;
+use anyhow::{anyhow, Context, Result};
 use reqwest::Client;
 use serde::Serialize;
 use tracing::{info, warn};
@@ -97,9 +97,9 @@ impl JudgeService {
         &self,
         job_spec: &str,
         deliverable: &str,
-        client_evidence: Vec<String>,
-        freelancer_evidence: Vec<String>,
-    ) -> anyhow::Result<LlmVerdict> {
+        client_evidence: &[String],
+        freelancer_evidence: &[String],
+    ) -> Result<LlmVerdict> {
         let user_prompt = format!(
             "### JOB SPECIFICATION:\n{}\n\n### DELIVERABLE:\n{}\n\n### CLIENT EVIDENCE:\n{}\n\n### FREELANCER EVIDENCE:\n{}",
             job_spec,
@@ -108,11 +108,9 @@ impl JudgeService {
             freelancer_evidence.join("\n- ")
         );
 
-        let mut attempts = 0;
         let max_attempts = 3;
 
-        while attempts < max_attempts {
-            attempts += 1;
+        for attempts in 1..=max_attempts {
             info!("AI Judge attempt {}/{} for dispute", attempts, max_attempts);
 
             let res = self.call_llm(&user_prompt).await?;
