@@ -150,9 +150,14 @@ mod tests {
         Mock::given(method("POST"))
             .and(path("/judge"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "winner": "freelancer",
-                "freelancer_share_bps": 10000,
-                "reasoning": "deliverables met"
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": "{\"Verdict Summary\": \"deliverables met\", \"Liability\": \"Client\", \"Payout Split\": {\"Freelancer Percentage\": 100.0, \"Client Percentage\": 0.0}}"
+                        }
+                    }
+                ]
             })))
             .mount(&mock_server)
             .await;
