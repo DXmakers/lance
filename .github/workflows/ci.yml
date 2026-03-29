@@ -6,7 +6,8 @@ on:
   pull_request:
 
 jobs:
-  lint-contracts:
+  # ── Soroban Contracts ────────────────────────────────────────────────────────
+  contracts-clippy:
     name: Contracts — Clippy
     runs-on: ubuntu-latest
     steps:
@@ -15,9 +16,28 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
           components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          key: contracts-clippy
       - run: cargo clippy -p escrow -p reputation -p job_registry -- -D warnings
 
-  lint-backend:
+  contracts-test:
+    name: Contracts — Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          key: contracts-test
+      - run: cargo test -p escrow -p reputation -p job_registry
+
+  # ── Rust Backend ─────────────────────────────────────────────────────────────
+  backend-clippy:
     name: Backend — Clippy
     runs-on: ubuntu-latest
     steps:
@@ -25,10 +45,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          key: backend-clippy
       - run: cargo clippy -p backend -- -D warnings
 
-  test-backend:
-    name: Backend — Tests
+  backend-test:
+    name: Backend — Integration Tests
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -46,35 +70,92 @@ jobs:
           - 5432:5432
     env:
       DATABASE_URL: postgres://lance:lance@localhost:5432/lance
+      PINATA_JWT: test-token
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          key: backend-test
       - run: cargo test -p backend
 
-  lint-frontend:
-    name: Frontend — ESLint
+  # ── Next.js Frontend ─────────────────────────────────────────────────────────
+  frontend-lint:
+    name: Frontend — ESLint & TypeScript
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - run: npm install --prefix apps/web
+      - run: npm ci --prefix apps/web
       - run: npm run lint --prefix apps/web
+      - name: TypeScript type check
+        run: npx --prefix apps/web tsc -p apps/web/tsconfig.json --noEmit
 
-  build-frontend:
-    name: Frontend — Build & E2E
+  frontend-build:
+    name: Frontend — Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
-      - run: npm install
-      - run: npm install --prefix apps/web
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci --prefix apps/web
+      - run: npm run build --prefix apps/web
+
+  e2e:
+    name: Frontend — E2E (Playwright)
+    runs-on: ubuntu-latest
+    needs: frontend-build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm ci --prefix apps/web
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-
       - run: npx playwright install --with-deps
       - run: npm run build --prefix apps/web
       - run: npm run test:e2e
+
+  # ── Deployment ──────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Testnet
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development'
+    needs: [contracts-test, backend-test, e2e]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install Stellar CLI
+        run: |
+          cargo install --locked stellar-cli --version 21.6.0
+      - name: Deploy Contracts
+        env:
+          STELLAR_ACCOUNT_SECRET: ${{ secrets.STELLAR_ACCOUNT_SECRET }}
+        run: |
+          ./.github/scripts/deploy-contracts.sh
+      - name: Deploy Backend
+        run: |
+          echo "🚀 Backend deployment logic (Fly.io/etc)..."
+          # fly deploy --prefix backend
+      - name: Deploy Frontend
+        run: |
+          echo "🚀 Frontend deployment logic (Vercel/etc)..."
+          # vercel deploy --prefix apps/web --prod
+

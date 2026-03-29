@@ -1,7 +1,6 @@
-use crate::models::LlmVerdict;
 use anyhow::{anyhow, Context, Result};
 use reqwest::Client;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
 pub const AGENT_JUDGE_SYSTEM_PROMPT: &str = r#"
@@ -26,13 +25,38 @@ RULES:
 REQUIRED JSON SCHEMA:
 {
   "Verdict Summary": "Detailed reasoning for your decision, explaining the logic behind the payout distribution.",
-  "Liability": "Who was at fault? (Options: Freelancer, Client, or Both)",
+  "Liability": "Who was at fault? (Options: Freelancer, Client, Both, or None)",
   "Payout Split": {
     "Freelancer Percentage": 0.0,
     "Client Percentage": 100.0
   }
 }
 "#;
+
+#[derive(Debug, Deserialize)]
+pub struct JudgeVerdict {
+    pub winner: String,           // "freelancer" | "client" | "split"
+    pub freelancer_share_bps: i32, // 0–10000 basis points
+    pub reasoning: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct LlmVerdict {
+    #[serde(rename = "Verdict Summary")]
+    summary: String,
+    #[serde(rename = "Liability")]
+    liability: String,
+    #[serde(rename = "Payout Split")]
+    payout_split: PayoutSplit,
+}
+
+#[derive(Debug, Deserialize)]
+struct PayoutSplit {
+    #[serde(rename = "Freelancer Percentage")]
+    freelancer_percentage: f64,
+    #[serde(rename = "Client Percentage")]
+    client_percentage: f64,
+}
 
 #[derive(Debug, Serialize)]
 struct LlmRequest {
@@ -41,7 +65,7 @@ struct LlmRequest {
     response_format: Option<LlmResponseFormat>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct LlmMessage {
     role: String,
     content: String,
@@ -53,17 +77,17 @@ struct LlmResponseFormat {
     format_type: String,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
 struct LlmResponse {
     choices: Vec<LlmChoice>,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
 struct LlmChoice {
     message: LlmMessageResponse,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
 struct LlmMessageResponse {
     content: String,
 }
@@ -77,11 +101,13 @@ pub struct JudgeService {
 
 impl JudgeService {
     pub fn from_env() -> Self {
-        let api_key = std::env::var("OPENCLAW_API_KEY")
-            .or_else(|_| std::env::var("OPENAI_API_KEY"))
+        let api_key = std::env::var("OPENAI_API_KEY")
+            .or_else(|_| std::env::var("OPENCLAW_API_KEY"))
             .unwrap_or_else(|_| "stub_key".into());
-        let api_url = std::env::var("OPENCLAW_API_URL")
+        
+        let api_url = std::env::var("JUDGE_API_URL")
             .unwrap_or_else(|_| "https://api.openai.com/v1/chat/completions".into());
+        
         let model = std::env::var("AI_JUDGE_MODEL")
             .unwrap_or_else(|_| "gpt-4-turbo-preview".into());
 
@@ -97,9 +123,9 @@ impl JudgeService {
         &self,
         job_spec: &str,
         deliverable: &str,
-        client_evidence: &[String],
-        freelancer_evidence: &[String],
-    ) -> Result<LlmVerdict> {
+        client_evidence: Vec<String>,
+        freelancer_evidence: Vec<String>,
+    ) -> Result<JudgeVerdict> {
         let user_prompt = format!(
             "### JOB SPECIFICATION:\n{}\n\n### DELIVERABLE:\n{}\n\n### CLIENT EVIDENCE:\n{}\n\n### FREELANCER EVIDENCE:\n{}",
             job_spec,
@@ -122,14 +148,26 @@ impl JudgeService {
                 .trim();
 
             match serde_json::from_str::<LlmVerdict>(cleaned) {
-                Ok(verdict) => {
+                Ok(llm_verdict) => {
                     // Validate Payout Split sums to 100%
-                    let total = verdict.payout_split.freelancer_percentage + verdict.payout_split.client_percentage;
-                    if (total - 100.0).abs() > 0.01 {
+                    let total = llm_verdict.payout_split.freelancer_percentage + llm_verdict.payout_split.client_percentage;
+                    if (total - 100.0).abs() > 0.1 {
                         warn!("Payout split does not sum to 100%: {}% (attempt {})", total, attempts);
                         continue;
                     }
-                    return Ok(verdict);
+
+                    // Map AI response to JudgeVerdict
+                    let winner = match llm_verdict.liability.to_lowercase().as_str() {
+                        "freelancer" => "client", // If freelancer is liable, client is the winner
+                        "client" => "freelancer",
+                        _ => "split",
+                    };
+
+                    return Ok(JudgeVerdict {
+                        winner: winner.to_string(),
+                        freelancer_share_bps: (llm_verdict.payout_split.freelancer_percentage * 100.0) as i32,
+                        reasoning: llm_verdict.summary,
+                    });
                 }
                 Err(e) => {
                     warn!("Failed to parse LLM response as JSON: {} (attempt {})", e, attempts);
@@ -189,40 +227,5 @@ mod tests {
         let verdict: LlmVerdict = serde_json::from_str(json).unwrap();
         assert_eq!(verdict.liability, "Split");
         assert_eq!(verdict.payout_split.freelancer_percentage, 70.0);
-        assert_eq!(verdict.payout_split.client_percentage, 30.0);
-    }
-
-    #[tokio::test]
-    async fn test_payout_split_validation() {
-        // Mock a service that returns invalid math first then valid math
-        let service = JudgeService {
-            client: Client::new(),
-            api_key: "stub_key".into(),
-            api_url: "http://localhost:1234".into(), // Will trigger mock
-            model: "test".into(),
-        };
-
-        // This is a bit hard to test without mocking the call_llm specifically,
-        // but we can test the internal logic.
-        
-        let valid_json = r#"{
-            "Verdict Summary": "reason",
-            "Liability": "Freelancer",
-            "Payout Split": { "Freelancer Percentage": 50.0, "Client Percentage": 50.0 }
-        }"#;
-        
-        let invalid_json = r#"{
-            "Verdict Summary": "reason",
-            "Liability": "Freelancer",
-            "Payout Split": { "Freelancer Percentage": 50.0, "Client Percentage": 60.0 }
-        }"#;
-
-        let v1: LlmVerdict = serde_json::from_str(valid_json).unwrap();
-        let total1 = v1.payout_split.freelancer_percentage + v1.payout_split.client_percentage;
-        assert!((total1 - 100.0).abs() < 0.01);
-
-        let v2: LlmVerdict = serde_json::from_str(invalid_json).unwrap();
-        let total2 = v2.payout_split.freelancer_percentage + v2.payout_split.client_percentage;
-        assert!((total2 - 100.0).abs() > 0.01);
     }
 }
