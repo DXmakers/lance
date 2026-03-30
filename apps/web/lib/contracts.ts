@@ -11,6 +11,10 @@ import {
 import { Server as SorobanServer } from "@stellar/stellar-sdk/rpc";
 import { getWalletsKit, signTransaction } from "./stellar";
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
+/** Calls escrow.deposit — builds XDR, signs via Freighter, submits. */
+export async function depositEscrow(_params: {
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const ESCROW_CONTRACT_ID = process.env.NEXT_PUBLIC_ESCROW_CONTRACT_ID ?? "";

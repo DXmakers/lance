@@ -20,6 +20,20 @@ export function getWalletsKit(): StellarWalletsKit {
  * Resolves once the user selects a wallet and the address is retrieved.
  */
 export async function connectWallet(): Promise<string> {
+  const kit = getWalletsKit();
+  return new Promise((resolve, reject) => {
+    kit.openModal({
+      onWalletSelected: async (wallet) => {
+        try {
+          kit.setWallet(wallet.id);
+          const { address } = await kit.getAddress();
+          resolve(address);
+        } catch (e) {
+          reject(e);
+        }
+      },
+    });
+  });
   if (process.env.NEXT_PUBLIC_E2E === "true") return "GD...CLIENT";
   const walletsKit = getWalletsKit();
   return new Promise<string>((resolve, reject) => {
@@ -52,6 +66,12 @@ export async function getConnectedWalletAddress(): Promise<string | null> {
  * Returns the signed XDR string ready for submission to the Soroban RPC.
  */
 export async function signTransaction(xdr: string): Promise<string> {
+  const kit = getWalletsKit();
+  const address = localStorage.getItem("wallet_address");
+  if (!address) throw new Error("Wallet not connected");
+
+  const { signedTxXdr } = await kit.signTransaction(xdr, {
+    publicKey: address,
   if (process.env.NEXT_PUBLIC_E2E === "true") return xdr;
   const walletsKit = getWalletsKit();
   const networkPassphrase =
