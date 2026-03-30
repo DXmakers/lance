@@ -13,7 +13,7 @@ pub struct Job {
     pub milestones: i32,
     pub client_address: String, // Stellar G… address
     pub freelancer_address: Option<String>,
-    pub status: String,         // open | in_progress | deliverable_submitted | completed | disputed
+    pub status: String,         // open | awaiting_funding | funded | deliverable_submitted | completed | disputed
     pub metadata_hash: Option<String>, // IPFS CID
     pub on_chain_job_id: Option<i64>,
     pub created_at: DateTime<Utc>,
@@ -26,6 +26,11 @@ pub struct CreateJobRequest {
     pub description: String,
     pub budget_usdc: i64,
     pub milestones: i32,
+    pub client_address: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MarkJobFundedRequest {
     pub client_address: String,
 }
 
@@ -48,6 +53,11 @@ pub struct CreateBidRequest {
     pub proposal: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct AcceptBidRequest {
+    pub client_address: String,
+}
+
 // ── Milestone ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
@@ -60,6 +70,30 @@ pub struct Milestone {
     pub status: String, // pending | released
     pub tx_hash: Option<String>,
     pub released_at: Option<DateTime<Utc>>,
+}
+
+// ── Deliverable ───────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct Deliverable {
+    pub id: Uuid,
+    pub job_id: Uuid,
+    pub milestone_index: i32,
+    pub submitted_by: String,
+    pub label: String,
+    pub kind: String,
+    pub url: String,
+    pub file_hash: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SubmitDeliverableRequest {
+    pub submitted_by: String,
+    pub label: String,
+    pub kind: String,
+    pub url: String,
+    pub file_hash: Option<String>,
 }
 
 // ── Dispute ───────────────────────────────────────────────────────────────────
@@ -108,6 +142,60 @@ pub struct Verdict {
     pub reasoning: String,
     pub on_chain_tx: Option<String>,
     pub created_at: DateTime<Utc>,
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct UserProfileRecord {
+    pub address: String,
+    pub display_name: Option<String>,
+    pub headline: String,
+    pub bio: String,
+    pub portfolio_links: serde_json::Value,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ProfileMetrics {
+    pub total_jobs: i64,
+    pub completed_jobs: i64,
+    pub active_jobs: i64,
+    pub disputed_jobs: i64,
+    pub verified_volume_usdc: i64,
+    pub completion_rate: f64,
+    pub dispute_rate: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct ProfileJobLedgerEntry {
+    pub job_id: Uuid,
+    pub title: String,
+    pub budget_usdc: i64,
+    pub role: String,
+    pub counterparty: String,
+    pub status: String,
+    pub completed_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PublicProfile {
+    pub address: String,
+    pub display_name: Option<String>,
+    pub headline: String,
+    pub bio: String,
+    pub portfolio_links: Vec<String>,
+    pub updated_at: DateTime<Utc>,
+    pub metrics: ProfileMetrics,
+    pub history: Vec<ProfileJobLedgerEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateProfileRequest {
+    pub display_name: Option<String>,
+    pub headline: String,
+    pub bio: String,
+    pub portfolio_links: Vec<String>,
 }
 
 // ── Appeal ────────────────────────────────────────────────────────────────────

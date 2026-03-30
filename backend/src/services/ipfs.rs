@@ -52,7 +52,7 @@ pub async fn pin_to_ipfs(
     // 2. MIME allowlist
     let base_mime = mime_type.split(';').next().unwrap_or("").trim();
     if !ALLOWED_MIME_TYPES.contains(&base_mime) {
-        bail!("file type '{}' is not permitted", base_mime);
+        bail!("file type '{base_mime}' is not permitted");
     }
 
     let jwt = std::env::var("PINATA_JWT")

@@ -170,12 +170,12 @@ async fn cast_vote(
     })?;
 
     // 4. Count votes so far
-    let vote_count: Option<i64> =
+    let vote_count: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM arbiter_votes WHERE appeal_id = $1")
             .bind(appeal_id)
             .fetch_one(&state.pool)
             .await?;
-    let vote_count = vote_count.unwrap_or(0);
+    // let vote_count = vote_count.unwrap_or(0); // No longer needed as fetch_one returns i64
 
     // 5. If quorum reached, close appeal and override the original verdict
     if vote_count >= APPEAL_QUORUM as i64 {
