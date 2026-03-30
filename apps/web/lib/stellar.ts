@@ -15,32 +15,49 @@ export function getWalletsKit(): StellarWalletsKit {
   return kit;
 }
 
-/** Opens wallet select modal and returns the connected public key. */
+/**
+ * Opens the wallet-select modal and returns the connected public key.
+ * Resolves once the user selects a wallet and the address is retrieved.
+ */
 export async function connectWallet(): Promise<string> {
-  const kit = getWalletsKit();
-  return new Promise((resolve, reject) => {
-    kit.openModal({
-      onWalletSelected: async (wallet) => {
+  if (process.env.NEXT_PUBLIC_E2E === "true") return "GD...CLIENT";
+  const walletsKit = getWalletsKit();
+  return new Promise<string>((resolve, reject) => {
+    walletsKit.openModal({
+      onWalletSelected: async () => {
         try {
-          kit.setWallet(wallet.id);
-          const { address } = await kit.getAddress();
+          walletsKit.closeModal();
+          const { address } = await walletsKit.getAddress();
           resolve(address);
-        } catch (e) {
-          reject(e);
+        } catch (err) {
+          reject(err);
         }
       },
     });
   });
 }
 
-/** Signs an XDR transaction string via the connected wallet. */
-export async function signTransaction(xdr: string): Promise<string> {
-  const kit = getWalletsKit();
-  const address = localStorage.getItem("wallet_address");
-  if (!address) throw new Error("Wallet not connected");
+export async function getConnectedWalletAddress(): Promise<string | null> {
+  if (process.env.NEXT_PUBLIC_E2E === "true") return "GD...CLIENT";
+  try {
+    const { address } = await getWalletsKit().getAddress();
+    return address ?? null;
+  } catch {
+    return null;
+  }
+}
 
-  const { signedTxXdr } = await kit.signTransaction(xdr, {
-    publicKey: address,
+/**
+ * Signs an XDR transaction string via the connected wallet.
+ * Returns the signed XDR string ready for submission to the Soroban RPC.
+ */
+export async function signTransaction(xdr: string): Promise<string> {
+  if (process.env.NEXT_PUBLIC_E2E === "true") return xdr;
+  const walletsKit = getWalletsKit();
+  const networkPassphrase =
+    (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET;
+  const { signedTxXdr } = await walletsKit.signTransaction(xdr, {
+    networkPassphrase,
   });
   return signedTxXdr;
 }

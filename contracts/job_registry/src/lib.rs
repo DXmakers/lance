@@ -23,7 +23,7 @@ pub struct JobRecord {
 }
 
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct BidRecord {
     pub freelancer: Address,
     pub proposal_hash: Bytes,
@@ -78,7 +78,7 @@ impl JobRegistryContract {
             .storage()
             .persistent()
             .get(&bids_key)
-            .unwrap_or(Vec::new(&env));
+            .unwrap_or_else(|| Vec::new(&env));
 
         bids.push_back(BidRecord {
             freelancer,
@@ -147,7 +147,7 @@ impl JobRegistryContract {
         env.storage()
             .persistent()
             .get(&DataKey::Bids(job_id))
-            .unwrap_or(Vec::new(&env))
+            .unwrap_or_else(|| Vec::new(&env))
     }
 
     pub fn get_deliverable(env: Env, job_id: u64) -> Bytes {
