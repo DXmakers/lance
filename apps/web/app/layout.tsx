@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { WalletProvider } from "@/context/WalletContext";
 import { ToastProvider } from "@/components/ui/toast-provider";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Lance - Decentralized Freelance Marketplace",

@@ -50,6 +50,7 @@ pub struct JudgeVerdict {
 
 pub struct OpenClawClient {
     client: Client,
+    api_key: String,
     api_url: String,
     api_key: String,
 }
