@@ -1,298 +1,213 @@
-//! OpenClaw AI judge service.
-//! This service connects to the OpenClaw LLM agent to analyze disputes.
-
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use std::time::Duration;
-use tokio::time::sleep;
-use uuid::Uuid;
 
-use crate::models::{Dispute, Evidence, Job, Milestone};
-
-// ── OpenClaw Data Structures ──────────────────────────────────────────────────
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct JobContext {
-    pub title: String,
-    pub description: String,
-    pub budget_usdc: i64,
-    pub milestones: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DeliverableEvidence {
-    pub id: Uuid,
-    pub submitted_by: String,
-    pub content: String,
-    pub file_hash: Option<String>,
-    pub file_content: Option<String>, // Fetched from IPFS
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct CaseFile {
-    pub dispute_id: Uuid,
-    pub job_context: JobContext,
-    pub evidence: Vec<DeliverableEvidence>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct JudgeVerdict {
-    pub winner: String,            // "freelancer" | "client" | "split"
-    pub freelancer_share_bps: i32, // 0–10000 basis points
+    pub winner: String,
+    pub freelancer_share_bps: i32,
     pub reasoning: String,
 }
 
-// ── OpenClaw API Client ───────────────────────────────────────────────────────
-
-pub struct OpenClawClient {
-    client: Client,
-    api_url: String,
-    api_key: String,
-}
-
-impl OpenClawClient {
-    pub fn new(api_url: String, api_key: String) -> Self {
-        Self {
-            client: Client::new(),
-            api_url,
-            api_key,
-        }
-    }
-
-    /// Bundles the CaseFile into a prompt payload and sends it to the OpenClaw agent.
-    /// Implements an exponential backoff retry mechanism for transient failures.
-    pub async fn analyze_dispute(&self, case_file: CaseFile) -> Result<JudgeVerdict> {
-        let max_retries = 3;
-        let mut retry_count = 0;
-
-        loop {
-            let response = self
-                .client
-                .post(format!("{}/analyze", self.api_url))
-                .header("Authorization", format!("Bearer {}", self.api_key))
-                .json(&case_file)
-                .send()
-                .await;
-
-            match response {
-                Ok(res) if res.status().is_success() => {
-                    return Ok(res.json::<JudgeVerdict>().await?);
-                }
-                Ok(res)
-                    if (res.status().is_server_error()
-                        || res.status() == reqwest::StatusCode::TOO_MANY_REQUESTS)
-                        && retry_count < max_retries =>
-                {
-                    tracing::warn!(
-                        "OpenClaw retryable error ({}): {}. Retrying...",
-                        retry_count + 1,
-                        res.status()
-                    );
-                    retry_count += 1;
-                    sleep(Duration::from_secs(2u64.pow(retry_count))).await;
-                }
-                Err(e) if retry_count < max_retries => {
-                    tracing::warn!(
-                        "OpenClaw connection error ({}): {}. Retrying...",
-                        retry_count + 1,
-                        e
-                    );
-                    retry_count += 1;
-                    sleep(Duration::from_secs(2u64.pow(retry_count))).await;
-                }
-                Ok(res) => {
-                    anyhow::bail!("OpenClaw API returned error status: {}", res.status());
-                }
-                Err(e) => {
-                    anyhow::bail!("OpenClaw request failed after retries: {e}");
-                }
-            }
-        }
-    }
-}
-
-// ── Judge Service ─────────────────────────────────────────────────────────────
-
+#[derive(Clone)]
 pub struct JudgeService {
-    openclaw: OpenClawClient,
+    mode: JudgeMode,
+    client: Client,
+    api_url: Option<String>,
+    api_key: Option<String>,
+}
+
+#[derive(Clone)]
+enum JudgeMode {
+    Stub,
+    Http,
+}
+
+#[derive(Serialize)]
+struct JudgeRequest<'a> {
+    job_spec: &'a str,
+    deliverable_hash: &'a str,
+    client_evidence: Vec<String>,
+    freelancer_evidence: Vec<String>,
 }
 
 impl JudgeService {
     pub fn from_env() -> Self {
-        let api_url = std::env::var("OPENCLAW_API_URL")
-            .unwrap_or_else(|_| "https://api.openclaw.ai/v1".to_string());
-        let api_key = std::env::var("OPENCLAW_API_KEY").unwrap_or_else(|_| "dummy_key".to_string());
+        let api_url = std::env::var("OPENCLAW_API_URL").ok();
+        let mode = match std::env::var("OPENCLAW_MODE")
+            .unwrap_or_else(|_| "stub".to_string())
+            .to_lowercase()
+            .as_str()
+        {
+            "http" if api_url.is_some() => JudgeMode::Http,
+            _ => JudgeMode::Stub,
+        };
 
         Self {
-            openclaw: OpenClawClient::new(api_url, api_key),
+            mode,
+            client: Client::builder()
+                .timeout(Duration::from_secs(30))
+                .build()
+                .expect("reqwest client should build"),
+            api_url,
+            api_key: std::env::var("OPENCLAW_API_KEY").ok(),
         }
     }
 
-    /// Bundles all database records and IPFS texts for a given dispute into a CaseFile.
-    pub async fn bundle_case_file(&self, pool: &PgPool, dispute_id: Uuid) -> Result<CaseFile> {
-        // 1. Fetch Dispute
-        let dispute: Dispute = sqlx::query_as("SELECT * FROM disputes WHERE id = $1")
-            .bind(dispute_id)
-            .fetch_one(pool)
-            .await
-            .context("failed to fetch dispute")?;
-
-        // 2. Fetch Job & Milestones
-        let job: Job = sqlx::query_as("SELECT * FROM jobs WHERE id = $1")
-            .bind(dispute.job_id)
-            .fetch_one(pool)
-            .await
-            .context("failed to fetch job for dispute")?;
-
-        let milestones: Vec<Milestone> =
-            sqlx::query_as("SELECT * FROM milestones WHERE job_id = $1 ORDER BY index ASC")
-                .bind(job.id)
-                .fetch_all(pool)
-                .await
-                .context("failed to fetch milestones for job")?;
-
-        // 3. Fetch Evidence
-        let evidence_list: Vec<Evidence> =
-            sqlx::query_as("SELECT * FROM evidence WHERE dispute_id = $1 ORDER BY created_at ASC")
-                .bind(dispute_id)
-                .fetch_all(pool)
-                .await
-                .context("failed to fetch evidence for dispute")?;
-
-        // 4. Bundle everything (including potential IPFS text fetching)
-        let mut bundled_evidence = Vec::new();
-        for ev in evidence_list {
-            let file_content = if let Some(ref cid) = ev.file_hash {
-                Some(
-                    self.fetch_ipfs_text(cid)
-                        .await
-                        .unwrap_or_else(|_| "Error fetching IPFS content".to_string()),
+    pub async fn judge(
+        &self,
+        job_spec: &str,
+        deliverable_hash: &str,
+        client_evidence: Vec<String>,
+        freelancer_evidence: Vec<String>,
+    ) -> Result<JudgeVerdict> {
+        match self.mode {
+            JudgeMode::Stub => {
+                Ok(self.stub_verdict(deliverable_hash, &client_evidence, &freelancer_evidence))
+            }
+            JudgeMode::Http => {
+                self.http_verdict(
+                    job_spec,
+                    deliverable_hash,
+                    client_evidence,
+                    freelancer_evidence,
                 )
-            } else {
-                None
-            };
+                .await
+            }
+        }
+    }
 
-            bundled_evidence.push(DeliverableEvidence {
-                id: ev.id,
-                submitted_by: ev.submitted_by,
-                content: ev.content,
-                file_hash: ev.file_hash,
-                file_content,
-                created_at: ev.created_at,
-            });
+    async fn http_verdict(
+        &self,
+        job_spec: &str,
+        deliverable_hash: &str,
+        client_evidence: Vec<String>,
+        freelancer_evidence: Vec<String>,
+    ) -> Result<JudgeVerdict> {
+        let api_url = self
+            .api_url
+            .as_deref()
+            .context("OPENCLAW_API_URL must be configured in http mode")?;
+        let endpoint = format!("{}/judge", api_url.trim_end_matches('/'));
+        let payload = JudgeRequest {
+            job_spec,
+            deliverable_hash,
+            client_evidence,
+            freelancer_evidence,
+        };
+
+        let mut request = self.client.post(endpoint).json(&payload);
+        if let Some(api_key) = &self.api_key {
+            request = request.bearer_auth(api_key);
         }
 
-        Ok(CaseFile {
-            dispute_id,
-            job_context: JobContext {
-                title: job.title,
-                description: job.description,
-                budget_usdc: job.budget_usdc,
-                milestones: milestones
-                    .into_iter()
-                    .map(|m| format!("{}: {}", m.title, m.amount_usdc))
-                    .collect(),
-            },
-            evidence: bundled_evidence,
+        let verdict = request
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<JudgeVerdict>()
+            .await
+            .context("failed to decode OpenClaw verdict response")?;
+
+        Ok(verdict)
+    }
+
+    fn stub_verdict(
+        &self,
+        deliverable_hash: &str,
+        client_evidence: &[String],
+        freelancer_evidence: &[String],
+    ) -> JudgeVerdict {
+        if let Ok(raw) = std::env::var("OPENCLAW_STUB_VERDICT_BPS") {
+            if let Ok(bps) = raw.parse::<i32>() {
+                return verdict_from_bps(
+                    bps.clamp(0, 10_000),
+                    format!(
+                        "Stubbed OpenClaw verdict from OPENCLAW_STUB_VERDICT_BPS for deliverable {deliverable_hash}"
+                    ),
+                );
+            }
+        }
+
+        let client_weight = score_evidence(client_evidence);
+        let freelancer_weight = score_evidence(freelancer_evidence);
+        let total_weight = client_weight + freelancer_weight;
+
+        let bps = if total_weight == 0 {
+            5_000
+        } else {
+            ((freelancer_weight as f64 / total_weight as f64) * 10_000.0).round() as i32
+        }
+        .clamp(0, 10_000);
+
+        verdict_from_bps(
+            bps,
+            format!(
+                "Stubbed OpenClaw verdict for deliverable {deliverable_hash}; weighted client evidence={client_weight}, freelancer evidence={freelancer_weight}"
+            ),
+        )
+    }
+}
+
+fn score_evidence(entries: &[String]) -> usize {
+    entries
+        .iter()
+        .map(|entry| {
+            let lower = entry.to_lowercase();
+            let mut score = entry.len().max(1);
+            if lower.contains("complete")
+                || lower.contains("delivered")
+                || lower.contains("approved")
+            {
+                score += 100;
+            }
+            if lower.contains("refund") || lower.contains("breach") || lower.contains("failed") {
+                score += 100;
+            }
+            score
         })
-    }
+        .sum()
+}
 
-    /// Placeholder for fetching text content from IPFS.
-    pub async fn fetch_ipfs_text(&self, cid: &str) -> Result<String> {
-        tracing::debug!("Fetching IPFS content for CID: {}", cid);
-        Ok(format!("[Stub content for IPFS CID: {cid}]"))
+fn verdict_from_bps(freelancer_share_bps: i32, reasoning: String) -> JudgeVerdict {
+    let winner = match freelancer_share_bps {
+        0 => "client",
+        10_000 => "freelancer",
+        _ => "split",
     }
+    .to_string();
 
-    /// Core entry point for triggering a dispute analysis from a pre-bundled CaseFile.
-    pub async fn judge_case_file(&self, case_file: CaseFile) -> Result<JudgeVerdict> {
-        self.openclaw.analyze_dispute(case_file).await
-    }
-
-    /// Core entry point for triggering a dispute analysis by Uuid.
-    pub async fn judge(&self, pool: &PgPool, dispute_id: Uuid) -> Result<JudgeVerdict> {
-        let case_file = self.bundle_case_file(pool, dispute_id).await?;
-        self.judge_case_file(case_file).await
+    JudgeVerdict {
+        winner,
+        freelancer_share_bps,
+        reasoning,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mockito::Server;
 
-    #[tokio::test]
-    async fn test_openclaw_integration_success() {
-        let mut server = Server::new_async().await;
-        let url = server.url();
-
-        let mock = server
-            .mock("POST", "/analyze")
-            .match_header("Authorization", "Bearer test_key")
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(r#"{"winner": "freelancer", "freelancer_share_bps": 10000, "reasoning": "Work was completed as per requirements."}"#)
-            .create_async()
-            .await;
-
-        let client = OpenClawClient::new(url, "test_key".to_string());
-        let case_file = CaseFile {
-            dispute_id: Uuid::new_v4(),
-            job_context: JobContext {
-                title: "Test Job".to_string(),
-                description: "Test description".to_string(),
-                budget_usdc: 1000,
-                milestones: vec!["M1".to_string()],
-            },
-            evidence: vec![],
-        };
-
-        let result = client.analyze_dispute(case_file).await.unwrap();
-
-        assert_eq!(result.winner, "freelancer");
-        assert_eq!(result.freelancer_share_bps, 10000);
-        mock.assert_async().await;
+    #[test]
+    fn test_stub_verdict_override() {
+        std::env::set_var("OPENCLAW_STUB_VERDICT_BPS", "2500");
+        let service = JudgeService::from_env();
+        let verdict = service.stub_verdict("cid", &[], &[]);
+        assert_eq!(verdict.freelancer_share_bps, 2500);
+        assert_eq!(verdict.winner, "split");
+        std::env::remove_var("OPENCLAW_STUB_VERDICT_BPS");
     }
 
-    #[tokio::test]
-    async fn test_openclaw_retry_mechanism() {
-        let mut server = Server::new_async().await;
-        let url = server.url();
-
-        let mock_fail = server
-            .mock("POST", "/analyze")
-            .with_status(500)
-            .expect(2)
-            .create_async()
-            .await;
-
-        let mock_success = server
-            .mock("POST", "/analyze")
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(r#"{"winner": "split", "freelancer_share_bps": 5000, "reasoning": "Partial completion."}"#)
-            .create_async()
-            .await;
-
-        let client = OpenClawClient::new(url, "test_key".to_string());
-        let case_file = CaseFile {
-            dispute_id: Uuid::new_v4(),
-            job_context: JobContext {
-                title: "Retry Job".to_string(),
-                description: "Description".to_string(),
-                budget_usdc: 1000,
-                milestones: vec![],
-            },
-            evidence: vec![],
-        };
-
-        let result = client.analyze_dispute(case_file).await.unwrap();
-
-        assert_eq!(result.winner, "split");
-        mock_fail.assert_async().await;
-        mock_success.assert_async().await;
+    #[test]
+    fn test_stub_verdict_scores_freelancer_evidence() {
+        let service = JudgeService::from_env();
+        let verdict = service.stub_verdict(
+            "cid",
+            &[String::from("refund requested after failed delivery")],
+            &[String::from("work complete and approved by milestones")],
+        );
+        assert!(verdict.freelancer_share_bps > 0);
+        assert!(verdict.freelancer_share_bps < 10_000);
     }
 }
