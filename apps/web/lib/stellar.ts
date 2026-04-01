@@ -1,6 +1,5 @@
 import { StellarWalletsKit, Networks } from "@creit.tech/stellar-wallets-kit";
 
-// TODO: See docs/ISSUES.md — "Wallet Connection"
 let kit: StellarWalletsKit | null = null;
 
 export function getWalletsKit(): StellarWalletsKit {

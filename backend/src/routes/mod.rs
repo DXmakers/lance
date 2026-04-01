@@ -9,6 +9,7 @@ pub mod milestones;
 pub mod uploads;
 pub mod users;
 pub mod verdicts;
+pub mod ipfs;
 
 use crate::db::AppState;
 use axum::{routing::get, Router};
