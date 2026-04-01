@@ -153,6 +153,12 @@ export default function DisputePage() {
               </div>
               <div>
                 <dt className="text-xs uppercase tracking-[0.3em] text-stone-500">
+                  Settlement Tx
+                </dt>
+                <dd className="break-all">{verdict?.on_chain_tx ?? "Pending"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-[0.3em] text-stone-500">
                   Wallet
                 </dt>
                 <dd className="break-all">{walletAddress || "Not connected"}</dd>

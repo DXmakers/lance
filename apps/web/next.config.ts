@@ -1,10 +1,10 @@
 import type { NextConfig } from "next";
-
-import path from "path";
+import path from "node:path";
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: path.resolve(__dirname),
   turbopack: {
-    root: path.resolve(process.cwd(), "../../"),
+    root: path.resolve(__dirname),
   },
 };
 

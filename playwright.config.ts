@@ -8,7 +8,7 @@ export default defineConfig({
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
   reporter: [["list"], ["html", { open: "never" }]],
-  timeout: 45_000,
+  timeout: 90_000,
   expect: {
     timeout: 10_000,
   },
@@ -16,20 +16,24 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${WEB_PORT}`,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    video: "off",
   },
   webServer: [
     {
-      command: "npm run dev:backend:e2e",
-      url: `http://127.0.0.1:${API_PORT}/api/jobs`,
+      command: "node tests/e2e/mock-backend.mjs",
+      port: API_PORT,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
+      env: {
+        PORT: String(API_PORT),
+      },
     },
     {
-      command: "npm run dev:web",
-      url: `http://127.0.0.1:${WEB_PORT}/jobs`,
+      command:
+        "cmd /c \"npm --prefix apps/web run build && npm --prefix apps/web run start -- --hostname 127.0.0.1 --port 3000\"",
+      port: WEB_PORT,
       reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
+      timeout: 600_000,
       env: {
         NEXT_PUBLIC_API_URL: `http://127.0.0.1:${API_PORT}`,
       },

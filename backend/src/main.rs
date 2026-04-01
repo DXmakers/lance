@@ -34,8 +34,8 @@ async fn main() -> anyhow::Result<()> {
 
     sqlx::migrate!("./migrations").run(&pool).await?;
 
-    let state = AppState::new(pool.clone());
-    tokio::spawn(worker::run_judge_worker(pool));
+    let state = AppState::new(pool);
+    worker::spawn_judge_worker(state.pool.clone());
     let app = build_router(state);
 
     let port: u16 = std::env::var("PORT")

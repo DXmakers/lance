@@ -33,6 +33,8 @@ test("submits evidence with the injected Freighter-compatible wallet", async ({
   await page.getByRole("button", { name: "Sign and Submit Evidence" }).click();
 
   await expect(page.getByText("Evidence Recorded")).toBeVisible();
-  await expect(page.getByText(walletPublicKey)).toBeVisible();
+  await expect(
+    page.locator("dd").filter({ hasText: walletPublicKey }).first(),
+  ).toBeVisible();
   await expect(page.getByText('signed:{"action":"submit_evidence"')).toBeVisible();
 });
