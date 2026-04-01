@@ -8,18 +8,31 @@ use uuid::Uuid;
 use crate::{
     db::AppState,
     error::{AppError, Result},
-    models::{CreateJobRequest, Job},
-    routes::{bids, milestones},
+    models::{CreateJobRequest, Job, MarkJobFundedRequest},
+    routes::{bids, deliverables, milestones},
 };
 
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(list_jobs).post(create_job))
         .route("/:id", get(get_job))
+        .route("/:id/fund", post(mark_job_funded))
         .route("/:id/bids", get(bids::list_bids).post(bids::create_bid))
-        .route("/:id/milestones/:mid/release", post(milestones::release_milestone))
-        .route("/:id/accept-bid", post(accept_bid))
-        .route("/:id/dispute", post(crate::routes::disputes::open_dispute_for_job))
+        .route("/:id/bids/:bid_id/accept", post(bids::accept_bid))
+        .route(
+            "/:id/deliverables",
+            get(deliverables::list_deliverables).post(deliverables::submit_deliverable),
+        )
+        .route(
+            "/:id/dispute",
+            get(crate::routes::disputes::get_job_dispute)
+                .post(crate::routes::disputes::open_dispute_for_job),
+        )
+        .route("/:id/milestones", get(milestones::list_milestones))
+        .route(
+            "/:id/milestones/:mid/release",
+            post(milestones::release_milestone),
+        )
 }
 
 async fn list_jobs(State(state): State<AppState>) -> Result<Json<Vec<Job>>> {
@@ -27,22 +40,19 @@ async fn list_jobs(State(state): State<AppState>) -> Result<Json<Vec<Job>>> {
         r#"SELECT id, title, description, budget_usdc, milestones, client_address,
                   freelancer_address, status, metadata_hash, on_chain_job_id,
                   created_at, updated_at
-           FROM jobs ORDER BY created_at DESC"#
+           FROM jobs ORDER BY created_at DESC"#,
     )
     .fetch_all(&state.pool)
     .await?;
     Ok(Json(jobs))
 }
 
-async fn get_job(
-    State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-) -> Result<Json<Job>> {
+async fn get_job(State(state): State<AppState>, Path(id): Path<Uuid>) -> Result<Json<Job>> {
     let job = sqlx::query_as::<_, Job>(
         r#"SELECT id, title, description, budget_usdc, milestones, client_address,
                   freelancer_address, status, metadata_hash, on_chain_job_id,
                   created_at, updated_at
-           FROM jobs WHERE id = $1"#
+           FROM jobs WHERE id = $1"#,
     )
     .bind(id)
     .fetch_optional(&state.pool)
@@ -58,20 +68,121 @@ async fn create_job(
     if req.title.is_empty() {
         return Err(AppError::BadRequest("title is required".into()));
     }
+    if req.milestones < 1 {
+        return Err(AppError::BadRequest("milestones must be at least 1".into()));
+    }
+    if req.budget_usdc <= 0 {
+        return Err(AppError::BadRequest(
+            "budget must be greater than zero".into(),
+        ));
+    }
+
+    let mut tx = state.pool.begin().await?;
+
     let job = sqlx::query_as::<_, Job>(
         r#"INSERT INTO jobs (title, description, budget_usdc, milestones, client_address, status)
            VALUES ($1, $2, $3, $4, $5, 'open')
            RETURNING id, title, description, budget_usdc, milestones, client_address,
                      freelancer_address, status, metadata_hash, on_chain_job_id,
-                     created_at, updated_at"#
+                     created_at, updated_at"#,
     )
     .bind(req.title)
     .bind(req.description)
     .bind(req.budget_usdc)
     .bind(req.milestones)
     .bind(req.client_address)
+    .fetch_one(&mut *tx)
+    .await?;
+
+    let per_milestone = job.budget_usdc / i64::from(job.milestones);
+    let remainder = job.budget_usdc % i64::from(job.milestones);
+
+    for index in 0..job.milestones {
+        let amount_usdc = if index == job.milestones - 1 {
+            per_milestone + remainder
+        } else {
+            per_milestone
+        };
+
+        sqlx::query(
+            r#"INSERT INTO milestones (job_id, index, title, amount_usdc, status)
+               VALUES ($1, $2, $3, $4, 'pending')"#,
+        )
+        .bind(job.id)
+        .bind(index + 1)
+        .bind(format!("Milestone {}", index + 1))
+        .bind(amount_usdc)
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+    Ok(Json(job))
+}
+
+async fn mark_job_funded(
+    State(state): State<AppState>,
+    Path(job_id): Path<Uuid>,
+    Json(req): Json<MarkJobFundedRequest>,
+) -> Result<Json<Job>> {
+    let (client_address, freelancer_address, status): (String, Option<String>, String) =
+        sqlx::query_as(
+            r#"SELECT client_address, freelancer_address, status
+               FROM jobs WHERE id = $1"#,
+        )
+        .bind(job_id)
+        .fetch_optional(&state.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("job {job_id} not found")))?;
+
+    if client_address != req.client_address {
+        return Err(AppError::BadRequest(
+            "only the client can mark a job as funded".into(),
+        ));
+    }
+    if freelancer_address.is_none() {
+        return Err(AppError::BadRequest(
+            "job must have an accepted freelancer first".into(),
+        ));
+    }
+    if !matches!(
+        status.as_str(),
+        "awaiting_funding" | "funded" | "in_progress"
+    ) {
+        return Err(AppError::BadRequest(format!(
+            "job status '{status}' cannot transition to funded"
+        )));
+    }
+
+    let job = sqlx::query_as::<_, Job>(
+        r#"UPDATE jobs
+           SET status = 'funded'
+           WHERE id = $1
+           RETURNING id, title, description, budget_usdc, milestones, client_address,
+                     freelancer_address, status, metadata_hash, on_chain_job_id,
+                     created_at, updated_at"#,
+    )
+    .bind(job_id)
     .fetch_one(&state.pool)
     .await?;
+
+    // Create milestone records in 'milestones' table
+    if job.milestones > 0 {
+        let amount_per = job.budget_usdc / (job.milestones as i64);
+        for i in 0..job.milestones {
+            sqlx::query(
+                r#"INSERT INTO milestones (job_id, index, title, amount_usdc, status)
+                   VALUES ($1, $2, $3, $4, 'pending')"#,
+            )
+            .bind(job.id)
+            .bind(i)
+            .bind(format!("Milestone {}", i + 1))
+            .bind(amount_per)
+            .execute(&state.pool)
+            .await?;
+        }
+    }
+
     Ok(Json(job))
 }
 

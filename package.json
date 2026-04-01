@@ -7,5 +7,22 @@
   "devDependencies": {
     "@playwright/test": "^1.43.0",
     "@types/node": "^20.0.0"
+  },
+  "optionalDependencies": {
+    "@next/swc-linux-x64-gnu": "16.1.6",
+    "@next/swc-linux-x64-musl": "16.1.6",
+    "@tailwindcss/oxide-linux-x64-gnu": "4.2.2",
+    "@tailwindcss/oxide-linux-x64-musl": "4.2.2",
+    "lightningcss-linux-x64-gnu": "^1.32.0",
+    "lightningcss-linux-x64-musl": "^1.32.0"
+  },
+  "overrides": {
+    "zod": "4.3.6"
+  },
+  "workspaces": [
+    "apps/web"
+  ],
+  "dependencies": {
+    "zod": "4.3.6"
   }
 }

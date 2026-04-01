@@ -36,6 +36,16 @@ export async function connectWallet(): Promise<string> {
   });
 }
 
+export async function getConnectedWalletAddress(): Promise<string | null> {
+  if (process.env.NEXT_PUBLIC_E2E === "true") return "GD...CLIENT";
+  try {
+    const { address } = await getWalletsKit().getAddress();
+    return address ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Signs an XDR transaction string via the connected wallet.
  * Returns the signed XDR string ready for submission to the Soroban RPC.

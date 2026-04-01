@@ -52,11 +52,10 @@ pub async fn pin_to_ipfs(
     // 2. MIME allowlist
     let base_mime = mime_type.split(';').next().unwrap_or("").trim();
     if !ALLOWED_MIME_TYPES.contains(&base_mime) {
-        bail!("file type '{}' is not permitted", base_mime);
+        bail!("file type '{base_mime}' is not permitted");
     }
 
-    let jwt = std::env::var("PINATA_JWT")
-        .context("PINATA_JWT environment variable not set")?;
+    let jwt = std::env::var("PINATA_JWT").context("PINATA_JWT environment variable not set")?;
 
     // 3. Build multipart body for Pinata
     let file_part = Part::bytes(data)
@@ -80,6 +79,9 @@ pub async fn pin_to_ipfs(
         bail!("Pinata returned {status}: {body}");
     }
 
-    let pinata: PinataResponse = res.json().await.context("failed to parse Pinata response")?;
+    let pinata: PinataResponse = res
+        .json()
+        .await
+        .context("failed to parse Pinata response")?;
     Ok(pinata.ipfs_hash)
 }

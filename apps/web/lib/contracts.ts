@@ -23,6 +23,16 @@ const NETWORK_PASSPHRASE =
 const POLL_INTERVAL_MS = 2_000;
 const POLL_MAX_RETRIES = 30;
 
+const IS_DEV_OR_TEST = process.env.NODE_ENV !== "production";
+
+function shouldMockEscrowCalls(requiresUsdc = false): boolean {
+  if (process.env.NEXT_PUBLIC_E2E === "true") return true;
+  if (!IS_DEV_OR_TEST) return false;
+  if (!ESCROW_CONTRACT_ID) return true;
+  if (requiresUsdc && !USDC_CONTRACT_ID) return true;
+  return false;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Returns the public key of the currently connected wallet. */
@@ -45,7 +55,7 @@ async function invokeEscrow(
   method: string,
   args: xdr.ScVal[],
 ): Promise<string> {
-  if (process.env.NEXT_PUBLIC_E2E === "true") return "FAKE_TX_HASH";
+  if (shouldMockEscrowCalls()) return "FAKE_TX_HASH";
   if (!ESCROW_CONTRACT_ID) {
     throw new Error("NEXT_PUBLIC_ESCROW_CONTRACT_ID is not configured.");
   }
@@ -114,7 +124,7 @@ export async function depositEscrow(params: {
   amountUsdc: bigint;
   milestones: number;
 }): Promise<string> {
-  if (process.env.NEXT_PUBLIC_E2E === "true") return "FAKE_TX_HASH";
+  if (shouldMockEscrowCalls(true)) return "FAKE_TX_HASH";
   const { jobId, clientAddress, freelancerAddress, amountUsdc, milestones } = params;
 
   // ── Parameter validation (throws before any network call) ─────────────────
@@ -153,7 +163,7 @@ export async function depositEscrow(params: {
  * @returns Confirmed transaction hash.
  */
 export async function releaseMilestone(jobId: bigint): Promise<string> {
-  if (process.env.NEXT_PUBLIC_E2E === "true") return "FAKE_TX_HASH";
+  if (shouldMockEscrowCalls()) return "FAKE_TX_HASH";
   if (jobId < 0n) {
     throw new Error("Invalid jobId: must be a non-negative integer.");
   }
@@ -167,13 +177,39 @@ export async function releaseMilestone(jobId: bigint): Promise<string> {
 }
 
 /**
+ * Calls escrow.release_funds for an explicit milestone index.
+ *
+ * @returns Confirmed transaction hash.
+ */
+export async function releaseFunds(
+  jobId: bigint,
+  milestoneIndex: number,
+): Promise<string> {
+  if (shouldMockEscrowCalls()) return "FAKE_TX_HASH";
+  if (jobId < 0n) {
+    throw new Error("Invalid jobId: must be a non-negative integer.");
+  }
+  if (milestoneIndex < 0) {
+    throw new Error("Invalid milestone index.");
+  }
+
+  const callerAddress = await getCallerAddress();
+
+  return invokeEscrow(callerAddress, "release_funds", [
+    nativeToScVal(jobId, { type: "u64" }),
+    Address.fromString(callerAddress).toScVal(),
+    nativeToScVal(milestoneIndex, { type: "u32" }),
+  ]);
+}
+
+/**
  * Calls escrow.open_dispute — raises a dispute on the escrow job.
  * The caller (client or freelancer) is derived from the connected wallet.
  *
  * @returns Confirmed transaction hash.
  */
 export async function openDispute(jobId: bigint): Promise<string> {
-  if (process.env.NEXT_PUBLIC_E2E === "true") return "FAKE_TX_HASH";
+  if (shouldMockEscrowCalls()) return "FAKE_TX_HASH";
   if (jobId < 0n) {
     throw new Error("Invalid jobId: must be a non-negative integer.");
   }

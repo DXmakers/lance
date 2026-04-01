@@ -1,155 +1,652 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { api, type Job, type Bid } from "@/lib/api";
-import { releaseMilestone } from "@/lib/contracts";
+import {
+  CheckCircle2,
+  Clock3,
+  FileUp,
+  Gavel,
+  LoaderCircle,
+  ShieldAlert,
+  Wallet,
+} from "lucide-react";
+import { SiteShell } from "@/components/site-shell";
+import { Stars } from "@/components/stars";
+import { useLiveJobWorkspace } from "@/hooks/use-live-job-workspace";
+import { api } from "@/lib/api";
+import { releaseFunds, openDispute } from "@/lib/contracts";
+import {
+  formatDate,
+  formatDateTime,
+  formatUsdc,
+  shortenAddress,
+} from "@/lib/format";
+import { connectWallet, getConnectedWalletAddress } from "@/lib/stellar";
 
 export default function JobDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [job, setJob] = useState<Job | null>(null);
-  const [bids, setBids] = useState<Bid[]>([]);
+  const workspace = useLiveJobWorkspace(id);
+  const [viewerAddress, setViewerAddress] = useState<string | null>(null);
   const [proposal, setProposal] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [deliverableLabel, setDeliverableLabel] = useState("");
+  const [deliverableLink, setDeliverableLink] = useState("");
+  const [deliverableFile, setDeliverableFile] = useState<File | null>(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
 
   useEffect(() => {
-    refresh();
-  }, [id]);
+    void getConnectedWalletAddress().then(setViewerAddress);
+  }, []);
 
-  const refresh = async () => {
-    const [j, b] = await Promise.all([api.jobs.get(id), api.bids.list(id)]);
-    setJob(j);
-    setBids(b);
-  };
+  async function ensureViewerAddress() {
+    if (viewerAddress) return viewerAddress;
+    const connected = await connectWallet();
+    setViewerAddress(connected);
+    return connected;
+  }
 
-  const handleBid = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  async function handleBid(event: React.FormEvent) {
+    event.preventDefault();
+    setBusyAction("bid");
+
     try {
+      const freelancerAddress =
+        (await getConnectedWalletAddress()) ?? "GD...FREELANCER";
       await api.bids.create(id, {
-        freelancer_address: "GD...FREELANCER",
+        freelancer_address: freelancerAddress,
         proposal,
       });
       setProposal("");
-      refresh();
-    } catch (err) {
+      await workspace.refresh();
+    } catch {
       alert("Failed to submit bid");
     } finally {
-      setLoading(false);
+      setBusyAction(null);
     }
-  };
+  }
 
-  const handleAccept = async (freelancerAddress: string) => {
-    setLoading(true);
+  async function handleAcceptBid(bidId: string) {
+    if (!workspace.job) return;
+    setBusyAction(`accept-${bidId}`);
+
     try {
-      // In a real app, this would be a PATCH to /v1/jobs/:id
-      // but here we simulation by posting a bid acceptance
-      // Let's assume the API has a way to accept.
-      // For the E2E test, we can just navigate to fund page if we want
-      // or check if the backend updated.
-      // Based on api.ts, there is no explicit 'accept' method, but let's assume it works.
-      router.push(`/jobs/${id}/fund`);
+      const acceptedJob = await api.bids.accept(id, bidId, {
+        client_address: workspace.job.client_address,
+      });
+      void workspace.refresh();
+      router.push(`/jobs/${acceptedJob.id}/fund`);
+    } catch {
+      alert("Failed to accept bid");
     } finally {
-      setLoading(false);
+      setBusyAction(null);
     }
-  };
+  }
 
-  const handleRelease = async () => {
-    setLoading(true);
+  async function handleSubmitDeliverable(event: React.FormEvent) {
+    event.preventDefault();
+    if (!workspace.job) return;
+    setBusyAction("deliverable");
+
     try {
-      await releaseMilestone(BigInt(job?.on_chain_job_id ?? 0));
-      alert("Milestone released!");
-      refresh();
-    } catch (err) {
+      const submitter =
+        workspace.job.freelancer_address ??
+        (await ensureViewerAddress()) ??
+        "GD...FREELANCER";
+
+      let url = deliverableLink;
+      let fileHash: string | undefined;
+      let kind = deliverableLink ? "link" : "file";
+
+      if (deliverableFile) {
+        const upload = await api.uploads.pin(deliverableFile);
+        url = `ipfs://${upload.cid}`;
+        fileHash = upload.cid;
+        kind = "file";
+      }
+
+      await api.jobs.deliverables.submit(id, {
+        submitted_by: submitter,
+        label: deliverableLabel || "Milestone submission",
+        kind,
+        url,
+        file_hash: fileHash,
+      });
+
+      setDeliverableFile(null);
+      setDeliverableLabel("");
+      setDeliverableLink("");
+      await workspace.refresh();
+    } catch {
+      alert("Failed to submit deliverable");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function handleReleaseFunds() {
+    if (!workspace.job) return;
+    const nextMilestone = workspace.milestones.find(
+      (milestone) => milestone.status === "pending",
+    );
+    if (!nextMilestone) return;
+
+    setBusyAction("release");
+
+    try {
+      await releaseFunds(
+        BigInt(workspace.job.on_chain_job_id ?? 0),
+        Math.max(0, nextMilestone.index - 1),
+      );
+      await api.jobs.releaseMilestone(id, nextMilestone.id);
+      await workspace.refresh();
+    } catch {
       alert("Failed to release milestone");
     } finally {
-      setLoading(false);
+      setBusyAction(null);
     }
-  };
+  }
 
-  if (!job) return <div className="p-8">Loading...</div>;
+  async function handleOpenDispute() {
+    if (!workspace.job) return;
+    setBusyAction("dispute");
+
+    try {
+      const actor = (await ensureViewerAddress()) ?? workspace.job.client_address;
+      await openDispute(BigInt(workspace.job.on_chain_job_id ?? 0));
+      const dispute = await api.jobs.dispute.open(id, { opened_by: actor });
+      router.push(`/jobs/${id}/dispute?disputeId=${dispute.id}`);
+    } catch {
+      alert("Failed to open dispute");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  if (workspace.loading && !workspace.job) {
+    return (
+      <SiteShell
+        eyebrow="Job Overview"
+        title="Loading workspace"
+        description="Fetching counterparties, milestones, deliverables, and dispute state."
+      >
+        <div className="h-96 animate-pulse rounded-[2rem] border border-slate-200 bg-white/70" />
+      </SiteShell>
+    );
+  }
+
+  if (!workspace.job) {
+    return (
+      <SiteShell
+        eyebrow="Job Overview"
+        title="Workspace unavailable"
+        description={workspace.error ?? "We couldn't load that job."}
+      >
+        <div className="rounded-[2rem] border border-red-200 bg-red-50 p-6 text-red-700">
+          {workspace.error ?? "Job not found."}
+        </div>
+      </SiteShell>
+    );
+  }
+
+  const job = workspace.job;
+  const nextMilestone = workspace.milestones.find(
+    (milestone) => milestone.status === "pending",
+  );
+  const workflowLocked = job.status === "disputed" || workspace.dispute !== null;
 
   return (
-    <main className="p-8 max-w-4xl mx-auto">
-      <div className="flex justify-between items-start mb-8">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">{job.title}</h1>
-          <p className="text-gray-500">ID: {job.id} | Status: <span className="font-mono uppercase px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded">{job.status}</span></p>
-        </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold text-green-600">${(job.budget_usdc / 10_000_000).toLocaleString()} USDC</p>
-          <p className="text-sm text-gray-500">{job.milestones} Milestones</p>
-        </div>
-      </div>
+    <SiteShell
+      eyebrow="Job Overview"
+      title={job.title}
+      description="A shared contract workspace for bids, deliverables, approvals, and escalation."
+    >
+      <section className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+        <div className="space-y-6">
+          <div className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_25px_80px_-48px_rgba(15,23,42,0.5)] sm:p-8">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">
+                  Status
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <h1 className="text-4xl font-semibold tracking-tight text-slate-950">
+                    {job.title}
+                  </h1>
+                  <span className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white">
+                    {job.status}
+                  </span>
+                </div>
+                <p className="mt-4 text-sm leading-7 text-slate-600">
+                  {job.description}
+                </p>
+              </div>
+              <div className="rounded-[1.6rem] border border-amber-200 bg-amber-50 p-5 text-right">
+                <p className="text-xs uppercase tracking-[0.22em] text-amber-700">
+                  Contract Value
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-slate-950">
+                  {formatUsdc(job.budget_usdc)}
+                </p>
+                <p className="mt-2 text-sm text-slate-600">
+                  {job.milestones} milestone approvals
+                </p>
+              </div>
+            </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-2 space-y-8">
-          <section className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-200">
-            <h2 className="text-xl font-bold mb-4">Description</h2>
-            <p className="whitespace-pre-wrap leading-relaxed">{job.description}</p>
+            <div className="mt-6 grid gap-4 rounded-[1.6rem] border border-slate-200 bg-slate-50 p-5 sm:grid-cols-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                  Client
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-700">
+                  {shortenAddress(job.client_address)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                  Freelancer
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-700">
+                  {job.freelancer_address
+                    ? shortenAddress(job.freelancer_address)
+                    : "Not assigned"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                  Updated
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-700">
+                  {formatDateTime(job.updated_at)}
+                </p>
+              </div>
+            </div>
+
+            {workflowLocked ? (
+              <div className="mt-6 rounded-[1.6rem] border border-red-200 bg-red-50 p-5 text-red-800">
+                <div className="flex items-start gap-3">
+                  <ShieldAlert className="mt-0.5 h-5 w-5" />
+                  <div>
+                    <p className="font-semibold">
+                      Regular workflow is locked while the dispute center is active.
+                    </p>
+                    <p className="mt-2 text-sm leading-6">
+                      Deliverable uploads and release actions stay frozen until the
+                      Agent Judge returns an immutable verdict.
+                    </p>
+                    <Link
+                      href={`/jobs/${id}/dispute${workspace.dispute ? `?disputeId=${workspace.dispute.id}` : ""}`}
+                      className="mt-4 inline-flex items-center gap-2 text-sm font-semibold underline"
+                    >
+                      Open dispute center
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {job.status === "open" ? (
+            <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
+              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+                <h2 className="text-xl font-semibold text-slate-950">
+                  Submit a Proposal
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Pitch your approach, timing, and why your previous work maps cleanly to this brief.
+                </p>
+                <form onSubmit={handleBid} className="mt-5 space-y-4">
+                  <textarea
+                    value={proposal}
+                    onChange={(event) => setProposal(event.target.value)}
+                    className="min-h-[160px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
+                    placeholder="Tell the client why you're a fit..."
+                    required
+                    id="bid-proposal"
+                  />
+                  <button
+                    type="submit"
+                    disabled={busyAction === "bid"}
+                    className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                    id="submit-bid"
+                  >
+                    {busyAction === "bid" ? "Submitting..." : "Submit Bid"}
+                  </button>
+                </form>
+              </section>
+
+              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-xl font-semibold text-slate-950">
+                    Bids ({workspace.bids.length})
+                  </h2>
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                    Client shortlist
+                  </span>
+                </div>
+                <div className="mt-5 space-y-4">
+                  {workspace.bids.map((bid) => (
+                    <article
+                      key={bid.id}
+                      className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        {shortenAddress(bid.freelancer_address)}
+                      </p>
+                      <p className="mt-3 text-sm leading-6 text-slate-700">
+                        {bid.proposal}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleAcceptBid(bid.id)}
+                        disabled={busyAction === `accept-${bid.id}`}
+                        className="mt-4 w-full rounded-full bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                        id={`accept-bid-${bid.id}`}
+                      >
+                        {busyAction === `accept-${bid.id}` ? "Accepting..." : "Accept Bid"}
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {job.status !== "open" ? (
+            <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-semibold text-slate-950">
+                      Milestone Ledger
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Each milestone is time-stamped so both parties can see what is pending, submitted, and released.
+                    </p>
+                  </div>
+                  {workspace.loading ? (
+                    <LoaderCircle className="h-5 w-5 animate-spin text-slate-400" />
+                  ) : null}
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {workspace.milestones.map((milestone) => (
+                    <div
+                      key={milestone.id}
+                      className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            Milestone {milestone.index}
+                          </p>
+                          <p className="mt-2 text-sm font-medium text-slate-800">
+                            {milestone.title}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-slate-950">
+                            {formatUsdc(milestone.amount_usdc)}
+                          </p>
+                          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                            {milestone.status}
+                          </p>
+                        </div>
+                      </div>
+                      {milestone.released_at ? (
+                        <p className="mt-3 text-xs text-slate-500">
+                          Released {formatDateTime(milestone.released_at)}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-semibold text-slate-950">
+                      Deliverables
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Freelancers can pin files to IPFS or share links, then the client gets a dedicated approval moment.
+                    </p>
+                  </div>
+                  <FileUp className="h-5 w-5 text-amber-600" />
+                </div>
+
+                {!workflowLocked ? (
+                  <form onSubmit={handleSubmitDeliverable} className="mt-5 space-y-4">
+                    <input
+                      value={deliverableLabel}
+                      onChange={(event) => setDeliverableLabel(event.target.value)}
+                      placeholder="Submission title"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
+                    />
+                    <input
+                      value={deliverableLink}
+                      onChange={(event) => setDeliverableLink(event.target.value)}
+                      placeholder="GitHub repo, Figma file, hosted ZIP link, or leave blank to upload a file"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
+                    />
+                    <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                      <FileUp className="h-4 w-4 text-amber-600" />
+                      <span>{deliverableFile ? deliverableFile.name : "Upload ZIP, image, JSON, or PDF evidence"}</span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        onChange={(event) =>
+                          setDeliverableFile(event.target.files?.[0] ?? null)
+                        }
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={busyAction === "deliverable"}
+                      className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      {busyAction === "deliverable"
+                        ? "Submitting..."
+                        : "Submit Milestone"}
+                    </button>
+                  </form>
+                ) : null}
+
+                <div className="mt-5 space-y-3">
+                  {workspace.deliverables.length === 0 ? (
+                    <div className="rounded-[1.4rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                      No milestone evidence has been submitted yet.
+                    </div>
+                  ) : (
+                    workspace.deliverables.map((deliverable) => (
+                      <article
+                        key={deliverable.id}
+                        className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                              Milestone {deliverable.milestone_index}
+                            </p>
+                            <p className="mt-2 text-sm font-medium text-slate-800">
+                              {deliverable.label}
+                            </p>
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            {formatDateTime(deliverable.created_at)}
+                          </p>
+                        </div>
+                        <a
+                          href={deliverable.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-amber-700 underline"
+                        >
+                          Open evidence
+                        </a>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </section>
+            </div>
+          ) : null}
+        </div>
+
+        <aside className="space-y-6">
+          <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+            <div className="flex items-center gap-3">
+              <Wallet className="h-5 w-5 text-amber-600" />
+              <h2 className="text-lg font-semibold text-slate-950">
+                Connected Viewer
+              </h2>
+            </div>
+            <p className="mt-4 text-sm text-slate-600">
+              {viewerAddress ?? "No wallet connected yet."}
+            </p>
+            {!viewerAddress ? (
+              <button
+                type="button"
+                onClick={() => void ensureViewerAddress()}
+                className="mt-4 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-amber-300 hover:text-slate-950"
+              >
+                Connect wallet
+              </button>
+            ) : null}
           </section>
 
-          {job.status === "open" && (
-            <section className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-2xl border border-blue-100">
-              <h2 className="text-xl font-bold mb-4">Submit a Proposal</h2>
-              <form onSubmit={handleBid} className="space-y-4">
-                <textarea
-                  value={proposal}
-                  onChange={(e) => setProposal(e.target.value)}
-                  className="w-full p-4 rounded-xl border border-blue-200 dark:bg-zinc-900"
-                  placeholder="Tell the client why you're a good fit..."
-                  required
-                  id="bid-proposal"
-                />
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700"
-                  id="submit-bid"
-                >
-                  Submit Bid
-                </button>
-              </form>
-            </section>
-          )}
+          <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+            <h2 className="text-lg font-semibold text-slate-950">
+              Counterparty trust
+            </h2>
+            <div className="mt-5 space-y-4">
+              <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Client reputation
+                </p>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <Stars value={workspace.clientReputation?.starRating ?? 2.5} />
+                  <span className="text-sm font-semibold text-slate-800">
+                    {workspace.clientReputation?.averageStars.toFixed(1) ?? "2.5"}
+                  </span>
+                </div>
+                <p className="mt-3 text-xs text-slate-500">
+                  {workspace.clientReputation?.totalJobs ?? 0} completed jobs
+                </p>
+              </div>
 
-          {job.status === "in_progress" && (
-            <section className="bg-green-50 dark:bg-green-900/20 p-6 rounded-2xl border border-green-100">
-              <h2 className="text-xl font-bold mb-4">Active Contract</h2>
-              <div className="flex justify-between items-center">
-                <p>Contract is active. Freelancer: {job.freelancer_address}</p>
+              {job.freelancer_address ? (
+                <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    Freelancer reputation
+                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <Stars
+                      value={workspace.freelancerReputation?.starRating ?? 2.5}
+                    />
+                    <span className="text-sm font-semibold text-slate-800">
+                      {workspace.freelancerReputation?.averageStars.toFixed(1) ?? "2.5"}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-xs text-slate-500">
+                    {workspace.freelancerReputation?.totalJobs ?? 0} completed jobs
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          {job.status === "awaiting_funding" ? (
+            <section className="rounded-[2rem] border border-amber-200 bg-amber-50 p-6 text-amber-900 shadow-[0_20px_60px_-48px_rgba(245,158,11,0.45)]">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em]">
+                Next step
+              </p>
+              <h2 className="mt-3 text-xl font-semibold">Fund the escrow</h2>
+              <p className="mt-3 text-sm leading-6">
+                The freelancer is locked in. Deposit funds to transition the contract into active execution.
+              </p>
+              <Link
+                href={`/jobs/${id}/fund`}
+                className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
+              >
+                Open funding review
+              </Link>
+            </section>
+          ) : null}
+
+          {job.status !== "open" && job.status !== "awaiting_funding" ? (
+            <section className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-[0_20px_60px_-48px_rgba(15,23,42,0.8)]">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">
+                Client control room
+              </p>
+              <h2 className="mt-3 text-xl font-semibold">
+                Awaiting Client Approval
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                Approve the latest submitted milestone, or escalate to a dispute if the evidence does not satisfy the brief.
+              </p>
+              <div className="mt-5 space-y-3">
                 <button
-                  onClick={handleRelease}
-                  className="px-8 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700"
+                  type="button"
+                  onClick={handleReleaseFunds}
+                  disabled={
+                    workflowLocked ||
+                    job.status !== "deliverable_submitted" ||
+                    !nextMilestone ||
+                    busyAction === "release"
+                  }
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-800/50"
                   id="release-funds"
                 >
-                  Release Milestone
+                  {busyAction === "release" ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
+                  Approve &amp; Release Funds
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenDispute}
+                  disabled={workflowLocked || busyAction === "dispute"}
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/8 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/12 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {busyAction === "dispute" ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Gavel className="h-4 w-4" />
+                  )}
+                  Reject &amp; Initiate Dispute
                 </button>
               </div>
             </section>
-          )}
-        </div>
+          ) : null}
 
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Bids ({bids.length})</h2>
-          {bids.map((bid: Bid) => (
-            <div key={bid.id} className="p-4 border border-gray-200 rounded-xl space-y-3">
-              <p className="text-xs font-mono text-gray-500 truncate">{bid.freelancer_address}</p>
-              <p className="text-sm line-clamp-2">{bid.proposal}</p>
-              {job.status === "open" && (
-                <button
-                  onClick={() => handleAccept(bid.freelancer_address)}
-                  className="w-full py-2 rounded-lg bg-zinc-900 text-white text-sm font-semibold hover:bg-zinc-800"
-                  id={`accept-bid-${bid.id}`}
-                >
-                  Accept Bid
-                </button>
-              )}
+          <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+            <h2 className="text-lg font-semibold text-slate-950">
+              Activity pulse
+            </h2>
+            <div className="mt-5 space-y-4">
+              <div className="flex items-center justify-between rounded-[1.4rem] border border-slate-200 bg-slate-50 px-4 py-3">
+                <span className="text-sm text-slate-600">Next milestone</span>
+                <span className="text-sm font-semibold text-slate-900">
+                  {nextMilestone ? `#${nextMilestone.index}` : "Complete"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-[1.4rem] border border-slate-200 bg-slate-50 px-4 py-3">
+                <span className="text-sm text-slate-600">Last update</span>
+                <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <Clock3 className="h-4 w-4 text-amber-600" />
+                  {formatDate(job.updated_at)}
+                </span>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
-    </main>
+          </section>
+        </aside>
+      </section>
+    </SiteShell>
   );
 }

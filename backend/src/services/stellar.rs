@@ -96,19 +96,18 @@ impl StellarService {
     /// - `HORIZON_URL`            (optional)
     /// - `STELLAR_NETWORK_PASSPHRASE` (optional)
     pub fn from_env() -> Self {
-        let secret = std::env::var("JUDGE_AUTHORITY_SECRET")
-            .expect("JUDGE_AUTHORITY_SECRET must be set");
-        let contract_id = std::env::var("ESCROW_CONTRACT_ID")
-            .expect("ESCROW_CONTRACT_ID must be set");
-        let rpc_url = std::env::var("SOROBAN_RPC_URL")
-            .unwrap_or_else(|_| DEFAULT_RPC_URL.to_string());
-        let horizon_url = std::env::var("HORIZON_URL")
-            .unwrap_or_else(|_| DEFAULT_HORIZON_URL.to_string());
+        let secret =
+            std::env::var("JUDGE_AUTHORITY_SECRET").expect("JUDGE_AUTHORITY_SECRET must be set");
+        let contract_id =
+            std::env::var("ESCROW_CONTRACT_ID").expect("ESCROW_CONTRACT_ID must be set");
+        let rpc_url =
+            std::env::var("SOROBAN_RPC_URL").unwrap_or_else(|_| DEFAULT_RPC_URL.to_string());
+        let horizon_url =
+            std::env::var("HORIZON_URL").unwrap_or_else(|_| DEFAULT_HORIZON_URL.to_string());
         let network_passphrase = std::env::var("STELLAR_NETWORK_PASSPHRASE")
             .unwrap_or_else(|_| DEFAULT_NETWORK_PASSPHRASE.to_string());
 
-        let raw = decode_stellar_secret(&secret)
-            .expect("invalid JUDGE_AUTHORITY_SECRET");
+        let raw = decode_stellar_secret(&secret).expect("invalid JUDGE_AUTHORITY_SECRET");
         let signing_key = SigningKey::from_bytes(&raw);
         let public_key = signing_key.verifying_key().to_bytes();
 
@@ -159,10 +158,7 @@ impl StellarService {
 
     /// Call escrow `open_dispute(job_id)` on-chain.
     pub async fn open_dispute(&self, job_id: &str) -> Result<String> {
-        let args = vec![
-            scval_symbol("open_dispute"),
-            scval_string(job_id),
-        ];
+        let args = vec![scval_symbol("open_dispute"), scval_string(job_id)];
         self.invoke_contract_with_retry(&args).await
     }
 
@@ -193,7 +189,9 @@ impl StellarService {
 
     async fn invoke_contract(&self, args: &[serde_json::Value]) -> Result<String> {
         // 1. Fetch current sequence number from Horizon
-        let sequence = self.fetch_sequence().await
+        let sequence = self
+            .fetch_sequence()
+            .await
             .context("failed to fetch account sequence")?;
 
         // 2. Build the InvokeHostFunction XDR envelope (unsigned)
@@ -206,7 +204,9 @@ impl StellarService {
         )?;
 
         // 3. Simulate the transaction to get resource fees and soroban data
-        let sim = self.simulate_transaction(&invoke_xdr).await
+        let sim = self
+            .simulate_transaction(&invoke_xdr)
+            .await
             .context("simulation failed")?;
         if let Some(ref err) = sim.error {
             bail!("simulation error: {err}");
@@ -224,7 +224,9 @@ impl StellarService {
         let signed_b64 = B64.encode(&signed);
 
         // 6. Submit via sendTransaction
-        let send_result = self.send_transaction(&signed_b64).await
+        let send_result = self
+            .send_transaction(&signed_b64)
+            .await
             .context("sendTransaction RPC call failed")?;
 
         if send_result.status == "ERROR" {
@@ -234,7 +236,8 @@ impl StellarService {
             );
         }
 
-        let tx_hash = send_result.hash
+        let tx_hash = send_result
+            .hash
             .ok_or_else(|| anyhow!("sendTransaction returned no hash"))?;
 
         // 7. Poll getTransaction until terminal status
@@ -248,42 +251,63 @@ impl StellarService {
     async fn fetch_sequence(&self) -> Result<i64> {
         let account_id = encode_stellar_public_key(&self.public_key);
         let url = format!("{}/accounts/{}", self.horizon_url, account_id);
-        let resp: HorizonAccount = self.client.get(&url)
-            .send().await?
+        let resp: HorizonAccount = self
+            .client
+            .get(&url)
+            .send()
+            .await?
             .error_for_status()?
-            .json().await?;
-        let seq: i64 = resp.sequence.parse()
+            .json()
+            .await?;
+        let seq: i64 = resp
+            .sequence
+            .parse()
             .context("invalid sequence number from Horizon")?;
         Ok(seq)
     }
 
     async fn simulate_transaction(&self, envelope_xdr: &[u8]) -> Result<SimulateResult> {
         let b64 = B64.encode(envelope_xdr);
-        let resp = self.rpc_call("simulateTransaction", serde_json::json!({
-            "transaction": b64
-        })).await?;
-        let sim: SimulateResult = serde_json::from_value(resp)
-            .context("failed to parse simulateTransaction result")?;
+        let resp = self
+            .rpc_call(
+                "simulateTransaction",
+                serde_json::json!({
+                    "transaction": b64
+                }),
+            )
+            .await?;
+        let sim: SimulateResult =
+            serde_json::from_value(resp).context("failed to parse simulateTransaction result")?;
         Ok(sim)
     }
 
     async fn send_transaction(&self, signed_b64: &str) -> Result<SendTxResult> {
-        let resp = self.rpc_call("sendTransaction", serde_json::json!({
-            "transaction": signed_b64
-        })).await?;
-        let result: SendTxResult = serde_json::from_value(resp)
-            .context("failed to parse sendTransaction result")?;
+        let resp = self
+            .rpc_call(
+                "sendTransaction",
+                serde_json::json!({
+                    "transaction": signed_b64
+                }),
+            )
+            .await?;
+        let result: SendTxResult =
+            serde_json::from_value(resp).context("failed to parse sendTransaction result")?;
         Ok(result)
     }
 
     async fn poll_transaction(&self, hash: &str) -> Result<()> {
         for _ in 0..MAX_POLL_ATTEMPTS {
             tokio::time::sleep(POLL_INTERVAL).await;
-            let resp = self.rpc_call("getTransaction", serde_json::json!({
-                "hash": hash
-            })).await?;
-            let result: GetTxResult = serde_json::from_value(resp)
-                .context("failed to parse getTransaction result")?;
+            let resp = self
+                .rpc_call(
+                    "getTransaction",
+                    serde_json::json!({
+                        "hash": hash
+                    }),
+                )
+                .await?;
+            let result: GetTxResult =
+                serde_json::from_value(resp).context("failed to parse getTransaction result")?;
 
             match result.status.as_str() {
                 "SUCCESS" => return Ok(()),
@@ -295,7 +319,7 @@ impl StellarService {
                 other => bail!("unexpected getTransaction status: {other}"),
             }
         }
-        bail!("transaction {hash} not confirmed after {} polls", MAX_POLL_ATTEMPTS)
+        bail!("transaction {hash} not confirmed after {MAX_POLL_ATTEMPTS} polls")
     }
 
     async fn rpc_call(&self, method: &str, params: serde_json::Value) -> Result<serde_json::Value> {
@@ -305,17 +329,21 @@ impl StellarService {
             method,
             params,
         };
-        let resp: RpcResponse = self.client
+        let resp: RpcResponse = self
+            .client
             .post(&self.rpc_url)
             .json(&req)
-            .send().await?
+            .send()
+            .await?
             .error_for_status()?
-            .json().await?;
+            .json()
+            .await?;
 
         if let Some(err) = resp.error {
             bail!("RPC error ({}): {}", method, err.message);
         }
-        resp.result.ok_or_else(|| anyhow!("RPC {method}: no result"))
+        resp.result
+            .ok_or_else(|| anyhow!("RPC {method}: no result"))
     }
 
     /// Sign an XDR transaction envelope using ed25519.
@@ -344,7 +372,7 @@ impl StellarService {
         let mut signed = envelope_xdr.to_vec();
         // Append decorated signature count (1) and the signature data
         signed.extend_from_slice(&1u32.to_be_bytes()); // 1 signature
-        signed.extend_from_slice(hint);                 // 4-byte hint
+        signed.extend_from_slice(hint); // 4-byte hint
         signed.extend_from_slice(&(sig_bytes.len() as u32).to_be_bytes());
         signed.extend_from_slice(&sig_bytes);
         Ok(signed)
@@ -390,8 +418,8 @@ fn assemble_transaction(
     // In a full implementation, this would decode the XDR transaction,
     // set the sorobanData and adjust the fee. For now we produce an
     // assembled JSON envelope that includes the simulation output.
-    let original_json: serde_json::Value = serde_json::from_slice(original)
-        .unwrap_or(serde_json::json!({}));
+    let original_json: serde_json::Value =
+        serde_json::from_slice(original).unwrap_or(serde_json::json!({}));
 
     let assembled = serde_json::json!({
         "envelope": original_json,
@@ -425,8 +453,7 @@ fn scval_u32(v: u32) -> serde_json::Value {
 fn decode_stellar_secret(secret: &str) -> Result<[u8; 32]> {
     // Stellar secret keys: version byte 0x90 (18 << 3) + 32 bytes + 2 byte checksum
     // encoded as base32 (RFC 4648, no padding normally but Stellar uses padding)
-    let decoded = base32_decode(secret)
-        .ok_or_else(|| anyhow!("invalid base32 in secret key"))?;
+    let decoded = base32_decode(secret).ok_or_else(|| anyhow!("invalid base32 in secret key"))?;
     if decoded.len() != 35 {
         bail!("secret key wrong length: {} (expected 35)", decoded.len());
     }
@@ -489,7 +516,7 @@ fn base32_encode(data: &[u8]) -> String {
         out.push(ALPHABET[((bits << (5 - bit_count)) & 0x1F) as usize] as char);
     }
     // Pad to multiple of 8
-    while !out.len().is_multiple_of(8) {
+    while out.len() % 8 != 0 {
         out.push('=');
     }
     out

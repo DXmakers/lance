@@ -26,10 +26,7 @@ async fn upload_file(
         .await
         .map_err(|e| AppError::BadRequest(e.to_string()))?
     {
-        let filename = field
-            .file_name()
-            .unwrap_or("upload")
-            .to_owned();
+        let filename = field.file_name().unwrap_or("upload").to_owned();
         let content_type = field
             .content_type()
             .unwrap_or("application/octet-stream")
@@ -58,5 +55,7 @@ async fn upload_file(
         ));
     }
 
-    Err(AppError::BadRequest("no file field found in multipart body".into()))
+    Err(AppError::BadRequest(
+        "no file field found in multipart body".into(),
+    ))
 }
