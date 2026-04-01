@@ -88,7 +88,7 @@ export default function DisputePage() {
       setSignature(signed);
       setStatus("Signature approved. Sending evidence to mocked backend...");
 
-      const savedEvidence = await api.disputes.submitEvidence(disputeId, {
+      const savedEvidence = await api.disputes.evidence.submit(disputeId, {
         submitted_by: address,
         content,
         file_hash: "bafybeigdyrdeterministicevidence",

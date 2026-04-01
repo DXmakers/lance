@@ -9,7 +9,7 @@ import {
   xdr,
 } from "@stellar/stellar-sdk";
 import { Server as SorobanServer } from "@stellar/stellar-sdk/rpc";
-import { getWalletsKit, signTransaction } from "./stellar";
+import { connectWallet, getConnectedWalletAddress, signTransaction } from "./stellar";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -37,8 +37,12 @@ function shouldMockEscrowCalls(requiresUsdc = false): boolean {
 
 /** Returns the public key of the currently connected wallet. */
 async function getCallerAddress(): Promise<string> {
-  const { address } = await getWalletsKit().getAddress();
-  return address;
+  const connected = await getConnectedWalletAddress();
+  if (connected) {
+    return connected;
+  }
+
+  return connectWallet();
 }
 
 /**

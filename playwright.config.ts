@@ -29,8 +29,7 @@ export default defineConfig({
       },
     },
     {
-      command:
-        "cmd /c \"npm --prefix apps/web run build && npm --prefix apps/web run start -- --hostname 127.0.0.1 --port 3000\"",
+      command: "cmd /c npm run start:web:e2e",
       port: WEB_PORT,
       reuseExistingServer: !process.env.CI,
       timeout: 600_000,

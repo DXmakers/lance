@@ -89,7 +89,7 @@ const server = createServer(async (req, res) => {
   }
 
   const url = new URL(req.url, `http://127.0.0.1:${port}`);
-  const path = url.pathname;
+  const path = url.pathname.replace(/^\/api\/v1/, "/api");
 
   if (req.method === "GET" && path === "/api/jobs") {
     return sendJson(res, 200, jobs);

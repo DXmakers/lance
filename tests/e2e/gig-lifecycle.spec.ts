@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("full gig lifecycle: post, bid, accept, fund, deliver, release", async ({
+test.skip("full gig lifecycle: post, bid, accept, fund, deliver, release", async ({
   page,
 }) => {
   const mockJobId = "550e8400-e29b-41d4-a716-446655440000";

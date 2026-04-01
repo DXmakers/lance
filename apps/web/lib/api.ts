@@ -1,7 +1,6 @@
 const API =
-  process.env.NEXT_PUBLIC_E2E === "true"
-    ? ""
-    : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001");
+  process.env.NEXT_PUBLIC_API_URL ??
+  (process.env.NEXT_PUBLIC_E2E === "true" ? "" : "http://localhost:3001");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API}/api${path}`, {
