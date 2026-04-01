@@ -90,12 +90,17 @@ impl StellarService {
             .await
             .map_err(|err| anyhow!("failed to fetch judge account: {err}"))?;
         let base_fee = self.fetch_dynamic_base_fee().await;
+        let timeout_secs: i64 = self
+            .tx_timeout
+            .as_secs()
+            .try_into()
+            .map_err(|_| anyhow!("STELLAR_TX_TIMEOUT_SECS is too large"))?;
 
         let mut builder =
             TransactionBuilder::new(&mut source, self.network_passphrase.as_str(), None);
         builder
             .fee(base_fee)
-            .set_timeout(self.tx_timeout.as_secs())
+            .set_timeout(timeout_secs)
             .map_err(|err| anyhow!("failed to set tx timeout: {err}"))?
             .add_operation(self.contract.call(method, Some(args)));
 

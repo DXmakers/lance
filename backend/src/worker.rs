@@ -403,7 +403,7 @@ struct StellarResolutionExecutor {
 impl StellarResolutionExecutor {
     fn from_env() -> Result<Self> {
         Ok(Self {
-            inner: StellarService::from_env(),
+            inner: StellarService::from_env()?,
         })
     }
 }

@@ -34,7 +34,7 @@ async fn main() -> anyhow::Result<()> {
 
     sqlx::migrate!("./migrations").run(&pool).await?;
 
-    let state = AppState::new(pool);
+    let state = AppState::new(pool)?;
     worker::spawn_judge_worker(state.pool.clone());
     let app = build_router(state);
 

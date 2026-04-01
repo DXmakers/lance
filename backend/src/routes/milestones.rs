@@ -49,9 +49,13 @@ pub async fn release_milestone(
     // Call Soroban escrow contract via stellar.rs service
     // Use the on-chain job ID if it exists, otherwise use a placeholder (for dev/test)
     let job_id_str = milestone.job_id.to_string();
+    let milestone_index: u32 = milestone
+        .index
+        .try_into()
+        .map_err(|_| AppError::BadRequest("milestone index must be non-negative".into()))?;
     let tx_hash = state
         .stellar
-        .release_milestone(&job_id_str, milestone.index)
+        .release_milestone(&job_id_str, milestone_index)
         .await
         .map(Some)
         .unwrap_or_else(|e| {
