@@ -135,6 +135,54 @@
       "event": {
         "ext": "v0",
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
+        "type_": "contract",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "string": "escrow"
+              },
+              {
+                "string": "Initialized"
+              }
+            ],
+            "data": {
+              "map": [
+                {
+                  "key": {
+                    "symbol": "admin"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "agent_judge"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "initialized_at"
+                  },
+                  "val": {
+                    "u64": 0
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
         "type_": "diagnostic",
         "body": {
           "v0": {
@@ -194,21 +242,16 @@
           "v0": {
             "topics": [
               {
-                "symbol": "log"
+                "symbol": "fn_return"
+              },
+              {
+                "symbol": "initialize"
               }
             ],
             "data": {
-              "vec": [
-                {
-                  "string": "caught panic 'already initialized' from contract function 'Symbol(obj#23)'"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                }
-              ]
+              "error": {
+                "contract": 1
+              }
             }
           }
         }
@@ -228,12 +271,12 @@
               },
               {
                 "error": {
-                  "wasm_vm": "invalid_action"
+                  "contract": 1
                 }
               }
             ],
             "data": {
-              "string": "caught error from function"
+              "string": "escalating Ok(ScErrorType::Contract) frame-exit to Err"
             }
           }
         }
@@ -253,7 +296,7 @@
               },
               {
                 "error": {
-                  "wasm_vm": "invalid_action"
+                  "contract": 1
                 }
               }
             ],
@@ -295,7 +338,7 @@
               },
               {
                 "error": {
-                  "wasm_vm": "invalid_action"
+                  "contract": 1
                 }
               }
             ],

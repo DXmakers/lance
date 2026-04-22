@@ -1239,6 +1239,54 @@
       "event": {
         "ext": "v0",
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000006",
+        "type_": "contract",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "string": "escrow"
+              },
+              {
+                "string": "Initialized"
+              }
+            ],
+            "data": {
+              "map": [
+                {
+                  "key": {
+                    "symbol": "admin"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "agent_judge"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "initialized_at"
+                  },
+                  "val": {
+                    "u64": 0
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000006",
         "type_": "diagnostic",
         "body": {
           "v0": {
@@ -1553,6 +1601,57 @@
               }
             ],
             "data": "void"
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000006",
+        "type_": "contract",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "string": "escrow"
+              },
+              {
+                "string": "Deposit"
+              }
+            ],
+            "data": {
+              "map": [
+                {
+                  "key": {
+                    "symbol": "amount"
+                  },
+                  "val": {
+                    "i128": {
+                      "hi": 0,
+                      "lo": 5000
+                    }
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "deposited_at"
+                  },
+                  "val": {
+                    "u64": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "job_id"
+                  },
+                  "val": {
+                    "u64": 1
+                  }
+                }
+              ]
+            }
           }
         }
       },

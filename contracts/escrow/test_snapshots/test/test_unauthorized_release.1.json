@@ -1182,6 +1182,54 @@
       "event": {
         "ext": "v0",
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000007",
+        "type_": "contract",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "string": "escrow"
+              },
+              {
+                "string": "Initialized"
+              }
+            ],
+            "data": {
+              "map": [
+                {
+                  "key": {
+                    "symbol": "admin"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "agent_judge"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "initialized_at"
+                  },
+                  "val": {
+                    "u64": 0
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000007",
         "type_": "diagnostic",
         "body": {
           "v0": {
@@ -1505,6 +1553,57 @@
       "event": {
         "ext": "v0",
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000007",
+        "type_": "contract",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "string": "escrow"
+              },
+              {
+                "string": "Deposit"
+              }
+            ],
+            "data": {
+              "map": [
+                {
+                  "key": {
+                    "symbol": "amount"
+                  },
+                  "val": {
+                    "i128": {
+                      "hi": 0,
+                      "lo": 1000
+                    }
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "deposited_at"
+                  },
+                  "val": {
+                    "u64": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "job_id"
+                  },
+                  "val": {
+                    "u64": 1
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000007",
         "type_": "diagnostic",
         "body": {
           "v0": {
@@ -1570,7 +1669,7 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'only client can release' from contract function 'Symbol(obj#447)'"
+                  "string": "caught panic 'only client can release' from contract function 'Symbol(obj#473)'"
                 },
                 {
                   "u64": 1
