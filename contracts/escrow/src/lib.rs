@@ -105,6 +105,14 @@ pub struct ReleaseMilestoneEvent {
     pub released_at: u64,
 }
 
+#[contracttype]
+#[derive(Clone)]
+pub struct OpenDisputeEvent {
+    pub job_id: u64,
+    pub initiator: Address,
+    pub opened_at: u64,
+}
+
 #[contract]
 pub struct EscrowContract;
 
@@ -379,23 +387,35 @@ impl EscrowContract {
     }
 
     /// Either party opens a dispute, locking remaining funds.
-    pub fn open_dispute(env: Env, job_id: u64, caller: Address) {
+    pub fn open_dispute(env: Env, job_id: u64, caller: Address) -> Result<(), EscrowError> {
         caller.require_auth();
 
         let key = DataKey::Job(job_id);
-        let mut job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
+        let mut job: EscrowJob = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::JobNotFound)?;
 
-        assert!(
-            job.status == EscrowStatus::Funded || job.status == EscrowStatus::WorkInProgress,
-            "job not in active/funded state"
-        );
-        assert!(
-            caller == job.client || caller == job.freelancer,
-            "unauthorized"
-        );
+        if !(job.status == EscrowStatus::Funded || job.status == EscrowStatus::WorkInProgress) {
+            return Err(EscrowError::InvalidState);
+        }
+
+        if !(caller == job.client || caller == job.freelancer) {
+            return Err(EscrowError::Unauthorized);
+        }
 
         job.status = EscrowStatus::Disputed;
         env.storage().persistent().set(&key, &job);
+
+        let evt = OpenDisputeEvent {
+            job_id,
+            initiator: caller,
+            opened_at: env.ledger().timestamp(),
+        };
+        env.events().publish(("escrow", "OpenDispute"), evt);
+
+        Ok(())
     }
 
     /// Either party formally raises a dispute with on-chain event emission.
@@ -717,7 +737,7 @@ mod test {
         let tc = token::Client::new(&env, &token_addr);
         assert_eq!(tc.balance(&freelancer), 2500);
 
-        cc.open_dispute(&1u64, &freelancer);
+    cc.open_dispute(&1u64, &freelancer).unwrap();
         let job = cc.get_job(&1u64);
         assert_eq!(job.status, EscrowStatus::Disputed);
 
