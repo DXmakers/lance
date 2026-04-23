@@ -202,7 +202,7 @@
             },
             "ext": "v0"
           },
-          4095
+          150000
         ]
       ],
       [
@@ -375,7 +375,7 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'job already exists' from contract function 'Symbol(obj#41)'"
+                  "string": "caught panic 'job already exists' from contract function 'Symbol(obj#45)'"
                 },
                 {
                   "u64": 1

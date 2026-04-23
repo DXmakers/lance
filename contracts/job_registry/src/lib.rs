@@ -1,5 +1,6 @@
 #![no_std]
 
+use soroban_sdk::BytesN;
 use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, Bytes, Env, Vec};
 
 #[contracttype]
@@ -34,6 +35,7 @@ pub enum DataKey {
     Job(u64),
     Bids(u64),
     Deliverable(u64),
+    UpgradeAdmin,
 }
 
 /// Error codes for JobRegistry contract operations.
@@ -56,6 +58,10 @@ pub enum JobRegistryError {
     InvalidState = 5,
     /// Indicates the selected freelancer did not submit a bid for the job (error code: 6).
     BidNotFound = 6,
+    /// Indicates upgrade admin has already been initialized (error code: 7).
+    UpgradeAdminAlreadySet = 7,
+    /// Indicates upgrade admin is not configured (error code: 8).
+    UpgradeAdminNotSet = 8,
 }
 
 /// Event emitted when a bid is successfully submitted.
@@ -94,11 +100,137 @@ pub struct DeliverableSubmittedEvent {
     pub timestamp: u64,
 }
 
+/// Event emitted when upgrade admin is configured or changed.
+#[contracttype]
+#[derive(Clone)]
+pub struct UpgradeAdminSetEvent {
+    pub previous_admin: Option<Address>,
+    pub new_admin: Address,
+    pub timestamp: u64,
+}
+
+/// Event emitted when the contract is upgraded to a new WASM hash.
+#[contracttype]
+#[derive(Clone)]
+pub struct ContractUpgradedEvent {
+    pub by_admin: Address,
+    pub new_wasm_hash: BytesN<32>,
+    pub timestamp: u64,
+}
+
 #[contract]
 pub struct JobRegistryContract;
 
 #[contractimpl]
 impl JobRegistryContract {
+    const PERSISTENT_TTL_THRESHOLD: u32 = 50_000;
+    const PERSISTENT_TTL_EXTEND_TO: u32 = 150_000;
+
+    fn bump_persistent_ttl(env: &Env, key: &DataKey) {
+        if env.storage().persistent().has(key) {
+            env.storage().persistent().extend_ttl(
+                key,
+                Self::PERSISTENT_TTL_THRESHOLD,
+                Self::PERSISTENT_TTL_EXTEND_TO,
+            );
+        }
+    }
+
+    fn require_upgrade_admin(env: &Env, caller: &Address) -> Result<(), JobRegistryError> {
+        caller.require_auth();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::UpgradeAdmin)
+            .ok_or(JobRegistryError::UpgradeAdminNotSet)?;
+
+        if *caller != admin {
+            return Err(JobRegistryError::Unauthorized);
+        }
+
+        Ok(())
+    }
+
+    /// One-time initialization for upgrade admin.
+    pub fn init_upgrade_admin(env: Env, admin: Address) -> Result<(), JobRegistryError> {
+        admin.require_auth();
+
+        if env.storage().instance().has(&DataKey::UpgradeAdmin) {
+            return Err(JobRegistryError::UpgradeAdminAlreadySet);
+        }
+
+        env.storage().instance().set(&DataKey::UpgradeAdmin, &admin);
+        env.events().publish(
+            ("job_registry", "UpgradeAdminSet"),
+            UpgradeAdminSetEvent {
+                previous_admin: None,
+                new_admin: admin,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Rotate upgrade admin authority to a new address.
+    pub fn set_upgrade_admin(
+        env: Env,
+        caller: Address,
+        new_admin: Address,
+    ) -> Result<(), JobRegistryError> {
+        Self::require_upgrade_admin(&env, &caller)?;
+
+        let previous_admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::UpgradeAdmin)
+            .ok_or(JobRegistryError::UpgradeAdminNotSet)?;
+
+        env.storage()
+            .instance()
+            .set(&DataKey::UpgradeAdmin, &new_admin);
+        env.events().publish(
+            ("job_registry", "UpgradeAdminSet"),
+            UpgradeAdminSetEvent {
+                previous_admin: Some(previous_admin),
+                new_admin,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Returns the currently configured upgrade admin.
+    pub fn get_upgrade_admin(env: Env) -> Result<Address, JobRegistryError> {
+        env.storage()
+            .instance()
+            .get(&DataKey::UpgradeAdmin)
+            .ok_or(JobRegistryError::UpgradeAdminNotSet)
+    }
+
+    /// Upgrade contract WASM hash, callable only by upgrade admin.
+    pub fn upgrade(
+        env: Env,
+        caller: Address,
+        new_wasm_hash: BytesN<32>,
+    ) -> Result<(), JobRegistryError> {
+        Self::require_upgrade_admin(&env, &caller)?;
+
+        env.deployer()
+            .update_current_contract_wasm(new_wasm_hash.clone());
+        env.events().publish(
+            ("job_registry", "ContractUpgraded"),
+            ContractUpgradedEvent {
+                by_admin: caller,
+                new_wasm_hash,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+
+        Ok(())
+    }
+
     /// Client posts a job. `metadata_hash` = IPFS CID bytes.
     pub fn post_job(env: Env, job_id: u64, client: Address, hash: Bytes, budget: i128) {
         client.require_auth();
@@ -116,11 +248,7 @@ impl JobRegistryContract {
             status: JobStatus::Open,
         };
         env.storage().persistent().set(&key, &job);
-
-        let bids: Vec<BidRecord> = Vec::new(&env);
-        env.storage()
-            .persistent()
-            .set(&DataKey::Bids(job_id), &bids);
+        Self::bump_persistent_ttl(&env, &key);
     }
 
     /// Freelancer submits a bid on an open job.
@@ -170,6 +298,7 @@ impl JobRegistryContract {
             .persistent()
             .get(&key)
             .ok_or(JobRegistryError::JobNotFound)?;
+        Self::bump_persistent_ttl(&env, &key);
 
         // Ensure job is in Open status - cannot bid on jobs that are not accepting bids
         if job.status != JobStatus::Open {
@@ -192,6 +321,7 @@ impl JobRegistryContract {
 
         // Persist updated bids vector to storage
         env.storage().persistent().set(&bids_key, &bids);
+        Self::bump_persistent_ttl(&env, &bids_key);
 
         // Emit auditable event for off-chain indexing and monitoring
         // Timestamp ensures audit trail for all submissions
@@ -223,6 +353,7 @@ impl JobRegistryContract {
             .persistent()
             .get(&key)
             .ok_or(JobRegistryError::JobNotFound)?;
+        Self::bump_persistent_ttl(&env, &key);
 
         if job.status != JobStatus::Open {
             return Err(JobRegistryError::InvalidState);
@@ -237,6 +368,7 @@ impl JobRegistryContract {
             .persistent()
             .get(&bids_key)
             .unwrap_or_else(|| Vec::new(&env));
+        Self::bump_persistent_ttl(&env, &bids_key);
 
         let mut bid_found = false;
         let mut idx = 0u32;
@@ -257,6 +389,7 @@ impl JobRegistryContract {
         job.freelancer = Some(freelancer.clone());
         job.status = JobStatus::InProgress;
         env.storage().persistent().set(&key, &job);
+        Self::bump_persistent_ttl(&env, &key);
 
         env.events().publish(
             ("job_registry", "BidAccepted"),
@@ -320,6 +453,7 @@ impl JobRegistryContract {
             .persistent()
             .get(&key)
             .ok_or(JobRegistryError::JobNotFound)?;
+        Self::bump_persistent_ttl(&env, &key);
 
         if job.status != JobStatus::InProgress {
             return Err(JobRegistryError::InvalidState);
@@ -330,9 +464,11 @@ impl JobRegistryContract {
 
         job.status = JobStatus::DeliverableSubmitted;
         env.storage().persistent().set(&key, &job);
-        env.storage()
-            .persistent()
-            .set(&DataKey::Deliverable(job_id), &hash);
+        Self::bump_persistent_ttl(&env, &key);
+
+        let deliverable_key = DataKey::Deliverable(job_id);
+        env.storage().persistent().set(&deliverable_key, &hash);
+        Self::bump_persistent_ttl(&env, &deliverable_key);
 
         env.events().publish(
             ("job_registry", "DeliverableSubmitted"),
@@ -355,6 +491,7 @@ impl JobRegistryContract {
             .persistent()
             .get(&key)
             .ok_or(JobRegistryError::JobNotFound)?;
+        Self::bump_persistent_ttl(&env, &key);
 
         if job.status != JobStatus::InProgress && job.status != JobStatus::DeliverableSubmitted {
             return Err(JobRegistryError::InvalidState);
@@ -362,6 +499,7 @@ impl JobRegistryContract {
 
         job.status = JobStatus::Disputed;
         env.storage().persistent().set(&key, &job);
+        Self::bump_persistent_ttl(&env, &key);
 
         env.events().publish(
             ("job_registry", "Disputed"),
@@ -384,10 +522,14 @@ impl JobRegistryContract {
     /// * `Ok(JobRecord)` - The job record if found
     /// * `Err(JobRegistryError::JobNotFound)` - If the job ID does not exist
     pub fn get_job(env: Env, job_id: u64) -> Result<JobRecord, JobRegistryError> {
-        env.storage()
+        let key = DataKey::Job(job_id);
+        let job = env
+            .storage()
             .persistent()
-            .get(&DataKey::Job(job_id))
-            .ok_or(JobRegistryError::JobNotFound)
+            .get(&key)
+            .ok_or(JobRegistryError::JobNotFound)?;
+        Self::bump_persistent_ttl(&env, &key);
+        Ok(job)
     }
 
     /// Retrieves all bids for a specific job.
@@ -404,22 +546,31 @@ impl JobRegistryContract {
     /// * `Ok(Vec<BidRecord>)` - A vector of all bids submitted for the job
     /// * `Err(JobRegistryError::JobNotFound)` - If the job ID does not exist
     pub fn get_bids(env: Env, job_id: u64) -> Result<Vec<BidRecord>, JobRegistryError> {
-        if !env.storage().persistent().has(&DataKey::Job(job_id)) {
+        let job_key = DataKey::Job(job_id);
+        if !env.storage().persistent().has(&job_key) {
             return Err(JobRegistryError::JobNotFound);
         }
+        Self::bump_persistent_ttl(&env, &job_key);
 
-        Ok(env
+        let bids_key = DataKey::Bids(job_id);
+        let bids = env
             .storage()
             .persistent()
-            .get(&DataKey::Bids(job_id))
-            .unwrap_or_else(|| Vec::new(&env)))
+            .get(&bids_key)
+            .unwrap_or_else(|| Vec::new(&env));
+        Self::bump_persistent_ttl(&env, &bids_key);
+        Ok(bids)
     }
 
     pub fn get_deliverable(env: Env, job_id: u64) -> Bytes {
-        env.storage()
+        let key = DataKey::Deliverable(job_id);
+        let deliverable = env
+            .storage()
             .persistent()
-            .get(&DataKey::Deliverable(job_id))
-            .expect("no deliverable")
+            .get(&key)
+            .expect("no deliverable");
+        Self::bump_persistent_ttl(&env, &key);
+        deliverable
     }
 }
 
@@ -907,5 +1058,49 @@ mod test {
         let cc = JobRegistryContractClient::new(&env, &contract_id);
 
         cc.get_bids(&999u64);
+    }
+
+    #[test]
+    fn test_upgrade_admin_initialize_and_read() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let contract_id = env.register_contract(None, JobRegistryContract);
+        let cc = JobRegistryContractClient::new(&env, &contract_id);
+
+        cc.init_upgrade_admin(&admin);
+        let configured = cc.get_upgrade_admin();
+        assert_eq!(configured, admin);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #7)")]
+    fn test_upgrade_admin_cannot_initialize_twice() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let contract_id = env.register_contract(None, JobRegistryContract);
+        let cc = JobRegistryContractClient::new(&env, &contract_id);
+
+        cc.init_upgrade_admin(&admin);
+        cc.init_upgrade_admin(&admin);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #3)")]
+    fn test_set_upgrade_admin_requires_current_admin() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let attacker = Address::generate(&env);
+        let new_admin = Address::generate(&env);
+        let contract_id = env.register_contract(None, JobRegistryContract);
+        let cc = JobRegistryContractClient::new(&env, &contract_id);
+
+        cc.init_upgrade_admin(&admin);
+        cc.set_upgrade_admin(&attacker, &new_admin);
     }
 }

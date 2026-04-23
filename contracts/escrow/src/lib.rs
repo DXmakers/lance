@@ -1,6 +1,25 @@
 #![no_std]
 
-use soroban_sdk::{contract, contracterror, contractimpl, contracttype, token, Address, Env, Vec};
+use soroban_sdk::BytesN;
+use soroban_sdk::{
+    contract, contractclient, contracterror, contractimpl, contracttype, token, Address, Env, Vec,
+};
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum JobRegistryErrorCode {
+    JobNotFound = 1,
+    JobNotOpen = 2,
+    Unauthorized = 3,
+    InvalidInput = 4,
+    InvalidState = 5,
+    BidNotFound = 6,
+}
+
+#[contractclient(name = "JobRegistryClient")]
+pub trait JobRegistryContract {
+    fn mark_disputed(env: Env, job_id: u64) -> Result<(), JobRegistryErrorCode>;
+}
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
@@ -47,6 +66,7 @@ pub enum DataKey {
     Job(u64),
     Admin,
     AgentJudge,
+    JobRegistry,
 }
 
 #[contracttype]
@@ -76,6 +96,8 @@ pub enum EscrowError {
     InvalidState = 6,
     AmountMismatch = 7,
     NoPendingMilestones = 8,
+    JobRegistrySyncFailed = 9,
+    UpgradeUnauthorized = 10,
 }
 
 #[contracttype]
@@ -114,11 +136,84 @@ pub struct OpenDisputeEvent {
     pub opened_at: u64,
 }
 
+#[contracttype]
+#[derive(Clone)]
+pub struct JobRegistryConfiguredEvent {
+    pub configured_by: Address,
+    pub registry_contract: Address,
+    pub configured_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct RegistryDisputeSyncedEvent {
+    pub job_id: u64,
+    pub registry_contract: Address,
+    pub synced_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct ContractUpgradedEvent {
+    pub by_admin: Address,
+    pub new_wasm_hash: BytesN<32>,
+    pub upgraded_at: u64,
+}
+
 #[contract]
 pub struct EscrowContract;
 
 #[contractimpl]
 impl EscrowContract {
+    const INSTANCE_TTL_THRESHOLD: u32 = 50_000;
+    const INSTANCE_TTL_EXTEND_TO: u32 = 150_000;
+    const PERSISTENT_TTL_THRESHOLD: u32 = 50_000;
+    const PERSISTENT_TTL_EXTEND_TO: u32 = 150_000;
+
+    fn bump_instance_ttl(env: &Env) {
+        env.storage()
+            .instance()
+            .extend_ttl(Self::INSTANCE_TTL_THRESHOLD, Self::INSTANCE_TTL_EXTEND_TO);
+    }
+
+    fn bump_job_ttl(env: &Env, key: &DataKey) {
+        if env.storage().persistent().has(key) {
+            env.storage().persistent().extend_ttl(
+                key,
+                Self::PERSISTENT_TTL_THRESHOLD,
+                Self::PERSISTENT_TTL_EXTEND_TO,
+            );
+        }
+    }
+
+    fn sync_dispute_to_job_registry(env: &Env, job_id: u64) -> Result<(), EscrowError> {
+        Self::bump_instance_ttl(env);
+        let Some(registry_contract) = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::JobRegistry)
+        else {
+            return Ok(());
+        };
+
+        let client = JobRegistryClient::new(env, &registry_contract);
+        client
+            .try_mark_disputed(&job_id)
+            .map_err(|_| EscrowError::JobRegistrySyncFailed)?
+            .map_err(|_| EscrowError::JobRegistrySyncFailed)?;
+
+        env.events().publish(
+            ("escrow", "RegistryDisputeSynced"),
+            RegistryDisputeSyncedEvent {
+                job_id,
+                registry_contract,
+                synced_at: env.ledger().timestamp(),
+            },
+        );
+
+        Ok(())
+    }
+
     pub fn initialize(env: Env, admin: Address, agent_judge: Address) -> Result<(), EscrowError> {
         // Prevent double initialization
         if env.storage().instance().has(&DataKey::Admin) {
@@ -140,6 +235,8 @@ impl EscrowContract {
             ("escrow", "Initialized"),
             (admin.clone(), agent_judge.clone(), env.ledger().timestamp()),
         );
+
+        Self::bump_instance_ttl(&env);
 
         Ok(())
     }
@@ -170,6 +267,68 @@ impl EscrowContract {
                 new_agent_judge.clone(),
                 env.ledger().timestamp(),
             ),
+        );
+
+        Self::bump_instance_ttl(&env);
+
+        Ok(())
+    }
+
+    /// Admin configures the JobRegistry contract address used for cross-contract sync.
+    pub fn set_job_registry(env: Env, job_registry: Address) -> Result<(), EscrowError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(EscrowError::NotInitialized)?;
+        admin.require_auth();
+
+        env.storage()
+            .instance()
+            .set(&DataKey::JobRegistry, &job_registry);
+
+        env.events().publish(
+            ("escrow", "JobRegistryConfigured"),
+            JobRegistryConfiguredEvent {
+                configured_by: admin,
+                registry_contract: job_registry,
+                configured_at: env.ledger().timestamp(),
+            },
+        );
+
+        Self::bump_instance_ttl(&env);
+
+        Ok(())
+    }
+
+    /// Upgrades the current contract WASM. Only callable by admin.
+    pub fn upgrade(
+        env: Env,
+        caller: Address,
+        new_wasm_hash: BytesN<32>,
+    ) -> Result<(), EscrowError> {
+        Self::bump_instance_ttl(&env);
+        caller.require_auth();
+
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(EscrowError::NotInitialized)?;
+
+        if caller != admin {
+            return Err(EscrowError::UpgradeUnauthorized);
+        }
+
+        env.deployer()
+            .update_current_contract_wasm(new_wasm_hash.clone());
+        env.events().publish(
+            ("escrow", "ContractUpgraded"),
+            ContractUpgradedEvent {
+                by_admin: caller,
+                new_wasm_hash,
+                upgraded_at: env.ledger().timestamp(),
+            },
         );
 
         Ok(())
@@ -203,12 +362,14 @@ impl EscrowContract {
             milestones: Vec::new(&env),
         };
         env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
     }
 
     /// Add a milestone to the job (setup phase only).
     pub fn add_milestone(env: Env, job_id: u64, amount: i128) {
         let key = DataKey::Job(job_id);
         let mut job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
+        Self::bump_job_ttl(&env, &key);
         job.client.require_auth();
         assert!(job.status == EscrowStatus::Setup, "not in setup phase");
         assert!(amount > 0, "amount must be > 0");
@@ -218,6 +379,7 @@ impl EscrowContract {
             status: MilestoneStatus::Pending,
         });
         env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
     }
 
     /// Client deposits total amount and transitions job to Funded.
@@ -228,6 +390,7 @@ impl EscrowContract {
             .persistent()
             .get(&key)
             .ok_or(EscrowError::JobNotFound)?;
+        Self::bump_job_ttl(&env, &key);
 
         // Caller must be client
         job.client.require_auth();
@@ -261,6 +424,7 @@ impl EscrowContract {
         job.total_amount = amount;
         job.status = EscrowStatus::Funded;
         env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
 
         // Emit deposit event for off-chain logging
         let evt = DepositEvent {
@@ -286,6 +450,7 @@ impl EscrowContract {
             .persistent()
             .get(&key)
             .ok_or(EscrowError::JobNotFound)?;
+        Self::bump_job_ttl(&env, &key);
 
         if !(job.status == EscrowStatus::Funded || job.status == EscrowStatus::WorkInProgress) {
             return Err(EscrowError::InvalidState);
@@ -328,6 +493,7 @@ impl EscrowContract {
         }
 
         env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
 
         // Emit event
         env.events().publish(
@@ -345,6 +511,7 @@ impl EscrowContract {
 
         let key = DataKey::Job(job_id);
         let mut job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
+        Self::bump_job_ttl(&env, &key);
 
         assert!(
             job.status == EscrowStatus::Funded || job.status == EscrowStatus::WorkInProgress,
@@ -383,6 +550,7 @@ impl EscrowContract {
         }
 
         env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
     }
 
     /// Either party opens a dispute, locking remaining funds.
@@ -395,6 +563,7 @@ impl EscrowContract {
             .persistent()
             .get(&key)
             .ok_or(EscrowError::JobNotFound)?;
+        Self::bump_job_ttl(&env, &key);
 
         if !(job.status == EscrowStatus::Funded || job.status == EscrowStatus::WorkInProgress) {
             return Err(EscrowError::InvalidState);
@@ -406,6 +575,9 @@ impl EscrowContract {
 
         job.status = EscrowStatus::Disputed;
         env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
+
+        Self::sync_dispute_to_job_registry(&env, job_id)?;
 
         env.events().publish(
             ("escrow", "OpenDispute"),
@@ -417,12 +589,13 @@ impl EscrowContract {
 
     /// Either party formally raises a dispute with on-chain event emission.
     /// Locks funds, transitions state to Disputed, and signals the AI Judge.
-    pub fn raise_dispute(env: Env, job_id: u64, caller: Address) {
+    pub fn raise_dispute(env: Env, job_id: u64, caller: Address) -> Result<(), EscrowError> {
         // 1. Authenticate the caller
         caller.require_auth();
 
         let key = DataKey::Job(job_id);
         let mut job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
+        Self::bump_job_ttl(&env, &key);
 
         // 2. Only client or freelancer may raise a dispute
         assert!(
@@ -453,6 +626,9 @@ impl EscrowContract {
         // 6. Lock funds by transitioning to Disputed — blocks release_funds & release_milestone
         job.status = EscrowStatus::Disputed;
         env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
+
+        Self::sync_dispute_to_job_registry(&env, job_id)?;
 
         // 7. Emit DisputeRaised event for backend / AI Judge to consume
         let mut released_count = 0u32;
@@ -472,12 +648,15 @@ impl EscrowContract {
                 now,
             ),
         );
+
+        Ok(())
     }
 
     /// Agent Judge resolves dispute -- splits funds by explicit amounts.
     /// `payee_amount`: Amount to pay to the freelancer (payee).
     /// `payer_amount`: Amount to return to the client (payer).
     pub fn resolve_dispute(env: Env, job_id: u64, payee_amount: i128, payer_amount: i128) {
+        Self::bump_instance_ttl(&env);
         let agent_judge: Address = env
             .storage()
             .instance()
@@ -490,6 +669,7 @@ impl EscrowContract {
 
         let key = DataKey::Job(job_id);
         let mut job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
+        Self::bump_job_ttl(&env, &key);
         assert!(job.status == EscrowStatus::Disputed, "job not disputed");
 
         let remaining = job.total_amount - job.released_amount;
@@ -511,6 +691,7 @@ impl EscrowContract {
         job.released_amount += total_payout;
         job.status = EscrowStatus::Resolved;
         env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
     }
 
     /// Client recoups funds if freelancer never responded.
@@ -519,6 +700,7 @@ impl EscrowContract {
 
         let key = DataKey::Job(job_id);
         let mut job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
+        Self::bump_job_ttl(&env, &key);
 
         assert!(
             job.status == EscrowStatus::Funded || job.status == EscrowStatus::WorkInProgress,
@@ -535,22 +717,21 @@ impl EscrowContract {
         job.released_amount = job.total_amount;
         job.status = EscrowStatus::Refunded;
         env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
     }
 
     pub fn get_job(env: Env, job_id: u64) -> EscrowJob {
-        env.storage()
-            .persistent()
-            .get(&DataKey::Job(job_id))
-            .expect("job not found")
+        let key = DataKey::Job(job_id);
+        let job = env.storage().persistent().get(&key).expect("job not found");
+        Self::bump_job_ttl(&env, &key);
+        job
     }
 
     /// Retrieve the status of all milestones for a given job.
     pub fn get_milestone_status(env: Env, job_id: u64) -> Vec<MilestoneStatus> {
-        let job: EscrowJob = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Job(job_id))
-            .expect("job not found");
+        let key = DataKey::Job(job_id);
+        let job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
+        Self::bump_job_ttl(&env, &key);
         let mut statuses = Vec::new(&env);
         for m in job.milestones.iter() {
             statuses.push_back(m.status);
@@ -968,5 +1149,66 @@ mod test {
 
         let job = cc.get_job(&1u64);
         assert_eq!(job.status, EscrowStatus::Disputed);
+    }
+
+    #[test]
+    fn test_open_dispute_syncs_job_registry_status() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let escrow_id = env.register_contract(None, EscrowContract);
+        let escrow = EscrowContractClient::new(&env, &escrow_id);
+
+        let registry_id = env.register_contract(None, JobRegistryContract);
+        let registry = JobRegistryContractClient::new(&env, &registry_id);
+
+        let metadata = Bytes::from_slice(&env, b"QmJobMetadataHash");
+        let proposal = Bytes::from_slice(&env, b"QmBidProposalHash");
+
+        registry.post_job(&1u64, &client, &metadata, &9000i128);
+        registry.submit_bid(&1u64, &freelancer, &proposal);
+        registry.accept_bid(&1u64, &client, &freelancer);
+        assert_eq!(registry.get_job(&1u64).status, JobStatus::InProgress);
+
+        escrow.initialize(&admin, &agent_judge);
+        escrow.set_job_registry(&registry_id);
+        escrow.create_job(&1u64, &client, &freelancer, &token_addr);
+        escrow.add_milestone(&1u64, &4500i128);
+        escrow.add_milestone(&1u64, &4500i128);
+        escrow.deposit(&1u64, &9000i128);
+
+        escrow.open_dispute(&1u64, &client);
+
+        let escrow_job = escrow.get_job(&1u64);
+        let registry_job = registry.get_job(&1u64);
+
+        assert_eq!(escrow_job.status, EscrowStatus::Disputed);
+        assert_eq!(registry_job.status, JobStatus::Disputed);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #10)")]
+    fn test_upgrade_requires_admin() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let attacker = Address::generate(&env);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        let wasm_hash = BytesN::from_array(&env, &[0; 32]);
+        cc.upgrade(&attacker, &wasm_hash);
     }
 }
