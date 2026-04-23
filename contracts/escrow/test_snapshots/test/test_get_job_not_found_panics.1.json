@@ -107,18 +107,16 @@
           "v0": {
             "topics": [
               {
-                "symbol": "log"
+                "symbol": "fn_return"
+              },
+              {
+                "symbol": "get_job"
               }
             ],
             "data": {
-              "vec": [
-                {
-                  "string": "caught panic 'job not found' from contract function 'Symbol(get_job)'"
-                },
-                {
-                  "u64": 999
-                }
-              ]
+              "error": {
+                "contract": 5
+              }
             }
           }
         }
@@ -138,12 +136,12 @@
               },
               {
                 "error": {
-                  "wasm_vm": "invalid_action"
+                  "contract": 5
                 }
               }
             ],
             "data": {
-              "string": "caught error from function"
+              "string": "escalating Ok(ScErrorType::Contract) frame-exit to Err"
             }
           }
         }
@@ -163,7 +161,7 @@
               },
               {
                 "error": {
-                  "wasm_vm": "invalid_action"
+                  "contract": 5
                 }
               }
             ],
@@ -202,7 +200,7 @@
               },
               {
                 "error": {
-                  "wasm_vm": "invalid_action"
+                  "contract": 5
                 }
               }
             ],
