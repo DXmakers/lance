@@ -1,6 +1,5 @@
 use anyhow::{anyhow, bail, Context, Result};
 use soroban_client::{
-    account::AccountBehavior,
     contract::{ContractBehavior, Contracts},
     keypair::{Keypair, KeypairBehavior},
     soroban_rpc::{SendTransactionStatus, TransactionStatus},

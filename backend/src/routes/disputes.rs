@@ -51,8 +51,22 @@ pub async fn open_dispute_for_job(
         .execute(&state.pool)
         .await?;
 
-    // Call escrow contract open_dispute via services::stellar
-    let _ = state.stellar.open_dispute(&job_id.to_string()).await;
+    let on_chain_job_id: Option<i64> =
+        sqlx::query_scalar("SELECT on_chain_job_id FROM jobs WHERE id = $1")
+            .bind(job_id)
+            .fetch_optional(&state.pool)
+            .await?
+            .flatten();
+
+    // Call escrow contract open_dispute via services::stellar when mapped to an on-chain job id.
+    if let Some(on_chain_job_id) = on_chain_job_id.and_then(|id| u64::try_from(id).ok()) {
+        let _ = state.stellar.open_dispute(on_chain_job_id).await;
+    } else {
+        tracing::warn!(
+            %job_id,
+            "skipping on-chain open_dispute: missing or invalid jobs.on_chain_job_id"
+        );
+    }
 
     let dispute = sqlx::query_as::<_, Dispute>(
         r#"INSERT INTO disputes (job_id, opened_by, status)

@@ -46,22 +46,37 @@ pub async fn release_milestone(
         return Err(AppError::BadRequest("milestone already released".into()));
     }
 
-    // Call Soroban escrow contract via stellar.rs service
-    // Use the on-chain job ID if it exists, otherwise use a placeholder (for dev/test)
-    let job_id_str = milestone.job_id.to_string();
+    let on_chain_job_id: Option<i64> =
+        sqlx::query_scalar("SELECT on_chain_job_id FROM jobs WHERE id = $1")
+            .bind(job_id)
+            .fetch_optional(&state.pool)
+            .await?
+            .flatten();
+
     let milestone_index: u32 = milestone
         .index
         .try_into()
         .map_err(|_| AppError::BadRequest("milestone index must be non-negative".into()))?;
-    let tx_hash = state
-        .stellar
-        .release_milestone(&job_id_str, milestone_index)
-        .await
-        .map(Some)
-        .unwrap_or_else(|e| {
-            tracing::error!("on-chain release_milestone failed: {e}");
-            None // Fallback to allowing DB update even if on-chain failed for robustness in dev
-        });
+
+    // Call Soroban escrow contract only when this job is mapped to an on-chain id.
+    let tx_hash =
+        if let Some(on_chain_job_id) = on_chain_job_id.and_then(|id| u64::try_from(id).ok()) {
+            state
+                .stellar
+                .release_milestone(on_chain_job_id, milestone_index)
+                .await
+                .map(Some)
+                .unwrap_or_else(|e| {
+                    tracing::error!("on-chain release_milestone failed: {e}");
+                    None // Fallback to allowing DB update even if on-chain failed for robustness in dev
+                })
+        } else {
+            tracing::warn!(
+                %job_id,
+                "skipping on-chain release_milestone: missing or invalid jobs.on_chain_job_id"
+            );
+            None
+        };
     let deliverable_exists: bool = sqlx::query_scalar(
         r#"SELECT EXISTS(
                SELECT 1

@@ -3,9 +3,9 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 use soroban_client::{
-    soroban_rpc::{EventFilter, EventResponse, EventType, Pagination},
+    soroban_rpc::{EventResponse, EventType},
     xdr::{ScSymbol, ScVal},
-    Options, Server,
+    EventFilter, Options, Pagination, Server,
 };
 use sqlx::{PgPool, Row};
 use std::time::Duration;
