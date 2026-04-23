@@ -117,6 +117,7 @@ pub struct DepositEvent {
     pub amount: i128,
     pub deposited_at: u64,
 }
+#[contracttype]
 #[derive(Clone)]
 pub struct ReleaseMilestoneEvent {
     pub job_id: u64,
@@ -688,19 +689,25 @@ impl EscrowContract {
         Self::bump_job_ttl(&env, &key);
     }
 
-    /// Client recoups funds if freelancer never responded.
-    pub fn refund(env: Env, job_id: u64, client: Address) {
+    /// Client recoups funds if freelancer never responded or deadline has passed.
+    pub fn refund(env: Env, job_id: u64, client: Address) -> Result<(), EscrowError> {
         client.require_auth();
 
         let key = DataKey::Job(job_id);
-        let mut job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
+        let mut job: EscrowJob = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::JobNotFound)?;
         Self::bump_job_ttl(&env, &key);
 
-        assert!(
-            job.status == EscrowStatus::Funded || job.status == EscrowStatus::WorkInProgress,
-            "job not in active state"
-        );
-        assert!(client == job.client, "only client can refund");
+        if !(job.status == EscrowStatus::Funded || job.status == EscrowStatus::WorkInProgress) {
+            return Err(EscrowError::InvalidState);
+        }
+
+        if client != job.client {
+            return Err(EscrowError::Unauthorized);
+        }
 
         let remaining = job.total_amount - job.released_amount;
         if remaining > 0 {
@@ -712,11 +719,18 @@ impl EscrowContract {
         job.status = EscrowStatus::Refunded;
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
+
+        env.events().publish(
+            ("escrow", "Refunded"),
+            (job_id, client, remaining, env.ledger().timestamp()),
+        );
+
+        Ok(())
     }
 
     pub fn get_job(env: Env, job_id: u64) -> EscrowJob {
         let key = DataKey::Job(job_id);
-        let job = env.storage().persistent().get(&key).expect("job not found");
+        let job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
         Self::bump_job_ttl(&env, &key);
         job
     }
@@ -737,9 +751,8 @@ impl EscrowContract {
 #[cfg(test)]
 mod test {
     use super::*;
-    use job_registry::{JobRegistryContract, JobRegistryContractClient, JobStatus};
     use soroban_sdk::testutils::Address as _;
-    use soroban_sdk::{token, Address, Bytes, BytesN, Env};
+    use soroban_sdk::{token, Address, Env};
 
     fn setup_token(env: &Env, admin: &Address) -> Address {
         let contract = env.register_stellar_asset_contract_v2(admin.clone());
@@ -1795,7 +1808,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic(expected = "Error(WasmVm, InvalidAction)")]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_refund_by_non_client_panics() {
         let env = Env::default();
         env.mock_all_auths();
