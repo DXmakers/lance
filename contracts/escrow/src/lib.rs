@@ -92,7 +92,10 @@ pub struct DisputeRaisedEvent {
 #[derive(Clone)]
 pub struct DepositEvent {
     pub job_id: u64,
+    pub deposited_by: Address,
+    pub token: Address,
     pub amount: i128,
+    pub milestone_count: u32,
     pub deposited_at: u64,
 }
 #[derive(Clone)]
@@ -262,10 +265,13 @@ impl EscrowContract {
         // Emit deposit event for off-chain logging
         let evt = DepositEvent {
             job_id,
+            deposited_by: job.client.clone(),
+            token: job.token.clone(),
             amount,
+            milestone_count: job.milestones.len(),
             deposited_at: env.ledger().timestamp(),
         };
-        env.events().publish(("escrow", "Deposit"), evt);
+        env.events().publish(("escrow", "DepositEvent"), evt);
 
         Ok(())
     }
@@ -556,8 +562,8 @@ impl EscrowContract {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::testutils::Address as _;
-    use soroban_sdk::{token, Address, Env};
+    use soroban_sdk::testutils::{Address as _, Events as _};
+    use soroban_sdk::{token, Address, Env, IntoVal};
 
     fn setup_token(env: &Env, admin: &Address) -> Address {
         let contract = env.register_stellar_asset_contract_v2(admin.clone());
@@ -656,6 +662,47 @@ mod test {
 
         let job = cc.get_job(&1u64);
         assert_eq!(job.status, EscrowStatus::Completed);
+    }
+
+    #[test]
+    fn test_deposit_emits_deposit_event() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&87u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&87u64, &1500i128);
+        cc.add_milestone(&87u64, &2500i128);
+
+        cc.deposit(&87u64, &4000i128);
+
+        let events = env.events().all();
+        let deposit_event = events.get(events.len() - 1).unwrap();
+        assert_eq!(deposit_event.0, contract_id);
+        assert_eq!(deposit_event.1, ("escrow", "DepositEvent").into_val(&env));
+        assert_eq!(
+            deposit_event.2,
+            DepositEvent {
+                job_id: 87,
+                deposited_by: client,
+                token: token_addr,
+                amount: 4000,
+                milestone_count: 2,
+                deposited_at: env.ledger().timestamp(),
+            }
+            .into_val(&env)
+        );
     }
 
     #[test]
