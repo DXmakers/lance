@@ -86,17 +86,10 @@
             "key": {
               "vec": [
                 {
-                  "symbol": "Score"
+                  "symbol": "Profile"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                },
-                {
-                  "vec": [
-                    {
-                      "symbol": "Freelancer"
-                    }
-                  ]
                 }
               ]
             },
@@ -113,17 +106,10 @@
                 "key": {
                   "vec": [
                     {
-                      "symbol": "Score"
+                      "symbol": "Profile"
                     },
                     {
                       "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                    },
-                    {
-                      "vec": [
-                        {
-                          "symbol": "Freelancer"
-                        }
-                      ]
                     }
                   ]
                 },
@@ -140,19 +126,47 @@
                     },
                     {
                       "key": {
-                        "symbol": "role"
+                        "symbol": "client_jobs"
                       },
                       "val": {
-                        "vec": [
-                          {
-                            "symbol": "Freelancer"
-                          }
-                        ]
+                        "u32": 0
                       }
                     },
                     {
                       "key": {
-                        "symbol": "score"
+                        "symbol": "client_points"
+                      },
+                      "val": {
+                        "i32": 0
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "client_score"
+                      },
+                      "val": {
+                        "i32": 5000
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "freelancer_jobs"
+                      },
+                      "val": {
+                        "u32": 1
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "freelancer_points"
+                      },
+                      "val": {
+                        "i32": 0
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "freelancer_score"
                       },
                       "val": {
                         "i32": 5500
@@ -160,11 +174,9 @@
                     },
                     {
                       "key": {
-                        "symbol": "total_jobs"
+                        "symbol": "metadata_hash"
                       },
-                      "val": {
-                        "u32": 1
-                      }
+                      "val": "void"
                     }
                   ]
                 }
@@ -172,7 +184,7 @@
             },
             "ext": "v0"
           },
-          4095
+          150000
         ]
       ],
       [
@@ -217,7 +229,7 @@
             },
             "ext": "v0"
           },
-          4095
+          150000
         ]
       ],
       [
@@ -238,7 +250,7 @@
             },
             "ext": "v0"
           },
-          4095
+          150000
         ]
       ]
     ]
@@ -416,6 +428,14 @@
                 },
                 {
                   "key": {
+                    "symbol": "reviews"
+                  },
+                  "val": {
+                    "u32": 1
+                  }
+                },
+                {
+                  "key": {
                     "symbol": "role"
                   },
                   "val": {
@@ -440,6 +460,14 @@
                   },
                   "val": {
                     "u32": 1
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "total_points"
+                  },
+                  "val": {
+                    "i32": 0
                   }
                 }
               ]
