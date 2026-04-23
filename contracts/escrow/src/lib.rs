@@ -157,6 +157,25 @@ pub struct ContractUpgradedEvent {
     pub upgraded_at: u64,
 }
 
+#[contracttype]
+#[derive(Clone)]
+pub struct DisputeResolvedEvent {
+    pub job_id: u64,
+    pub freelancer_amount: i128,
+    pub client_amount: i128,
+    pub resolved_by: Address,
+    pub resolved_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct RefundEvent {
+    pub job_id: u64,
+    pub client: Address,
+    pub amount: i128,
+    pub refunded_at: u64,
+}
+
 #[contract]
 pub struct EscrowContract;
 
@@ -649,26 +668,45 @@ impl EscrowContract {
     /// Agent Judge resolves dispute -- splits funds by explicit amounts.
     /// `payee_amount`: Amount to pay to the freelancer (payee).
     /// `payer_amount`: Amount to return to the client (payer).
-    pub fn resolve_dispute(env: Env, job_id: u64, payee_amount: i128, payer_amount: i128) {
+    pub fn resolve_dispute(
+        env: Env,
+        job_id: u64,
+        payee_amount: i128,
+        payer_amount: i128,
+    ) -> Result<(), EscrowError> {
         Self::bump_instance_ttl(&env);
         let agent_judge: Address = env
             .storage()
             .instance()
             .get(&DataKey::AgentJudge)
-            .expect("agent judge not set");
+            .ok_or(EscrowError::NotInitialized)?;
         agent_judge.require_auth();
 
-        assert!(payee_amount >= 0, "payee_amount must be >= 0");
-        assert!(payer_amount >= 0, "payer_amount must be >= 0");
+        if payee_amount < 0 || payer_amount < 0 {
+            return Err(EscrowError::InvalidInput);
+        }
 
         let key = DataKey::Job(job_id);
-        let mut job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
+        let mut job: EscrowJob = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::JobNotFound)?;
         Self::bump_job_ttl(&env, &key);
-        assert!(job.status == EscrowStatus::Disputed, "job not disputed");
+        if job.status != EscrowStatus::Disputed {
+            return Err(EscrowError::InvalidState);
+        }
 
-        let remaining = job.total_amount - job.released_amount;
-        let total_payout = payee_amount + payer_amount;
-        assert!(total_payout <= remaining, "payout exceeds remaining funds");
+        let remaining = job
+            .total_amount
+            .checked_sub(job.released_amount)
+            .ok_or(EscrowError::InvalidState)?;
+        let total_payout = payee_amount
+            .checked_add(payer_amount)
+            .ok_or(EscrowError::InvalidInput)?;
+        if total_payout != remaining {
+            return Err(EscrowError::AmountMismatch);
+        }
 
         let token_client = token::Client::new(&env, &job.token);
         if payee_amount > 0 {
@@ -682,43 +720,83 @@ impl EscrowContract {
             token_client.transfer(&env.current_contract_address(), &job.client, &payer_amount);
         }
 
-        job.released_amount += total_payout;
+        job.released_amount = job.total_amount;
         job.status = EscrowStatus::Resolved;
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
+
+        env.events().publish(
+            ("escrow", "ResolveDispute"),
+            DisputeResolvedEvent {
+                job_id,
+                freelancer_amount: payee_amount,
+                client_amount: payer_amount,
+                resolved_by: agent_judge,
+                resolved_at: env.ledger().timestamp(),
+            },
+        );
+
+        Ok(())
     }
 
     /// Client recoups funds if freelancer never responded.
-    pub fn refund(env: Env, job_id: u64, client: Address) {
+    pub fn refund(env: Env, job_id: u64, client: Address) -> Result<(), EscrowError> {
         client.require_auth();
 
         let key = DataKey::Job(job_id);
-        let mut job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
+        let mut job: EscrowJob = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::JobNotFound)?;
         Self::bump_job_ttl(&env, &key);
 
-        assert!(
-            job.status == EscrowStatus::Funded || job.status == EscrowStatus::WorkInProgress,
-            "job not in active state"
-        );
-        assert!(client == job.client, "only client can refund");
-
-        let remaining = job.total_amount - job.released_amount;
-        if remaining > 0 {
-            let token_client = token::Client::new(&env, &job.token);
-            token_client.transfer(&env.current_contract_address(), &job.client, &remaining);
+        if !(job.status == EscrowStatus::Funded || job.status == EscrowStatus::WorkInProgress) {
+            return Err(EscrowError::InvalidState);
         }
+        if client != job.client {
+            return Err(EscrowError::Unauthorized);
+        }
+
+        let remaining = job
+            .total_amount
+            .checked_sub(job.released_amount)
+            .ok_or(EscrowError::InvalidState)?;
+        if remaining <= 0 {
+            return Err(EscrowError::InvalidState);
+        }
+
+        let token_client = token::Client::new(&env, &job.token);
+        token_client.transfer(&env.current_contract_address(), &job.client, &remaining);
 
         job.released_amount = job.total_amount;
         job.status = EscrowStatus::Refunded;
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
+
+        env.events().publish(
+            ("escrow", "Refund"),
+            RefundEvent {
+                job_id,
+                client,
+                amount: remaining,
+                refunded_at: env.ledger().timestamp(),
+            },
+        );
+
+        Ok(())
     }
 
-    pub fn get_job(env: Env, job_id: u64) -> EscrowJob {
+    /// Returns the full escrow record for a job.
+    pub fn get_job(env: Env, job_id: u64) -> Result<EscrowJob, EscrowError> {
         let key = DataKey::Job(job_id);
-        let job = env.storage().persistent().get(&key).expect("job not found");
+        let job = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::JobNotFound)?;
         Self::bump_job_ttl(&env, &key);
-        job
+        Ok(job)
     }
 
     /// Retrieve the status of all milestones for a given job.
@@ -961,6 +1039,49 @@ mod test {
             token::Client::new(&env, &token_addr).balance(&client),
             100_000
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #6)")]
+ 
+    #[test]
+    #[should_panic(expected = "Error(Contract, #7)")]
+    fn test_resolve_dispute_requires_full_allocation() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&1u64, &2500i128);
+        cc.add_milestone(&1u64, &2500i128);
+        cc.deposit(&1u64, &5000i128);
+        cc.open_dispute(&1u64, &client);
+
+        cc.resolve_dispute(&1u64, &2000i128, &2000i128);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #3)")]
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #5)")]
+    fn test_get_job_not_found_panics() {
+        let env = Env::default();
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.get_job(&999u64);
     }
 
     #[test]
