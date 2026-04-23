@@ -51,6 +51,14 @@ pub struct ReputationScore {
 }
 
 #[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReputationView {
+    pub address: Address,
+    pub client: ReputationScore,
+    pub freelancer: ReputationScore,
+}
+
+#[contracttype]
 pub enum DataKey {
     Admin,
     JobRegistry,
@@ -121,6 +129,27 @@ impl ReputationContract {
 
     fn score_from_rating(score: u32) -> i32 {
         (score as i32).saturating_mul(2_000)
+    }
+
+    fn score_from_profile(address: &Address, role: Role, profile: &profile::Profile) -> ReputationScore {
+        match role {
+            Role::Client => ReputationScore {
+                address: address.clone(),
+                role: Role::Client,
+                score: profile.client_score,
+                total_jobs: profile.client_jobs,
+                total_points: profile.client_points,
+                reviews: profile.client_jobs,
+            },
+            Role::Freelancer => ReputationScore {
+                address: address.clone(),
+                role: Role::Freelancer,
+                score: profile.freelancer_score,
+                total_jobs: profile.freelancer_jobs,
+                total_points: profile.freelancer_points,
+                reviews: profile.freelancer_jobs,
+            },
+        }
     }
 
     /// Upgrades the current contract WASM. Only callable by admin.
@@ -358,24 +387,7 @@ impl ReputationContract {
     pub fn get_score(env: Env, address: Address, role: Role) -> ReputationScore {
         Self::bump_instance_ttl(&env);
         let profile = storage::read_profile_or_default(&env, &address);
-        match role {
-            Role::Client => ReputationScore {
-                address,
-                role: Role::Client,
-                score: profile.client_score,
-                total_jobs: profile.client_jobs,
-                total_points: profile.client_points,
-                reviews: profile.client_jobs, // reviews and total_jobs are unified
-            },
-            Role::Freelancer => ReputationScore {
-                address,
-                role: Role::Freelancer,
-                score: profile.freelancer_score,
-                total_jobs: profile.freelancer_jobs,
-                total_points: profile.freelancer_points,
-                reviews: profile.freelancer_jobs,
-            },
-        }
+        Self::score_from_profile(&address, role, &profile)
     }
 
     /// Update profile metadata hash (IPFS CID)
@@ -396,11 +408,12 @@ impl ReputationContract {
     /// Frontend-friendly aggregate metrics for public profile pages.
     /// Returns: [score_bps, total_jobs, total_points, reviews]
     pub fn get_public_metrics(env: Env, address: Address, role_name: Symbol) -> Vec<i128> {
-        Self::bump_instance_ttl(&env);
         let role = if role_name == Symbol::new(&env, "client") {
             Role::Client
-        } else {
+        } else if role_name == Symbol::new(&env, "freelancer") {
             Role::Freelancer
+        } else {
+            soroban_sdk::panic_with_error!(&env, ReputationError::InvalidInput);
         };
         let rep = Self::get_score(env.clone(), address, role);
 
@@ -410,6 +423,19 @@ impl ReputationContract {
         metrics.push_back(rep.total_points as i128);
         metrics.push_back(rep.reviews as i128);
         metrics
+    }
+
+    /// Read both role snapshots for a single address in one call.
+    pub fn query_reputation(env: Env, address: Address) -> ReputationView {
+        Self::bump_instance_ttl(&env);
+        let profile = storage::read_profile_or_default(&env, &address);
+        let client = Self::score_from_profile(&address, Role::Client, &profile);
+        let freelancer = Self::score_from_profile(&address, Role::Freelancer, &profile);
+        ReputationView {
+            address,
+            client,
+            freelancer,
+        }
     }
 }
 
@@ -442,10 +468,12 @@ mod test {
         }
 
         pub fn get_job(env: Env, _job_id: u64) -> Result<JobRecord, soroban_sdk::Error> {
-            env.storage()
-                .persistent()
-                .get(&MockKey::Job(_job_id))
-                .ok_or_else(|| soroban_sdk::Error::from_contract_error(1))
+            Ok(
+                env.storage()
+                    .persistent()
+                    .get(&MockKey::Job(_job_id))
+                    .expect("mock job missing"),
+            )
         }
     }
 
@@ -538,6 +566,41 @@ mod test {
 
         assert_eq!(f_score.score, 6000);
         assert_eq!(c_score.score, 5500);
+    }
+
+    #[test]
+    fn test_query_reputation_returns_both_roles() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let address = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+        client.update_score(&address, &Role::Freelancer, &1000);
+        client.update_score(&address, &Role::Client, &500);
+
+        let view = client.query_reputation(&address);
+        assert_eq!(view.address, address);
+        assert_eq!(view.client.score, 5500);
+        assert_eq!(view.client.total_jobs, 1);
+        assert_eq!(view.client.total_points, 500);
+        assert_eq!(view.freelancer.score, 6000);
+        assert_eq!(view.freelancer.total_jobs, 1);
+        assert_eq!(view.freelancer.total_points, 1000);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #3)")]
+    fn test_get_public_metrics_rejects_unknown_role() {
+        let env = Env::default();
+        let address = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        client.get_public_metrics(&address, &soroban_sdk::Symbol::new(&env, "bogus"));
     }
 
     #[test]
