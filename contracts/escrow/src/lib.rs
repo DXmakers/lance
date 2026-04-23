@@ -2,8 +2,8 @@
 
 use soroban_sdk::BytesN;
 use soroban_sdk::{
-    contract, contractclient, contracterror, contractimpl, contracttype, log, token, Address, Env,
-    Vec,
+    contract, contractclient, contracterror, contractimpl, contracttype, log, panic_with_error,
+    token, Address, Env, Vec,
 };
 
 #[contracterror]
@@ -813,6 +813,8 @@ impl EscrowContract {
         if client != job.client {
             return Err(EscrowError::Unauthorized);
         }
+
+        let remaining = job.total_amount - job.released_amount;
 
         let next_status = EscrowStatus::Refunded;
         job.status.validate_transition(&next_status)?;
