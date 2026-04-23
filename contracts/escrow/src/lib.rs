@@ -1043,7 +1043,7 @@ mod test {
 
     #[test]
     #[should_panic(expected = "Error(Contract, #6)")]
-    fn test_resolve_dispute_not_disputed_panics() {
+    fn test_resolve_dispute_requires_disputed_status_panics() {
         let env = Env::default();
         env.mock_all_auths();
 
@@ -1095,7 +1095,7 @@ mod test {
 
     #[test]
     #[should_panic(expected = "Error(Contract, #3)")]
-    fn test_refund_by_non_client_panics() {
+    fn test_refund_rejects_non_client_panics() {
         let env = Env::default();
         env.mock_all_auths();
 
@@ -1121,7 +1121,7 @@ mod test {
 
     #[test]
     #[should_panic(expected = "Error(Contract, #5)")]
-    fn test_get_job_not_found_panics() {
+    fn test_get_job_missing_panics() {
         let env = Env::default();
         let contract_id = env.register_contract(None, EscrowContract);
         let cc = EscrowContractClient::new(&env, &contract_id);
