@@ -124,7 +124,7 @@ struct JudgeWorker {
     pool: PgPool,
     config: WorkerConfig,
     ipfs_client: Client,
-    event_source: Box<dyn DisputeEventSource + Send>,
+    event_source: Box<dyn DisputeEventSource + Send + Sync>,
     judge: JudgeService,
     executor: Box<dyn ResolutionExecutor + Send + Sync>,
 }
@@ -132,7 +132,7 @@ struct JudgeWorker {
 impl JudgeWorker {
     async fn from_env(pool: PgPool) -> Result<Self> {
         let config = WorkerConfig::from_env()?;
-        let event_source: Box<dyn DisputeEventSource + Send> = match &config.event_source {
+        let event_source: Box<dyn DisputeEventSource + Send + Sync> = match &config.event_source {
             EventSourceMode::Database => Box::new(DatabaseDisputeEventSource),
             EventSourceMode::SorobanRpc {
                 rpc_url,
