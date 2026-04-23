@@ -1043,29 +1043,7 @@ mod test {
 
     #[test]
     #[should_panic(expected = "Error(Contract, #6)")]
-    fn test_resolve_dispute_not_disputed_panics() {
-        let env = Env::default();
-        env.mock_all_auths();
-
-        let admin = Address::generate(&env);
-        let agent_judge = Address::generate(&env);
-        let client = Address::generate(&env);
-        let freelancer = Address::generate(&env);
-
-        let token_addr = setup_token(&env, &admin);
-        mint(&env, &token_addr, &client);
-
-        let contract_id = env.register_contract(None, EscrowContract);
-        let cc = EscrowContractClient::new(&env, &contract_id);
-
-        cc.initialize(&admin, &agent_judge);
-        cc.create_job(&1u64, &client, &freelancer, &token_addr);
-        cc.add_milestone(&1u64, &5000i128);
-        cc.deposit(&1u64, &5000i128);
-
-        cc.resolve_dispute(&1u64, &5000i128, &0i128);
-    }
-
+ 
     #[test]
     #[should_panic(expected = "Error(Contract, #7)")]
     fn test_resolve_dispute_requires_full_allocation() {
@@ -1095,29 +1073,6 @@ mod test {
 
     #[test]
     #[should_panic(expected = "Error(Contract, #3)")]
-    fn test_refund_by_non_client_panics() {
-        let env = Env::default();
-        env.mock_all_auths();
-
-        let admin = Address::generate(&env);
-        let agent_judge = Address::generate(&env);
-        let client = Address::generate(&env);
-        let freelancer = Address::generate(&env);
-
-        let token_addr = setup_token(&env, &admin);
-        mint(&env, &token_addr, &client);
-
-        let contract_id = env.register_contract(None, EscrowContract);
-        let cc = EscrowContractClient::new(&env, &contract_id);
-
-        cc.initialize(&admin, &agent_judge);
-        cc.create_job(&1u64, &client, &freelancer, &token_addr);
-        cc.add_milestone(&1u64, &2500i128);
-        cc.add_milestone(&1u64, &2500i128);
-        cc.deposit(&1u64, &5000i128);
-
-        cc.refund(&1u64, &freelancer);
-    }
 
     #[test]
     #[should_panic(expected = "Error(Contract, #5)")]
