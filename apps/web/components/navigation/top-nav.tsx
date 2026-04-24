@@ -36,8 +36,6 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
   const {
     address,
     xlmBalance,
-    appNetwork,
-    walletNetwork,
     networkMismatch,
     isConnected,
     isConnecting,

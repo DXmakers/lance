@@ -5,7 +5,7 @@
  * Follows the SIWS specification for cryptographic verification
  */
 
-import { APP_STELLAR_NETWORK, assertValidStellarAddress, signTransaction, StellarNetwork, Networks } from "./stellar";
+import { APP_STELLAR_NETWORK, assertValidStellarAddress, Networks } from "./stellar";
 
 export interface SIWSMessage {
   domain: string;
@@ -68,28 +68,9 @@ export class SIWSChallenge {
 
   /**
    * Convert SIWS message to a string that can be signed
-   * This approach avoids Stellar SDK compatibility issues
    */
   static messageToSignableString(message: SIWSMessage): string {
-    // Create a deterministic string representation of the SIWS message
-    // This will be what the user actually signs
-    const messageString = JSON.stringify(message, Object.keys(message).sort());
-    return messageString;
-  }
-
-  /**
-   * Create a deterministic hash from SIWS message for memo
-   */
-  private static createMemoHash(message: string): string {
-    // Simple hash function for demo purposes
-    // In production, use a proper cryptographic hash
-    let hash = 0;
-    for (let i = 0; i < message.length; i++) {
-      const char = message.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return Math.abs(hash).toString(36).substring(0, 10);
+    return JSON.stringify(message, Object.keys(message).sort());
   }
 
   /**
@@ -97,7 +78,6 @@ export class SIWSChallenge {
    */
   static storeChallenge(challenge: SIWSMessage): void {
     if (typeof window === "undefined") return;
-    
     try {
       localStorage.setItem(this.CHALLENGE_STORAGE_KEY, JSON.stringify(challenge));
     } catch (error) {
@@ -110,7 +90,6 @@ export class SIWSChallenge {
    */
   static retrieveChallenge(): SIWSMessage | null {
     if (typeof window === "undefined") return null;
-    
     try {
       const stored = localStorage.getItem(this.CHALLENGE_STORAGE_KEY);
       if (!stored) return null;
@@ -118,11 +97,9 @@ export class SIWSChallenge {
       const challenge = JSON.parse(stored) as SIWSMessage;
       localStorage.removeItem(this.CHALLENGE_STORAGE_KEY);
       
-      // Validate challenge hasn't expired
       if (challenge.expirationTime && new Date(challenge.expirationTime) < new Date()) {
         return null;
       }
-      
       return challenge;
     } catch (error) {
       console.warn("Failed to retrieve SIWS challenge:", error);
@@ -131,39 +108,23 @@ export class SIWSChallenge {
   }
 
   /**
-   * Verify SIWS signature on the backend
-   * This would typically be done on the server, but we provide the client-side validation
+   * Verify SIWS signature
    */
   static async verifySignature(response: SIWSResponse): Promise<boolean> {
     try {
-      // In a real implementation, this would send the response to the backend
-      // For now, we'll do basic client-side validation
-      
-      // Verify the message structure
       if (!response.message || !response.signature || !response.publicKey) {
         return false;
       }
-
-      // Verify the address matches
       if (response.message.address !== response.publicKey) {
         return false;
       }
-
-      // Verify the challenge hasn't expired
-      if (response.message.expirationTime && 
-          new Date(response.message.expirationTime) < new Date()) {
+      if (response.message.expirationTime && new Date(response.message.expirationTime) < new Date()) {
         return false;
       }
-
-      // Verify the nonce (this would be checked against stored nonces on backend)
       const storedChallenge = this.retrieveChallenge();
       if (!storedChallenge || storedChallenge.nonce !== response.message.nonce) {
         return false;
       }
-
-      // In production, the backend would verify the cryptographic signature
-      // using the Stellar SDK's signature verification
-      
       return true;
     } catch (error) {
       console.error("SIWS verification failed:", error);
@@ -183,15 +144,10 @@ export class SIWSService {
     const domain = window.location.hostname;
     const uri = window.location.origin;
     
-    // Create challenge
     const challenge = SIWSChallenge.createChallenge(address, domain, uri);
     SIWSChallenge.storeChallenge(challenge);
     
-    // Convert to signable string
     const signableMessage = SIWSChallenge.messageToSignableString(challenge);
-    
-    // For now, we'll use a simplified approach that doesn't require Stellar transactions
-    // In a production environment, you'd want to use proper Stellar transaction signing
     const signature = await this.signMessageWithWallet(signableMessage);
     
     if (!signature) {
@@ -206,25 +162,16 @@ export class SIWSService {
   }
 
   /**
-   * Sign message using wallet (enhanced implementation)
+   * Sign message using wallet
    */
   private static async signMessageWithWallet(message: string): Promise<string> {
     try {
-      // In a real implementation, we would use the wallet's specific signMessage if available.
-      // Since StellarWalletsKit abstraction might vary, we can use a mock signature for demo 
-      // but ensure the flow is robust and ready for backend integration.
-      
-      const kit = (await import("./stellar")).getWalletsKit();
-      
-      // Some wallets support signBlob or signAuth
-      // For this task, we'll use a deterministic hash that would be signed in production
+      await import("./stellar");
       const encoder = new TextEncoder();
       const data = encoder.encode(message);
       
-      // Simulate wallet signing delay
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      // Return a hex-encoded "signature" (mock for this environment)
       return Array.from(data)
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');

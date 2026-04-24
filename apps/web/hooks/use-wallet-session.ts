@@ -39,7 +39,7 @@ export function useWalletSession() {
       const balance = connected ? await getXlmBalance(connected) : null;
       
       if (connected) {
-        setConnection(connected, "wallet"); // Generic wallet ID for now
+        setConnection(connected, "wallet");
       } else if (storedAddress) {
         disconnectStore();
       }
@@ -59,7 +59,6 @@ export function useWalletSession() {
     }
   }, [setConnection, disconnectStore, setStoreNetworkMismatch, storedAddress]);
 
-  // Initial load and event listeners
   useEffect(() => {
     void refreshWalletState();
 
@@ -76,11 +75,10 @@ export function useWalletSession() {
     };
   }, [refreshWalletState]);
 
-  // Polling for network/account changes
   useEffect(() => {
     const interval = setInterval(() => {
       void refreshWalletState();
-    }, 5000); // 5s poll
+    }, 5000);
     
     return () => clearInterval(interval);
   }, [refreshWalletState]);
@@ -94,13 +92,11 @@ export function useWalletSession() {
       const walletsKit = (await import("@/lib/stellar")).getWalletsKit();
       
       if (walletId) {
-        // Properly type the kit instance
         type WalletsKit = typeof walletsKit & { setWallet?: (walletId: string) => Promise<void> };
         const kit = walletsKit as WalletsKit;
         if (typeof kit.setWallet === 'function') {
           await kit.setWallet(walletId);
         } else {
-          // Fallback to static if available
           const { StellarWalletsKit: KitClass } = await import("@creit.tech/stellar-wallets-kit");
           type KitClassType = typeof KitClass & { setWallet?: (walletId: string) => void };
           const typedKitClass = KitClass as KitClassType;
