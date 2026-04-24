@@ -1,5 +1,5 @@
 import { StellarWalletsKit, Networks } from "@creit.tech/stellar-wallets-kit";
-import { StrKey, Transaction } from "@stellar/stellar-sdk";
+import { Horizon, StrKey, Transaction } from "@stellar/stellar-sdk";
 import { categorizeWalletError } from "./wallet-errors";
 
 let kit: StellarWalletsKit | null = null;
@@ -116,4 +116,26 @@ export async function signTransaction(xdr: string): Promise<string> {
   }
 }
 
+function getHorizonUrl(network: StellarNetwork): string {
+  return network === Networks.PUBLIC
+    ? "https://horizon.stellar.org"
+    : "https://horizon-testnet.stellar.org";
+}
 
+export async function getXlmBalance(address: string): Promise<string | null> {
+  if (process.env.NEXT_PUBLIC_E2E === "true") return "1000.0000000";
+
+  const validatedAddress = assertValidStellarAddress(address);
+  const server = new Horizon.Server(getHorizonUrl(APP_STELLAR_NETWORK));
+
+  try {
+    const account = await server.loadAccount(validatedAddress);
+    const nativeBalance = account.balances.find(
+      (balance): balance is Horizon.HorizonApi.BalanceLineNative =>
+        balance.asset_type === "native",
+    );
+    return nativeBalance?.balance ?? null;
+  } catch {
+    return null;
+  }
+}

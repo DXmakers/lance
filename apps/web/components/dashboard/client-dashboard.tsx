@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useJobBoard } from "@/hooks/use-job-board";
+import { formatUsdc } from "@/lib/format";
 import { 
   PlusCircle, 
   Users, 
@@ -13,8 +15,6 @@ import {
   Star
 } from "lucide-react";
 
-import { useJobBoard } from "@/hooks/use-job-board";
-import { formatUsdc } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button as UIButton } from "@/components/ui/button";
 
