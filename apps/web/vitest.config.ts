@@ -12,6 +12,8 @@ export default defineConfig({
       include: [
         "components/jobs/submit-bid-modal.tsx",
         "lib/validation/submit-bid.ts",
+        "components/theme/theme-toggle.tsx",
+        "lib/notifications.ts",
       ],
     },
   },
