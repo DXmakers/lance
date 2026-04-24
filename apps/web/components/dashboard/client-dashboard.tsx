@@ -1,7 +1,6 @@
 "use client";
 
-import { useJobBoard } from "@/hooks/use-job-board";
-import { formatUsdc } from "@/lib/format";
+import Link from "next/link";
 import { 
   PlusCircle, 
   Users, 
@@ -13,9 +12,12 @@ import {
   CheckCircle2,
   Star
 } from "lucide-react";
+
+import { useJobBoard } from "@/hooks/use-job-board";
+import { formatUsdc } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { Button as UIButton } from "@/components/ui/button";
+
 
 export function ClientDashboard() {
   const { jobs, loading } = useJobBoard();
@@ -99,9 +101,9 @@ export function ClientDashboard() {
                 ))
               )}
             </div>
-            <Button variant="ghost" className="w-full mt-8 rounded-xl border border-zinc-800 text-zinc-500 font-bold text-xs hover:text-white hover:bg-zinc-800/50">
+            <UIButton variant="ghost" className="w-full mt-8 rounded-xl border border-zinc-800 text-zinc-500 font-bold text-xs hover:text-white hover:bg-zinc-800/50">
               EXPLORE FULL REGISTRY
-            </Button>
+            </UIButton>
           </CardContent>
         </Card>
 
