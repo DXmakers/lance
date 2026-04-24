@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { Networks } from "@creit.tech/stellar-wallets-kit";
+import { APP_STELLAR_NETWORK, type StellarNetwork } from "@/lib/stellar-network";
 
 export type WalletStatus = "disconnected" | "connecting" | "connected" | "error";
 
@@ -8,14 +8,14 @@ interface WalletState {
   address: string | null;
   walletId: string | null;
   status: WalletStatus;
-  network: Networks;
+  network: StellarNetwork;
   error: string | null;
   
   // Actions
   setConnection: (address: string, walletId: string) => void;
   setStatus: (status: WalletStatus) => void;
   setError: (error: string | null) => void;
-  setNetwork: (network: Networks) => void;
+  setNetwork: (network: StellarNetwork) => void;
   disconnect: () => void;
 }
 
@@ -29,13 +29,30 @@ const storageHelper = {
   decrypt: (str: string) => atob(str), // Placeholder for decryption
 };
 
+function getPersistStorage() {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  return createJSONStorage(() => ({
+    getItem: (name) => {
+      const value = window.localStorage.getItem(name);
+      return value ? storageHelper.decrypt(value) : null;
+    },
+    setItem: (name, value) => {
+      window.localStorage.setItem(name, storageHelper.encrypt(value));
+    },
+    removeItem: (name) => window.localStorage.removeItem(name),
+  }));
+}
+
 export const useWalletStore = create<WalletState>()(
   persist(
     (set) => ({
       address: null,
       walletId: null,
       status: "disconnected",
-      network: (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET,
+      network: APP_STELLAR_NETWORK,
       error: null,
 
       setConnection: (address, walletId) => 
@@ -51,16 +68,7 @@ export const useWalletStore = create<WalletState>()(
     }),
     {
       name: "lance-wallet-session",
-      storage: createJSONStorage(() => ({
-        getItem: (name) => {
-          const value = localStorage.getItem(name);
-          return value ? storageHelper.decrypt(value) : null;
-        },
-        setItem: (name, value) => {
-          localStorage.setItem(name, storageHelper.encrypt(value));
-        },
-        removeItem: (name) => localStorage.removeItem(name),
-      })),
+      storage: getPersistStorage(),
       partialize: (state) => ({
         address: state.address,
         walletId: state.walletId,

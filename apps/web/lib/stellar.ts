@@ -1,14 +1,12 @@
-import { StellarWalletsKit, Networks } from "@creit.tech/stellar-wallets-kit";
+import type { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 import { Horizon, StrKey, Transaction } from "@stellar/stellar-sdk";
+import { APP_STELLAR_NETWORK, STELLAR_NETWORKS, type StellarNetwork } from "./stellar-network";
 import { categorizeWalletError } from "./wallet-errors";
 
-let kit: StellarWalletsKit | null = null;
+let kitPromise: Promise<StellarWalletsKit | null> | null = null;
 
-export type StellarNetwork = Networks.TESTNET | Networks.PUBLIC;
-export { Networks };
-
-export const APP_STELLAR_NETWORK: StellarNetwork =
-  (process.env.NEXT_PUBLIC_STELLAR_NETWORK as StellarNetwork) ?? Networks.TESTNET;
+export { APP_STELLAR_NETWORK, STELLAR_NETWORKS, type StellarNetwork };
+export const Networks = STELLAR_NETWORKS;
 
 export function isValidStellarAddress(address: string): boolean {
   return StrKey.isValidEd25519PublicKey(address);
@@ -30,22 +28,33 @@ export function assertValidTransactionXdr(xdr: string): string {
   }
 }
 
-export function getWalletsKit(): StellarWalletsKit {
-  if (typeof window === "undefined") return null as unknown as StellarWalletsKit;
-
-  if (!kit) {
-    kit = new StellarWalletsKit({
-      network: APP_STELLAR_NETWORK,
-      selectedWalletId: "freighter",
-      modules: ["freighter", "albedo", "xbull"],
-    });
+export async function getWalletsKit(): Promise<StellarWalletsKit | null> {
+  if (typeof window === "undefined") {
+    return null;
   }
-  return kit;
+
+  if (!kitPromise) {
+    kitPromise = import("@creit.tech/stellar-wallets-kit").then(
+      ({ StellarWalletsKit }) =>
+        new StellarWalletsKit({
+          network:
+            APP_STELLAR_NETWORK as import("@creit.tech/stellar-wallets-kit").Networks,
+          selectedWalletId: "freighter",
+          modules: ["freighter", "albedo", "xbull"],
+        }),
+    );
+  }
+
+  return kitPromise;
 }
 
 export async function connectWallet(): Promise<string> {
   if (process.env.NEXT_PUBLIC_E2E === "true") return "GD...CLIENT";
-  const walletsKit = getWalletsKit();
+  const walletsKit = await getWalletsKit();
+  if (!walletsKit) {
+    throw new Error("Wallet connection is only available in the browser.");
+  }
+
   return new Promise<string>((resolve, reject) => {
     walletsKit.openModal({
       onWalletSelected: async () => {
@@ -65,13 +74,19 @@ export async function connectWallet(): Promise<string> {
 
 export async function disconnectWallet(): Promise<void> {
   if (process.env.NEXT_PUBLIC_E2E === "true") return;
-  await getWalletsKit().disconnect();
+  const walletsKit = await getWalletsKit();
+  await walletsKit?.disconnect();
 }
 
 export async function getConnectedWalletAddress(): Promise<string | null> {
   if (process.env.NEXT_PUBLIC_E2E === "true") return "GD...CLIENT";
   try {
-    const { address } = await getWalletsKit().getAddress();
+    const walletsKit = await getWalletsKit();
+    if (!walletsKit) {
+      return null;
+    }
+
+    const { address } = await walletsKit.getAddress();
     return assertValidStellarAddress(address);
   } catch {
     return null;
@@ -79,18 +94,21 @@ export async function getConnectedWalletAddress(): Promise<string | null> {
 }
 
 export async function getWalletNetwork(): Promise<StellarNetwork | null> {
-  const walletKit = getWalletsKit() as StellarWalletsKit & {
+  const walletKit = (await getWalletsKit()) as (StellarWalletsKit & {
     getNetwork?: () => Promise<{ network: string }>;
-  };
+  }) | null;
 
-  if (!walletKit.getNetwork) {
+  if (!walletKit?.getNetwork) {
     return null;
   }
 
   try {
     const result = await walletKit.getNetwork();
     const network = result.network;
-    if (network === Networks.TESTNET || network === Networks.PUBLIC) {
+    if (
+      network === STELLAR_NETWORKS.TESTNET ||
+      network === STELLAR_NETWORKS.PUBLIC
+    ) {
       return network;
     }
     return null;
@@ -102,7 +120,11 @@ export async function getWalletNetwork(): Promise<StellarNetwork | null> {
 export async function signTransaction(xdr: string): Promise<string> {
   if (process.env.NEXT_PUBLIC_E2E === "true") return xdr;
 
-  const walletsKit = getWalletsKit();
+  const walletsKit = await getWalletsKit();
+  if (!walletsKit) {
+    throw new Error("Wallet signing is only available in the browser.");
+  }
+
   const validatedXdr = assertValidTransactionXdr(xdr);
 
   try {
@@ -117,7 +139,7 @@ export async function signTransaction(xdr: string): Promise<string> {
 }
 
 function getHorizonUrl(network: StellarNetwork): string {
-  return network === Networks.PUBLIC
+  return network === STELLAR_NETWORKS.PUBLIC
     ? "https://horizon.stellar.org"
     : "https://horizon-testnet.stellar.org";
 }

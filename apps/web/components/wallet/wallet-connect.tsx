@@ -42,7 +42,12 @@ export function WalletConnect() {
   };
 
   const handleConnect = async () => {
-    const kit = (await import("@/lib/stellar")).getWalletsKit();
+    const kit = await (await import("@/lib/stellar")).getWalletsKit();
+    if (!kit) {
+      toast.error("Wallet connection is only available in the browser");
+      return;
+    }
+
     kit.openModal({
       onWalletSelected: async () => {
         try {

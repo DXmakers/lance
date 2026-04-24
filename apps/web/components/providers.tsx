@@ -1,14 +1,24 @@
 "use client";
 
 import { ThemeProvider } from "next-themes";
-import React from "react";
+import type { ReactNode } from "react";
 import { AuthBootstrap } from "@/components/state/auth-bootstrap";
 import { QueryProvider } from "@/providers/query-provider";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+type ProvidersProps = {
+  children: ReactNode;
+};
+
+export function Providers({ children }: ProvidersProps) {
   return (
     <QueryProvider>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange storageKey="lance-theme">
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+        storageKey="lance-theme"
+      >
         <AuthBootstrap>{children}</AuthBootstrap>
       </ThemeProvider>
     </QueryProvider>

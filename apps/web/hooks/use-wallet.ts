@@ -43,7 +43,11 @@ export function useWallet() {
     const attemptAutoConnect = async () => {
       if (address && walletId) {
         try {
-          const kit = getWalletsKit();
+          const kit = await getWalletsKit();
+          if (!kit) {
+            isInitialized.current = true;
+            return;
+          }
           const { address: currentAddress } = await kit.getAddress();
 
           if (currentAddress === address) {

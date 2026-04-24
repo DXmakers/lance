@@ -6,12 +6,7 @@ use axum::{
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::{
-    db::AppState,
-    error::Result,
-    models::ActivityLog,
-    services::activity_log,
-};
+use crate::{db::AppState, error::Result, models::ActivityLog, services::activity_log};
 
 #[derive(Debug, Deserialize)]
 pub struct GetLogsQuery {

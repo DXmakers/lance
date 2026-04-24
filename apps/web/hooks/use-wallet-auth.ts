@@ -1,17 +1,16 @@
 "use client";
 
 import { useCallback, useEffect } from "react";
-import { Networks } from "@creit.tech/stellar-wallets-kit";
 import {
   connectWallet,
   getConnectedWalletAddress,
   getWalletsKit,
 } from "@/lib/stellar";
+import { APP_STELLAR_NETWORK } from "@/lib/stellar-network";
 import { useAuthStore, jwtMemory } from "@/lib/store/use-auth-store";
 import { api } from "@/lib/api";
 
-const EXPECTED_NETWORK =
-  (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET;
+const EXPECTED_NETWORK = APP_STELLAR_NETWORK;
 
 export function useWalletAuth() {
   const {
@@ -27,7 +26,7 @@ export function useWalletAuth() {
 
   const checkNetwork = useCallback(async () => {
     try {
-      const kit = getWalletsKit();
+      const kit = await getWalletsKit();
       if (!kit || typeof kit.getNetwork !== "function") return;
       const info = await kit.getNetwork();
       const mismatch = info.network !== EXPECTED_NETWORK;
