@@ -24,6 +24,7 @@ import { useWalletSession } from "@/hooks/use-wallet-session";
 import { toast } from "@/lib/toast";
 import { WalletConnect } from "@/components/wallet/wallet-connect";
 import { ConnectWalletButton } from "@/components/wallet/connect-wallet-button";
+import { NotificationCenter } from "@/components/notifications/notification-center";
 
 function shortAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -182,6 +183,7 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
           <WalletConnect />
           {isLoggedIn ? (
             <div className="flex items-center gap-2">
+              <NotificationCenter />
               <div className="hidden items-center gap-3 rounded-full border border-border/70 bg-card/70 px-2 py-1.5 md:flex">
                 <Avatar className="h-8 w-8 border border-border/50">
                   <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">
