@@ -1,7 +1,6 @@
 import { 
   StellarWalletsKit, 
   WalletNetwork, 
-  AllowHttpProvider,
   FREIGHTER_ID,
   ALBEDO_ID,
   XBULL_ID,
@@ -81,8 +80,7 @@ export async function signAuthMessage(message: string): Promise<string> {
 }
 
 export async function disconnectWallet(): Promise<void> {
-  const walletsKit = getWalletsKit();
-  // kit doesn't have a direct disconnect but we can clear state
+  // Clear any local state if necessary
 }
 
 export async function getNetwork(): Promise<string> {

@@ -42,6 +42,7 @@ export function WalletConnect() {
       await signAuthMessage(message);
       
       // 3. Check Network
+      const kit = getWalletsKit();
       const connectedNetwork = await kit.getNetwork();
       const appNetwork = (process.env.NEXT_PUBLIC_STELLAR_NETWORK as string) ?? "TESTNET";
       
@@ -49,10 +50,11 @@ export function WalletConnect() {
         toast.warning(`Network mismatch: Wallet is on ${connectedNetwork.network}, but app is on ${appNetwork}`);
       }
       
+      const walletId = kit.selectedWalletId || "freighter";
       setConnection(address, walletId);
       toast.success("Wallet connected successfully");
-    } catch (err: any) {
-      const errorMessage = err.message || "Failed to connect wallet";
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to connect wallet";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAuthStore } from "@/lib/store/use-auth-store";
 import { Button } from "@/components/ui/button";
-import { Search, Bell, Menu, LogOut, BriefcaseBusiness } from "lucide-react";
+import { Search, Bell, Menu, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { SessionSwitcher } from "@/components/auth/session-switcher";
@@ -12,8 +12,7 @@ import { WalletConnect } from "@/components/auth/wallet-connect";
 import { useWalletStore } from "@/lib/store/use-wallet-store";
 
 export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
-  const { isLoggedIn, logout, login, role, user } = useAuthStore();
-  const { isConnected: isWalletConnected } = useWalletStore();
+  const { isLoggedIn, logout, role, user } = useAuthStore();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
