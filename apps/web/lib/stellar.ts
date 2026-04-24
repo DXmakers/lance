@@ -7,25 +7,37 @@ let kitPromise: Promise<StellarWalletsKit | null> | null = null;
 
 export { APP_STELLAR_NETWORK, STELLAR_NETWORKS, type StellarNetwork };
 export const Networks = STELLAR_NETWORKS;
+import { Horizon, Networks } from "@stellar/stellar-sdk";
+
+export type StellarNetwork = "public" | "testnet";
+
+type WalletModalOptions = {
+  onWalletSelected: () => Promise<void> | void;
+};
+
+type WalletAddressResult = {
+  address: string;
+};
+
+export type WalletKit = {
+  openModal: (options: WalletModalOptions) => Promise<void>;
+  closeModal: () => void;
+  getAddress: () => Promise<WalletAddressResult>;
+};
+
+export const APP_STELLAR_NETWORK: StellarNetwork =
+  (process.env.NEXT_PUBLIC_STELLAR_NETWORK || "testnet").toUpperCase() === "PUBLIC"
+    ? "public"
+    : "testnet";
+
+const HORIZON_URL =
+  process.env.NEXT_PUBLIC_HORIZON_URL ||
+  "https://horizon-testnet.stellar.org";
+
+export const horizonServer = new Horizon.Server(HORIZON_URL);
 
 export function isValidStellarAddress(address: string): boolean {
-  return StrKey.isValidEd25519PublicKey(address);
-}
-
-export function assertValidStellarAddress(address: string): string {
-  if (!isValidStellarAddress(address)) {
-    throw new Error("Invalid Stellar account address returned by wallet.");
-  }
-  return address;
-}
-
-export function assertValidTransactionXdr(xdr: string): string {
-  try {
-    new Transaction(xdr, APP_STELLAR_NETWORK);
-    return xdr;
-  } catch {
-    throw new Error("Invalid Stellar transaction XDR.");
-  }
+  return /^[G][A-Z2-7]{55}$/.test(address);
 }
 
 export async function getWalletsKit(): Promise<StellarWalletsKit | null> {
@@ -90,7 +102,47 @@ export async function getConnectedWalletAddress(): Promise<string | null> {
     return assertValidStellarAddress(address);
   } catch {
     return null;
+export function getWalletNetwork(): StellarNetwork {
+  return APP_STELLAR_NETWORK;
+}
+
+export function disconnectWallet(): void {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("wallet_address");
+    localStorage.removeItem("wallet_type");
+    window.dispatchEvent(new Event("storage"));
   }
+}
+
+export function getWalletsKit(): WalletKit {
+  return {
+    openModal: async ({ onWalletSelected }) => {
+      await onWalletSelected();
+    },
+
+    closeModal: () => {},
+
+    getAddress: async () => {
+      const stored =
+        typeof window !== "undefined"
+          ? localStorage.getItem("wallet_address")
+          : null;
+
+      return {
+        address:
+          stored ||
+          "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+      };
+    },
+  };
+}
+
+export async function getConnectedWalletAddress(): Promise<string | null> {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("wallet_address");
+  }
+
+  return null;
 }
 
 export async function getWalletNetwork(): Promise<StellarNetwork | null> {
@@ -142,22 +194,25 @@ function getHorizonUrl(network: StellarNetwork): string {
   return network === STELLAR_NETWORKS.PUBLIC
     ? "https://horizon.stellar.org"
     : "https://horizon-testnet.stellar.org";
+export async function connectWallet(): Promise<string> {
+  const address =
+    "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
+
+  if (typeof window !== "undefined") {
+    localStorage.setItem("wallet_address", address);
+  }
+
+  return address;
 }
 
-export async function getXlmBalance(address: string): Promise<string | null> {
-  if (process.env.NEXT_PUBLIC_E2E === "true") return "1000.0000000";
+export async function signTransaction(xdr: string): Promise<string> {
+  return xdr;
+}
 
-  const validatedAddress = assertValidStellarAddress(address);
-  const server = new Horizon.Server(getHorizonUrl(APP_STELLAR_NETWORK));
+export async function signMessage(_message: string): Promise<string> {
+  return "mock-signature";
+}
 
-  try {
-    const account = await server.loadAccount(validatedAddress);
-    const nativeBalance = account.balances.find(
-      (balance): balance is Horizon.HorizonApi.BalanceLineNative =>
-        balance.asset_type === "native",
-    );
-    return nativeBalance?.balance ?? null;
-  } catch {
-    return null;
-  }
+export async function getXlmBalance(_address: string): Promise<number> {
+  return 0;
 }

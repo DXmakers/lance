@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect } from "react";
+import { useState } from "react";
+import { buildSiwsMessage, generateNonce } from "@/lib/siws";
 import {
-  connectWallet,
+  signMessage,
   getConnectedWalletAddress,
-  getWalletsKit,
+  disconnectWallet,
 } from "@/lib/stellar";
 import { APP_STELLAR_NETWORK } from "@/lib/stellar-network";
 import { useAuthStore, jwtMemory } from "@/lib/store/use-auth-store";
@@ -12,17 +14,11 @@ import { api } from "@/lib/api";
 
 const EXPECTED_NETWORK = APP_STELLAR_NETWORK;
 
-export function useWalletAuth() {
-  const {
-    walletAddress,
-    jwt,
-    networkMismatch,
-    isLoggedIn,
-    setWalletAddress,
-    setJwt,
-    setNetworkMismatch,
-    logout,
-  } = useAuthStore();
+type UseWalletAuthReturn = {
+  login: () => Promise<void>;
+  disconnect: () => void;
+  loading: boolean;
+};
 
   const checkNetwork = useCallback(async () => {
     try {
@@ -35,57 +31,50 @@ export function useWalletAuth() {
       setNetworkMismatch(false);
     }
   }, [setNetworkMismatch]);
+export const useWalletAuth = (): UseWalletAuthReturn => {
+  const [loading, setLoading] = useState(false);
 
-  // Check network on mount
-  useEffect(() => {
-    void checkNetwork();
-  }, [checkNetwork]);
+  const login = async (): Promise<void> => {
+    setLoading(true);
 
-  // Poll for account changes every 3s as StellarWalletsKit v2
-  // does not expose an event emitter API
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const address = await getConnectedWalletAddress();
-      if (address && address !== walletAddress) {
-        setWalletAddress(address);
-        await checkNetwork();
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [walletAddress, setWalletAddress, checkNetwork]);
-
-  const connect = useCallback(async () => {
     try {
-      const address = await connectWallet();
-      setWalletAddress(address);
+      const address = await getConnectedWalletAddress();
 
-      await checkNetwork();
+      if (!address) {
+        throw new Error("No wallet connected");
+      }
 
-      const { token } = await api.auth.getChallenge(address);
-      sessionStorage.setItem("lance_jwt", token);
-      jwtMemory.set(token);
-      setJwt(token);
+      const domain =
+        typeof window !== "undefined"
+          ? window.location.host
+          : "localhost";
 
-      return address;
-    } catch (err) {
-      console.error("Wallet connect failed:", err);
-      throw err;
+      const message = buildSiwsMessage({
+        address,
+        domain,
+        nonce: generateNonce(),
+        issuedAt: new Date().toISOString(),
+      });
+
+      const signature = await signMessage(message);
+
+      console.log("Message signed:", message);
+      console.log("Signature:", signature);
+    } catch (error) {
+      console.error("Login failed:", error);
+    } finally {
+      setLoading(false);
     }
-  }, [setWalletAddress, setJwt, checkNetwork]);
+  };
 
-  const disconnect = useCallback(() => {
-    sessionStorage.removeItem("lance_jwt");
-    jwtMemory.clear();
-    logout();
-  }, [logout]);
+  const disconnect = (): void => {
+    disconnectWallet();
+  };
 
   return {
-    walletAddress,
-    jwt,
-    isLoggedIn,
-    networkMismatch,
-    connect,
+    login,
     disconnect,
+    loading,
   };
 }
+};

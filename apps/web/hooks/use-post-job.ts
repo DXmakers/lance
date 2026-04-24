@@ -29,6 +29,7 @@ export interface PostJobInput {
   description: string;
   budgetUsdc: number;
   milestones: number;
+  memo?: string;
 }
 
 export function usePostJob() {
