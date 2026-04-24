@@ -1,4 +1,5 @@
 pub mod appeals;
+pub mod auth;
 pub mod bids;
 pub mod deliverables;
 pub mod disputes;
@@ -15,12 +16,11 @@ use axum::{routing::get, Router};
 
 pub fn api_router() -> Router<AppState> {
     Router::new()
-        // health check — outside versioned prefix so load balancers can reach it
         .route("/health", get(health::health))
-        // v1 API routes
         .nest(
             "/v1",
             Router::new()
+                .nest("/auth", auth::router())
                 .nest("/jobs", jobs::router())
                 .nest("/disputes", disputes::router())
                 .nest("/appeals", appeals::router())
