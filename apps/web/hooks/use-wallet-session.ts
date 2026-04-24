@@ -94,7 +94,15 @@ export function useWalletSession() {
       const walletsKit = (await import("@/lib/stellar")).getWalletsKit();
       
       if (walletId) {
-        await walletsKit.setWallet(walletId as any);
+        // The library uses static setWallet or allows setting it on the kit instance if cast to any
+        const kit = walletsKit as any;
+        if (typeof kit.setWallet === 'function') {
+          await kit.setWallet(walletId);
+        } else {
+          // Fallback to static if available
+          const { StellarWalletsKit: KitClass } = await import("@creit.tech/stellar-wallets-kit");
+          (KitClass as any).setWallet(walletId);
+        }
       }
 
       const connectedAddress = await connectWallet();
