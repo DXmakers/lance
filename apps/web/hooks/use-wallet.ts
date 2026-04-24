@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback, useRef, useState } from "react";
 import { useWalletStore } from "@/lib/store/use-wallet-store";
+import { useAccountChangeListener } from "./use-account-listener";
 import {
   connectWallet,
   disconnectWallet,
@@ -16,6 +17,7 @@ import { Networks } from "@creit.tech/stellar-wallets-kit";
 type WalletDisplayNetwork = "MAINNET" | "TESTNET";
 
 const WALLET_KIT_ID = "stellar-wallets-kit";
+const ACCOUNT_CHECK_INTERVAL = 3000;
 
 function toDisplayNetwork(network: Networks): WalletDisplayNetwork {
   return network === Networks.PUBLIC ? "MAINNET" : "TESTNET";
@@ -35,6 +37,7 @@ export function useWallet() {
   } = useWalletStore();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [hasNetworkMismatch, setHasNetworkMismatch] = useState(false);
   const isInitialized = useRef(false);
   const displayNetwork = toDisplayNetwork(network);
 
@@ -44,7 +47,7 @@ export function useWallet() {
 
     try {
       const connectedAddress = await connectWallet();
-      setConnection(connectedAddress, walletId ?? WALLET_KIT_ID);
+      setConnection(connectedAddress, WALLET_KIT_ID);
       toast.success("Wallet connected successfully");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to connect wallet";
@@ -53,7 +56,7 @@ export function useWallet() {
     } finally {
       setIsModalOpen(false);
     }
-  }, [setConnection, setError, setStatus, walletId]);
+  }, [setConnection, setError, setStatus]);
 
   const handleDisconnect = useCallback(() => {
     disconnectWallet();
@@ -67,6 +70,8 @@ export function useWallet() {
     const kit = getWalletsKit();
     kit.setNetwork(stellarNetwork);
     setStoreNetwork(stellarNetwork);
+    setHasNetworkMismatch(false);
+    toast.success(`Network switched to ${newNetwork}`);
   }, [setStoreNetwork]);
 
   const signTransaction = useCallback(async (xdr: string) => {
@@ -88,7 +93,70 @@ export function useWallet() {
     }
   }, []);
 
-  // Auto-connect
+  const handleAccountChange = useCallback((newAddress: string | null) => {
+    if (newAddress === null) {
+      toast.warning("Wallet account changed. Please reconnect.");
+      disconnectStore();
+    } else {
+      toast.info("Account changed. Session updated.");
+      setConnection(newAddress, walletId ?? WALLET_KIT_ID);
+    }
+  }, [disconnectStore, setConnection, walletId]);
+
+  const handleNetworkMismatch = useCallback((expected: Networks, actual: Networks) => {
+    const expectedStr = expected === Networks.PUBLIC ? "MAINNET" : "TESTNET";
+    const actualStr = actual === Networks.PUBLIC ? "MAINNET" : "TESTNET";
+    setHasNetworkMismatch(true);
+    toast.error(
+      `Network mismatch detected. App is on ${expectedStr} but wallet is on ${actualStr}.`,
+      { duration: 10000 }
+    );
+  }, []);
+
+  const { isMonitoring } = useAccountChangeListener({
+    onAccountChanged: handleAccountChange,
+    onNetworkMismatch: handleNetworkMismatch,
+    enabled: status === "connected",
+  });
+
+  const checkForAccountChanges = useCallback(async () => {
+    if (!address || !walletId || status !== "connected") return;
+
+    try {
+      const currentAddress = await getConnectedWalletAddress();
+
+      if (currentAddress !== address) {
+        if (currentAddress === null) {
+          toast.info("Wallet disconnected externally.");
+          disconnectStore();
+          handleAccountChange(null);
+        } else {
+          handleAccountChange(currentAddress);
+        }
+      }
+    } catch {
+      // Ignore errors during polling
+    }
+  }, [address, walletId, status, disconnectStore, handleAccountChange]);
+
+  const handleStorageChange = useCallback((event: StorageEvent) => {
+    if (event.key === "wallet_address") {
+      if (event.newValue === null && address) {
+        toast.info("Wallet disconnected in another tab.");
+        disconnectStore();
+        handleAccountChange(null);
+      } else if (event.newValue && event.newValue !== address) {
+        handleAccountChange(event.newValue);
+      }
+    }
+  }, [address, disconnectStore, handleAccountChange]);
+
+  const handleVisibilityChange = useCallback(async () => {
+    if (document.visibilityState === "visible" && status === "connected") {
+      await checkForAccountChanges();
+    }
+  }, [checkForAccountChanges, status]);
+
   useEffect(() => {
     if (isInitialized.current) return;
 
@@ -112,8 +180,22 @@ export function useWallet() {
       isInitialized.current = true;
     };
 
-    attemptAutoConnect();
+    void attemptAutoConnect();
   }, [address, walletId, setConnection, setStatus, disconnectStore]);
+
+  useEffect(() => {
+    if (status !== "connected") return;
+
+    const intervalId = setInterval(checkForAccountChanges, ACCOUNT_CHECK_INTERVAL);
+    window.addEventListener("storage", handleStorageChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener("storage", handleStorageChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [status, checkForAccountChanges, handleStorageChange, handleVisibilityChange]);
 
   return {
     address,
@@ -129,5 +211,7 @@ export function useWallet() {
     isConnecting: status === "connecting",
     isModalOpen,
     setIsModalOpen,
+    hasNetworkMismatch,
+    isAccountMonitoring: isMonitoring,
   };
 }
