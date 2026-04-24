@@ -8,7 +8,7 @@ on:
 
 env:
   # Dummy variables for tests/builds that might expect them
-  DATABASE_URL: postgresql://lance:lance@localhost:5432/lance
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
   NEXT_PUBLIC_E2E: "true"
   JUDGE_AUTHORITY_SECRET: SBU6F23AV5T5E6AXK2J5C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6
   ESCROW_CONTRACT_ID: CD5E6AXK2J5C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6
@@ -25,9 +25,9 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: lance
-          POSTGRES_PASSWORD: lance
-          POSTGRES_DB: lance
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
         ports:
           - 5432:5432
         options: >-
