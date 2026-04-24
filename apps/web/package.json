@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run --coverage"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.0.1",
@@ -37,7 +38,11 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4.2.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "jsdom": "^26.1.0",
+    "vitest": "^2.1.8"
   },
   "optionalDependencies": {
     "@next/swc-linux-x64-gnu": "16.1.6",
