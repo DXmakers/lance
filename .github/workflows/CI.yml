@@ -8,7 +8,7 @@ on:
 
 env:
   # Dummy variables for tests/builds that might expect them
-  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+  DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
   NEXT_PUBLIC_E2E: "true"
   JUDGE_AUTHORITY_SECRET: SBU6F23AV5T5E6AXK2J5C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6
   ESCROW_CONTRACT_ID: CD5E6AXK2J5C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6
@@ -37,6 +37,8 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
+      - name: Stop pre-installed Postgres
+        run: sudo systemctl stop postgresql
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
       - name: Install Rust toolchain
@@ -53,6 +55,8 @@ jobs:
         run: cargo clippy --workspace -- -D warnings
       - name: Test
         run: cargo test --workspace
+        env:
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
       - name: Build Contracts
         run: cargo build --target wasm32-unknown-unknown --release -p escrow -p reputation -p job_registry
 

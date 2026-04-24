@@ -101,8 +101,9 @@ export function useWalletSession() {
         } else {
           // Fallback to static if available
           const { StellarWalletsKit: KitClass } = await import("@creit.tech/stellar-wallets-kit");
-          if (typeof (KitClass as any).setWallet === 'function') {
-            (KitClass as any).setWallet(walletId);
+          const StaticKit = KitClass as typeof KitClass & { setWallet?: (id: string) => void };
+          if (typeof StaticKit.setWallet === 'function') {
+            StaticKit.setWallet(walletId);
           }
         }
       }

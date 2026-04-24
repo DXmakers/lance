@@ -114,9 +114,32 @@ const server = createServer(async (req, res) => {
     return sendJson(res, 200, job);
   }
 
-  const disputeMatch = path.match(/^\/api\/disputes\/([^/]+)$/);
+  const jobsMatch = path.match(/^\/api\/jobs\/([^/]+)$/);
+  if (req.method === "GET" && jobsMatch) {
+    const job = jobs.find(j => j.id === jobsMatch[1]);
+    return job ? sendJson(res, 200, job) : sendJson(res, 404, { error: "Job not found" });
+  }
+
+  const bidsMatch = path.match(/^\/api\/jobs\/([^/]+)\/bids$/);
+  if (req.method === "GET" && bidsMatch) {
+    return sendJson(res, 200, []);
+  }
+
+  const milestonesMatch = path.match(/^\/api\/jobs\/([^/]+)\/milestones$/);
+  if (req.method === "GET" && milestonesMatch) {
+    return sendJson(res, 200, [
+      { id: randomUUID(), job_id: milestonesMatch[1], index: 1, title: "Initial Research", amount_usdc: 10000000, status: "pending" }
+    ]);
+  }
+
+  const deliverablesMatch = path.match(/^\/api\/jobs\/([^/]+)\/deliverables$/);
+  if (req.method === "GET" && deliverablesMatch) {
+    return sendJson(res, 200, []);
+  }
+
+  const disputeMatch = path.match(/^\/api\/jobs\/([^/]+)\/dispute$/);
   if (req.method === "GET" && disputeMatch) {
-    const dispute = disputes.get(disputeMatch[1]);
+    const dispute = Array.from(disputes.values()).find(d => d.job_id === disputeMatch[1]);
     return dispute
       ? sendJson(res, 200, dispute)
       : sendJson(res, 404, { error: "Dispute not found" });

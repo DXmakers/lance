@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,7 +16,6 @@ import {
 import { toast } from "sonner";
 
 import { useJobQuery } from "@/hooks/use-job-query";
-import { useJobActions } from "@/hooks/use-job-actions"; // I'll create this or just use the mutations from useJobQuery
 import { useWalletStore } from "@/lib/store/use-wallet-store";
 import { connectWallet } from "@/lib/stellar";
 import { BidFormSchema, BidFormData, DeliverableFormSchema, DeliverableFormData } from "@/lib/schemas/job-schemas";
@@ -33,7 +32,6 @@ import Link from "next/link";
 
 export default function JobDetailsPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const { address: viewerAddress } = useWalletStore();
   const { data, isLoading, error, mutations } = useJobQuery(id);
 
@@ -67,7 +65,6 @@ export default function JobDetailsPage() {
   }
 
   const { job, bids, milestones, deliverables, dispute, clientReputation, freelancerReputation } = data;
-  const nextMilestone = milestones.find((m) => m.status === "pending");
   const isClient = viewerAddress === job.client_address;
   const isFreelancer = viewerAddress === job.freelancer_address;
   const workflowLocked = job.status === "disputed" || dispute !== null;
@@ -84,8 +81,9 @@ export default function JobDetailsPage() {
       });
       toast.success("Proposal submitted successfully");
       bidForm.reset();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to submit proposal");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to submit proposal";
+      toast.error(message);
     }
   }
 
@@ -111,8 +109,9 @@ export default function JobDetailsPage() {
       });
       toast.success("Milestone evidence submitted");
       deliverableForm.reset();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to submit deliverable");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to submit deliverable";
+      toast.error(message);
     }
   }
 
