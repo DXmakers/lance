@@ -2,12 +2,17 @@
 
 import { ThemeProvider } from "next-themes";
 import React from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { AuthBootstrap } from "@/components/state/auth-bootstrap";
 import { QueryProvider } from "@/providers/query-provider";
+import { getQueryClient } from "@/lib/query-client";
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const queryClient = getQueryClient();
+
   return (
     <QueryProvider>
+    <QueryClientProvider client={queryClient}>
       <ThemeProvider
         attribute="class"
         defaultTheme="system"
@@ -18,5 +23,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <AuthBootstrap>{children}</AuthBootstrap>
       </ThemeProvider>
     </QueryProvider>
+    </QueryClientProvider>
   );
 }
