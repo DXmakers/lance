@@ -9,21 +9,9 @@ import {
   xdr,
   Transaction,
 } from "@stellar/stellar-sdk";
-import { 
-  StellarWalletsKit,
-} from "@creit.tech/stellar-wallets-kit";
+import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 
 export type StellarNetwork = "public" | "testnet";
-
-export const FREIGHTER_ID = "freighter";
-export const ALBEDO_ID = "albedo";
-export const XBULL_ID = "xbull";
-
-export const SUPPORTED_WALLETS = [
-  FREIGHTER_ID,
-  ALBEDO_ID,
-  XBULL_ID,
-];
 
 type WalletSelection = {
   id: string;
@@ -49,13 +37,10 @@ export type WalletKit = {
   openModal: (options?: WalletModalOptions) => Promise<{ address: string }>;
   closeModal: () => void;
   getAddress: () => Promise<{ address: string }>;
-  setNetwork: (network: any) => void;
-  getNetwork: () => Promise<{ network: string }>;
+  setNetwork: (network: Networks) => void;
   signTransaction: (xdr: string) => Promise<string>;
   signMessage: (message: string) => Promise<string>;
-  signAuthMessage: (message: string) => Promise<{ signature: string }>;
   disconnect: () => Promise<void>;
-  selectedWalletId?: string;
 };
 
 const MOCK_WALLET_ADDRESS =
@@ -77,6 +62,10 @@ const HORIZON_URL =
     : "https://horizon-testnet.stellar.org");
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Soroban RPC Simulator and Polling Logic (Issue #164)
+// ──────────────────────────────────────────────────────────────────────────────
 
 const SOROBAN_RPC_URL =
   process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ||
@@ -112,11 +101,13 @@ export async function buildAndSimulateTransaction({
   transaction: Transaction;
   simulation: SorobanRpc.Api.SimulateTransactionResponse;
 }> {
+  // 1. Fetch fresh account state to avoid Sequence Number Mismatch
   const account = await getAccountState(sourceAddress);
   const contract = new Contract(contractId);
 
+  // 2. Build the base transaction
   const txBuilder = new TransactionBuilder(account, {
-    fee: "100",
+    fee: "100", // Base fee; dynamically adjusted by simulation
     networkPassphrase: NETWORK_PASSPHRASE,
   });
 
@@ -125,6 +116,7 @@ export async function buildAndSimulateTransaction({
 
   const tx = txBuilder.build();
 
+  // 3. Simulate the transaction
   let simulation: SorobanRpc.Api.SimulateTransactionResponse;
   try {
     simulation = await sorobanServer.simulateTransaction(tx);
@@ -132,10 +124,23 @@ export async function buildAndSimulateTransaction({
     throw new Error(`RPC Simulation request failed: ${error}`);
   }
 
+  // 4. Handle simulation errors
   if (SorobanRpc.Api.isSimulationError(simulation)) {
+    if (process.env.NODE_ENV === "development") {
+      console.error(
+        "Raw Simulation Error:",
+        JSON.stringify(simulation, null, 2)
+      );
+    }
     throw new Error(`Simulation failed: ${simulation.error}`);
   }
 
+  if (process.env.NODE_ENV === "development") {
+    console.log("Simulation Success:", JSON.stringify(simulation, null, 2));
+    console.log("Raw XDR Before Assembly:", tx.toXDR());
+  }
+
+  // 5. Assemble transaction with dynamic resource limits and fees from simulation
   try {
     const assembledTx = SorobanRpc.assembleTransaction(
       tx,
@@ -152,13 +157,32 @@ export async function buildAndSimulateTransaction({
 export async function submitTransaction(
   signedTx: Transaction
 ): Promise<SorobanRpc.Api.SendTransactionResponse> {
-  const response = await sorobanServer.sendTransaction(signedTx);
+  const response = await sorobanServer.sendTransaction(signedTx)
 
   if (response.status === 'ERROR') {
-    throw new Error('Transaction submission failed with network status ERROR.');
+    let isSeqMismatch = false
+    try {
+      if (response.errorResult) {
+        // response.errorResult is already an xdr.TransactionResult object in v12+
+        isSeqMismatch =
+          response.errorResult.result().switch().name === 'txBadSeq'
+      }
+    } catch (_) {
+      // Ignore parsing errors fallback to generic error
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Transaction Submit Error:', response.errorResult)
+    }
+
+    if (isSeqMismatch) {
+      throw new Error('SEQUENCE_MISMATCH')
+    }
+
+    throw new Error('Transaction submission failed with network status ERROR.')
   }
 
-  return response;
+  return response
 }
 
 export async function pollTransactionStatus(
@@ -172,6 +196,9 @@ export async function pollTransactionStatus(
     const response = await sorobanServer.getTransaction(txHash);
 
     if (response.status !== SorobanRpc.Api.GetTransactionStatus.NOT_FOUND) {
+      if (process.env.NODE_ENV === "development") {
+        console.log(`Transaction ${txHash} updated to status:`, response.status);
+      }
       return response;
     }
 
@@ -183,6 +210,10 @@ export async function pollTransactionStatus(
     `Transaction polling timed out after ${maxWaitSeconds} seconds.`
   );
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Stellar Wallets Kit Integration (from main)
+// ──────────────────────────────────────────────────────────────────────────────
 
 let isWalletKitInitialized = false;
 
@@ -220,8 +251,8 @@ async function initializeWalletsKit(): Promise<void> {
     ]);
 
   StellarWalletsKit.init({
-    network: getNetworkPassphrase() as any,
-    selectedWalletId: FREIGHTER_ID,
+    network: getNetworkPassphrase(),
+    selectedWalletId: "freighter",
     modules: [new FreighterModule(), new AlbedoModule(), new xBullModule()],
   });
   isWalletKitInitialized = true;
@@ -269,14 +300,6 @@ export function getWalletsKit(): WalletKit {
       StellarWalletsKit.setNetwork(network);
     },
 
-    getNetwork: async () => {
-      if (!isBrowser() || isE2EMode()) {
-        return { network: APP_STELLAR_NETWORK.toUpperCase() };
-      }
-      await initializeWalletsKit();
-      return StellarWalletsKit.getNetwork();
-    },
-
     signTransaction: async (xdr) => {
       if (!isBrowser() || isE2EMode()) return xdr;
 
@@ -299,16 +322,6 @@ export function getWalletsKit(): WalletKit {
       return result.signedMessage ?? result.signedXDR ?? "";
     },
 
-    signAuthMessage: async (message) => {
-      if (!isBrowser() || isE2EMode()) return { signature: "mock-signature" };
-
-      await initializeWalletsKit();
-      const { signedMessage } = await StellarWalletsKit.signMessage(message, {
-        networkPassphrase: getNetworkPassphrase(),
-      });
-      return { signature: signedMessage };
-    },
-
     disconnect: async () => {
       if (!isBrowser()) return;
 
@@ -319,9 +332,6 @@ export function getWalletsKit(): WalletKit {
       await initializeWalletsKit();
       await StellarWalletsKit.disconnect();
     },
-    get selectedWalletId() {
-      return (StellarWalletsKit as any).selectedModule?.productId;
-    }
   };
 }
 
@@ -360,18 +370,6 @@ export async function signTransaction(xdr: string): Promise<string> {
 
 export async function signMessage(message: string): Promise<string> {
   return getWalletsKit().signMessage(message);
-}
-
-export async function signAuthMessage(message: string): Promise<string> {
-  const walletsKit = getWalletsKit();
-  const { signature } = await walletsKit.signAuthMessage(message);
-  return signature;
-}
-
-export async function getNetwork(): Promise<string> {
-  const walletsKit = getWalletsKit();
-  const { network } = await walletsKit.getNetwork();
-  return network;
 }
 
 export function isValidStellarAddress(address: string): boolean {

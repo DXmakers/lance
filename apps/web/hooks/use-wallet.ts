@@ -36,7 +36,7 @@ export function useWallet() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const isInitialized = useRef(false);
-  const displayNetwork = toDisplayNetwork(network);
+  const displayNetwork = toDisplayNetwork(network as Networks);
 
   const connect = useCallback(async () => {
     setStatus("connecting");

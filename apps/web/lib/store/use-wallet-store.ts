@@ -1,14 +1,25 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+// Matching the Networks enum from the kit to avoid circular dependencies or import issues
+export enum WalletNetworkPassphrase {
+  PUBLIC = "Public Global Stellar Network ; September 2015",
+  TESTNET = "Test SDF Network ; September 2015",
+}
+
 interface WalletState {
   publicKey: string | null;
+  address: string | null;
   walletId: string | null;
+  status: "connected" | "disconnected" | "connecting" | "error";
+  network: string;
+  error: string | null;
   isConnected: boolean;
   isConnecting: boolean;
-  error: string | null;
   
   setConnection: (publicKey: string, walletId: string) => void;
+  setStatus: (status: "connected" | "disconnected" | "connecting" | "error") => void;
+  setNetwork: (network: string) => void;
   setConnecting: (isConnecting: boolean) => void;
   setError: (error: string | null) => void;
   disconnect: () => void;
@@ -16,22 +27,56 @@ interface WalletState {
 
 export const useWalletStore = create<WalletState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       publicKey: null,
+      address: null,
       walletId: null,
+      status: "disconnected",
+      network: WalletNetworkPassphrase.TESTNET,
+      error: null,
       isConnected: false,
       isConnecting: false,
-      error: null,
 
       setConnection: (publicKey, walletId) => 
-        set({ publicKey, walletId, isConnected: true, isConnecting: false, error: null }),
+        set({ 
+          publicKey, 
+          address: publicKey, 
+          walletId, 
+          status: "connected", 
+          isConnected: true, 
+          isConnecting: false, 
+          error: null 
+        }),
       
-      setConnecting: (isConnecting) => set({ isConnecting }),
+      setStatus: (status) => set({ 
+        status, 
+        isConnected: status === "connected", 
+        isConnecting: status === "connecting" 
+      }),
       
-      setError: (error) => set({ error, isConnecting: false }),
+      setNetwork: (network) => set({ network }),
+      
+      setConnecting: (isConnecting) => set({ 
+        isConnecting, 
+        status: isConnecting ? "connecting" : (get().isConnected ? "connected" : "disconnected") 
+      }),
+      
+      setError: (error) => set({ 
+        error, 
+        status: "error", 
+        isConnecting: false 
+      }),
       
       disconnect: () => 
-        set({ publicKey: null, walletId: null, isConnected: false, isConnecting: false, error: null }),
+        set({ 
+          publicKey: null, 
+          address: null, 
+          walletId: null, 
+          status: "disconnected", 
+          isConnected: false, 
+          isConnecting: false, 
+          error: null 
+        }),
     }),
     {
       name: "lance-wallet-storage",
