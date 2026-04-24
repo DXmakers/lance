@@ -198,6 +198,28 @@ pub struct UpdateProfileRequest {
     pub portfolio_links: Vec<String>,
 }
 
+// ── Activity Log ──────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct ActivityLog {
+    pub id: Uuid,
+    pub job_id: Uuid,
+    pub actor: String,
+    pub action: String,
+    pub action_type: String, // info | success | warning | error
+    pub metadata: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateActivityLogRequest {
+    pub job_id: Uuid,
+    pub actor: String,
+    pub action: String,
+    pub action_type: Option<String>,
+    pub metadata: Option<serde_json::Value>,
+}
+
 // ── Appeal ────────────────────────────────────────────────────────────────────
 
 /// 1000 USDC expressed in stroops (7-decimal micro-USDC).

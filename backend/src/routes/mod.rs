@@ -1,3 +1,4 @@
+pub mod activity_logs;
 pub mod appeals;
 pub mod auth;
 pub mod bids;
@@ -27,6 +28,7 @@ pub fn api_router() -> Router<AppState> {
                 .nest("/appeals", appeals::router())
                 .nest("/users", users::router())
                 .nest("/auth", auth::router())
-                .nest("/uploads", uploads::router()),
+                .nest("/uploads", uploads::router())
+                .nest("/activity", activity_logs::router()),
         )
 }
