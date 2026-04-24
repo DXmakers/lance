@@ -10,10 +10,11 @@ import {
   ArrowRight,
   TrendingUp,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Star
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export function ClientDashboard() {
@@ -158,4 +159,3 @@ export function ClientDashboard() {
   );
 }
 
-import { Button } from "@/components/ui/button";

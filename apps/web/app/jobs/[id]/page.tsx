@@ -5,12 +5,10 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   CheckCircle2,
-  Clock3,
   FileUp,
   Gavel,
   LoaderCircle,
   ShieldAlert,
-  Star,
   Wallet,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -32,7 +30,6 @@ import { api } from "@/lib/api";
 import { releaseFunds, openDispute } from "@/lib/contracts";
 import {
   formatDate,
-  formatDateTime,
   formatUsdc,
   shortenAddress,
 } from "@/lib/format";

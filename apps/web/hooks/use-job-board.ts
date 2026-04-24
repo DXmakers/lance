@@ -121,6 +121,7 @@ export function useJobBoard() {
   });
 
   const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
   const [activeTag, setActiveTag] = useState<string>("all");
   const [sortBy, setSortBy] = useState<JobSort>("chronological");
 
@@ -170,7 +171,7 @@ export function useJobBoard() {
   return {
     jobs: visibleJobs,
     loading,
-    error,
+    error: queryError,
     query,
     activeTag,
     sortBy,

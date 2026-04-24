@@ -231,6 +231,7 @@ impl JobRegistryContract {
             .unwrap_or(Vec::new(&env));
 
         let mut updated_bids = Vec::new(&env);
+        let mut found = false;
         for mut bid in bids.iter() {
             if bid.freelancer == freelancer {
                 bid.status = BidStatus::Accepted;
@@ -245,7 +246,9 @@ impl JobRegistryContract {
             panic_with_error!(&env, JobRegistryError::BidNotFound);
         }
 
-        env.storage().persistent().set(&DataKey::Bids(job_id), &updated_bids);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Bids(job_id), &updated_bids);
 
         job.freelancer = Some(freelancer.clone());
         job.status = JobStatus::InProgress;

@@ -25,7 +25,6 @@ import { cn } from "@/lib/utils";
 export function WalletConnect() {
   const { 
     address, 
-    status, 
     connect, 
     disconnect, 
     isConnected, 
