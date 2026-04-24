@@ -148,6 +148,7 @@ export interface CreateJobBody {
   budget_usdc: number;
   milestones: number;
   client_address: string;
+  memo?: string;
 }
 
 export interface MarkFundedBody {
