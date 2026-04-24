@@ -24,8 +24,16 @@ export function JobCard({ job }: JobCardProps) {
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700 dark:text-amber-500">
-              {job.status}
+            <p
+              className={cn(
+                "text-xs font-semibold uppercase tracking-[0.24em]",
+                job.status === "open" && "text-amber-600 dark:text-amber-500",
+                job.status === "completed" && "text-emerald-600 dark:text-emerald-500",
+                job.status === "disputed" && "text-rose-600 dark:text-rose-500",
+                job.status === "in_progress" && "text-blue-600 dark:text-blue-500"
+              )}
+            >
+              {job.status.replace("_", " ")}
             </p>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 dark:text-zinc-50">
               {job.title}
