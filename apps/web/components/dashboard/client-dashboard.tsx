@@ -1,7 +1,6 @@
 "use client";
 
 import { useJobBoard } from "@/hooks/use-job-board";
-import { useAuthStore } from "@/lib/store/use-auth-store";
 import { formatUsdc } from "@/lib/format";
 import { 
   PlusCircle, 
@@ -19,7 +18,6 @@ import Link from "next/link";
 
 export function ClientDashboard() {
   const { jobs, loading } = useJobBoard();
-  const { user } = useAuthStore();
 
   // In a real app, we'd filter by user.address. 
   // For the demo, we'll show some "Client" specific metrics based on the mock data.
