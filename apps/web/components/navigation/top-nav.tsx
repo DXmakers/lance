@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useAuthStore } from "@/lib/store/use-auth-store";
 import { Button } from "@/components/ui/button";
-import { Search, Bell, Menu, LogOut, BriefcaseBusiness } from "lucide-react";
+import { Search, Bell, Menu } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { SessionSwitcher } from "@/components/auth/session-switcher";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { WalletConnect } from "@/components/wallet/wallet-connect";
 
 export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
   const { isLoggedIn, logout, login, role, user } = useAuthStore();
@@ -66,7 +67,8 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
         <div className="flex items-center gap-4">
           <SessionSwitcher />
           <ThemeToggle />
-          {isLoggedIn ? (
+          <WalletConnect />
+          {isLoggedIn && (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="icon" className="relative rounded-full bg-card/70">
                 <Bell className="h-5 w-5" />
@@ -87,36 +89,6 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => logout()} className="rounded-full">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign out
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  login({ name: "Amaka Client", email: "client@lance.so" }, "client")
-                }
-                className="rounded-full"
-              >
-                Client Log In
-              </Button>
-              <Button
-                size="sm"
-                onClick={() =>
-                  login(
-                    { name: "Kehinde Freelancer", email: "freelancer@lance.so" },
-                    "freelancer",
-                  )
-                }
-                className="rounded-full"
-              >
-                <BriefcaseBusiness className="mr-2 h-4 w-4" />
-                Freelancer Sign Up
-              </Button>
             </div>
           )}
         </div>

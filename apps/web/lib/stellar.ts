@@ -1,63 +1,66 @@
-import { StellarWalletsKit, Networks } from "@creit.tech/stellar-wallets-kit";
+import { 
+  StellarWalletsKit, 
+  WalletNetworkChangeHandler, 
+  WalletAccountChangeHandler,
+  Networks,
+  WalletId
+} from "@creit.tech/stellar-wallets-kit";
 
-// TODO: See docs/ISSUES.md — "Wallet Connection"
 let kit: StellarWalletsKit | null = null;
 
 export function getWalletsKit(): StellarWalletsKit {
+  if (typeof window === "undefined") return null as any;
+  
   if (!kit) {
     kit = new StellarWalletsKit({
-      network:
-        (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ??
-        Networks.TESTNET,
-      selectedWalletId: "freighter",
+      network: (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET,
+      selectedWalletId: WalletId.FREIGHTER,
     });
   }
   return kit;
 }
 
 /**
- * Opens the wallet-select modal and returns the connected public key.
- * Resolves once the user selects a wallet and the address is retrieved.
+ * Signs a SIWS message to authenticate the user.
  */
-export async function connectWallet(): Promise<string> {
-  if (process.env.NEXT_PUBLIC_E2E === "true") return "GD...CLIENT";
+export async function signSIWSMessage(address: string, nonce: string): Promise<{ signature: string, message: string }> {
+  const domain = window.location.host;
+  const message = `${domain} wants you to sign in with your Stellar account:\n${address}\n\nNonce: ${nonce}`;
+  
   const walletsKit = getWalletsKit();
-  return new Promise<string>((resolve, reject) => {
-    walletsKit.openModal({
-      onWalletSelected: async () => {
-        try {
-          walletsKit.closeModal();
-          const { address } = await walletsKit.getAddress();
-          resolve(address);
-        } catch (err) {
-          reject(err);
-        }
-      },
-    });
-  });
-}
-
-export async function getConnectedWalletAddress(): Promise<string | null> {
-  if (process.env.NEXT_PUBLIC_E2E === "true") return "GD...CLIENT";
-  try {
-    const { address } = await getWalletsKit().getAddress();
-    return address ?? null;
-  } catch {
-    return null;
-  }
+  // Most Stellar wallets support signing a blob/text
+  const { result } = await walletsKit.sign(message);
+  
+  return {
+    signature: result,
+    message
+  };
 }
 
 /**
  * Signs an XDR transaction string via the connected wallet.
- * Returns the signed XDR string ready for submission to the Soroban RPC.
  */
 export async function signTransaction(xdr: string): Promise<string> {
   if (process.env.NEXT_PUBLIC_E2E === "true") return xdr;
+  
   const walletsKit = getWalletsKit();
-  const networkPassphrase =
-    (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET;
+  const networkPassphrase = (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET;
+  
   const { signedTxXdr } = await walletsKit.signTransaction(xdr, {
     networkPassphrase,
   });
+  
   return signedTxXdr;
+}
+
+/**
+ * Registers listeners for wallet events.
+ */
+export function registerWalletListeners(
+  onAccountChange: WalletAccountChangeHandler,
+  onNetworkChange: WalletNetworkChangeHandler
+) {
+  const walletsKit = getWalletsKit();
+  walletsKit.onAccountChange(onAccountChange);
+  walletsKit.onNetworkChange(onNetworkChange);
 }
