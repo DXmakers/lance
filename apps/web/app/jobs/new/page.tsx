@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Wallet } from "lucide-react";
 import { SiteShell } from "@/components/site-shell";
+import { WalletProviderIcon } from "@/components/wallet/wallet-provider-icon";
 import { api } from "@/lib/api";
-import { connectWallet, getConnectedWalletAddress } from "@/lib/stellar";
+import {
+  connectWalletWithInfo,
+  getConnectedWalletAddress,
+} from "@/lib/stellar";
+import { useWalletStore } from "@/lib/store/use-wallet-store";
 
 export default function NewJobPage() {
   const router = useRouter();
@@ -15,6 +19,8 @@ export default function NewJobPage() {
   const [milestones, setMilestones] = useState(1);
   const [walletAddress, setWalletAddress] = useState("GD...CLIENT");
   const [loading, setLoading] = useState(false);
+  const walletInfo = useWalletStore((state) => state.info);
+  const setWalletInfo = useWalletStore((state) => state.setWallet);
 
   async function ensureWallet() {
     const connected = await getConnectedWalletAddress();
@@ -23,9 +29,10 @@ export default function NewJobPage() {
       return connected;
     }
 
-    const newlyConnected = await connectWallet();
-    setWalletAddress(newlyConnected);
-    return newlyConnected;
+    const wallet = await connectWalletWithInfo();
+    setWalletAddress(wallet.address);
+    setWalletInfo(wallet);
+    return wallet.address;
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -134,8 +141,16 @@ export default function NewJobPage() {
 
         <aside className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-slate-50 shadow-[0_25px_80px_-48px_rgba(15,23,42,0.75)] sm:p-8">
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm">
-            <Wallet className="h-4 w-4 text-amber-300" />
-            Client wallet: {walletAddress}
+            <WalletProviderIcon
+              walletName={walletInfo?.walletName}
+              walletIcon={walletInfo?.walletIcon}
+              size={16}
+              className={walletInfo ? undefined : "text-amber-300"}
+            />
+            <span>
+              {walletInfo?.walletName ? `${walletInfo.walletName} · ` : "Client wallet: "}
+              {walletAddress}
+            </span>
           </div>
           <h2 className="mt-6 text-2xl font-semibold tracking-tight">
             Better briefs produce smoother milestone releases.
