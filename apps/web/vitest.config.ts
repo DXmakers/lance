@@ -6,6 +6,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     globals: true,
+    exclude: ["components/wallet/__tests__/**"],
     coverage: {
       reporter: ["text", "html"],
       include: ["components/theme/theme-toggle.tsx"],

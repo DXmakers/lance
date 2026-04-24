@@ -26,8 +26,8 @@ export function ClientDashboard() {
   const totalEscrow = activeJobs.reduce((acc, j) => acc + j.budget_usdc, 0);
 
   const stats = [
-    { label: "Active Registry", value: activeJobs.length.toString(), icon: Briefcase, color: "text-emerald-500" },
-    { label: "Locked Escrow", value: formatUsdc(totalEscrow), icon: ShieldCheck, color: "text-blue-500" },
+    { label: "Active Jobs", value: activeJobs.length.toString(), icon: Briefcase, color: "text-emerald-500" },
+    { label: "Escrow Volume", value: formatUsdc(totalEscrow), icon: ShieldCheck, color: "text-blue-500" },
     { label: "Talent Pool", value: "24", icon: Users, color: "text-amber-500" },
     { label: "Market Yield", value: "99.2%", icon: TrendingUp, color: "text-indigo-500" },
   ];
@@ -58,7 +58,7 @@ export function ClientDashboard() {
         <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-xl shadow-2xl rounded-[24px]">
           <CardHeader className="flex flex-row items-center justify-between p-8">
             <div className="space-y-2">
-              <CardTitle className="text-2xl font-black text-white">Market Registry</CardTitle>
+              <CardTitle className="text-2xl font-black text-white">Active Registry</CardTitle>
               <CardDescription className="text-zinc-500 font-medium">Monitor and manage your active smart contract briefs.</CardDescription>
             </div>
             <Link href="/jobs/new" className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs font-black text-zinc-950 hover:bg-zinc-200 transition-all shadow-lg shadow-white/5 active:scale-[0.98]">
