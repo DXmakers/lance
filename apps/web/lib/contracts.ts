@@ -112,6 +112,16 @@ async function invokeEscrow(
 
 // ─── Public helpers ───────────────────────────────────────────────────────────
 
+/** Returns the escrow contract ID for display purposes. */
+export function getEscrowContractId(): string {
+  return ESCROW_CONTRACT_ID;
+}
+
+/** Returns the USDC contract ID for display purposes. */
+export function getUsdcContractId(): string {
+  return USDC_CONTRACT_ID;
+}
+
 /**
  * Calls escrow.deposit — locks USDC into the escrow for a given job.
  *

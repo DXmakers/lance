@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { Providers } from "@/components/providers";
+import { ToastProvider } from "@/components/ui/toast-provider";
 
 export const metadata: Metadata = {
   title: "Lance",
@@ -12,8 +15,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className="bg-background text-foreground antialiased font-sans">
+        <Providers>
+          <ToastProvider>
+            <DashboardLayout>{children}</DashboardLayout>
+          </ToastProvider>
+        </Providers>
+      </body>
     </html>
   );
 }

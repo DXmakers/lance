@@ -1,11 +1,16 @@
+import { jwtMemory } from "@/lib/store/use-auth-store";
+
 const API =
   process.env.NEXT_PUBLIC_API_URL ??
   (process.env.NEXT_PUBLIC_E2E === "true" ? "" : "http://localhost:3001");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = jwtMemory.get();
+
   const res = await fetch(`${API}/api${path}`, {
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {}),
     },
     ...init,
@@ -28,6 +33,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  auth: {
+    getChallenge: (address: string) =>
+      request<{ token: string }>(`/v1/auth/challenge`, {
+        method: "POST",
+        body: JSON.stringify({ address }),
+      }),
+  },
   jobs: {
     list: () => request<Job[]>("/v1/jobs"),
     get: (id: string) => request<Job>(`/v1/jobs/${id}`),
@@ -136,6 +148,7 @@ export interface CreateJobBody {
   budget_usdc: number;
   milestones: number;
   client_address: string;
+  memo?: string;
 }
 
 export interface MarkFundedBody {

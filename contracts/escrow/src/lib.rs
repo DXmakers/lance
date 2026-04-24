@@ -2,8 +2,8 @@
 
 use soroban_sdk::BytesN;
 use soroban_sdk::{
-    contract, contractclient, contracterror, contractimpl, contracttype, log, token, Address, Env,
-    Vec,
+    contract, contractclient, contracterror, contractimpl, contracttype, log, panic_with_error,
+    token, Address, Env, Vec,
 };
 
 #[contracterror]
@@ -86,6 +86,7 @@ pub enum DataKey {
     Admin,
     AgentJudge,
     JobRegistry,
+    Locked,
 }
 
 #[contracttype]
@@ -118,6 +119,7 @@ pub enum EscrowError {
     JobRegistrySyncFailed = 9,
     UpgradeUnauthorized = 10,
     InvalidStateTransition = 11,
+    ReentrancyDetected = 12,
 }
 
 #[contracttype]
@@ -176,6 +178,17 @@ pub struct ContractUpgradedEvent {
     pub by_admin: Address,
     pub new_wasm_hash: BytesN<32>,
     pub upgraded_at: u64,
+}
+
+fn enter_reentrancy_guard(env: &Env) {
+    if env.storage().instance().has(&DataKey::Locked) {
+        panic_with_error!(env, EscrowError::ReentrancyDetected);
+    }
+    env.storage().instance().set(&DataKey::Locked, &());
+}
+
+fn exit_reentrancy_guard(env: &Env) {
+    env.storage().instance().remove(&DataKey::Locked);
 }
 
 #[contract]
@@ -452,17 +465,22 @@ impl EscrowContract {
             return Err(EscrowError::AmountMismatch);
         }
 
-        // Transfer tokens from client to contract
-        let token_client = token::Client::new(&env, &job.token);
-        token_client.transfer(&job.client, &env.current_contract_address(), &amount);
+        enter_reentrancy_guard(&env);
 
         let next_status = EscrowStatus::Funded;
         job.status.validate_transition(&next_status)?;
         job.total_amount = amount;
         job.status = next_status;
+
+        // Transfer tokens from client to contract
+        let token_client = token::Client::new(&env, &job.token);
+        token_client.transfer(&job.client, &env.current_contract_address(), &amount);
+
         log!(&env, "deposit: job {} amount {}", job_id, amount);
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
+
+        exit_reentrancy_guard(&env);
 
         // Emit deposit event for off-chain logging
         let evt = DepositEvent {
@@ -514,14 +532,6 @@ impl EscrowContract {
         job.milestones.set(idx, milestone.clone());
 
         job.released_amount = job.released_amount.saturating_add(milestone.amount);
-        job.status = EscrowStatus::WorkInProgress;
-
-        let token_client = token::Client::new(&env, &job.token);
-        token_client.transfer(
-            &env.current_contract_address(),
-            &job.freelancer,
-            &milestone.amount,
-        );
 
         let next_status = if job.released_amount == job.total_amount {
             EscrowStatus::Completed
@@ -531,6 +541,15 @@ impl EscrowContract {
         job.status.validate_transition(&next_status)?;
         job.status = next_status;
 
+        enter_reentrancy_guard(&env);
+
+        let token_client = token::Client::new(&env, &job.token);
+        token_client.transfer(
+            &env.current_contract_address(),
+            &job.freelancer,
+            &milestone.amount,
+        );
+
         log!(
             &env,
             "release_milestone: job {} amount {}",
@@ -539,6 +558,8 @@ impl EscrowContract {
         );
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
+
+        exit_reentrancy_guard(&env);
 
         // Emit event
         env.events().publish(
@@ -581,15 +602,6 @@ impl EscrowContract {
         job.milestones.set(milestone_index, milestone.clone());
 
         job.released_amount += milestone.amount;
-        job.status = EscrowStatus::WorkInProgress;
-
-        let token_client = token::Client::new(&env, &job.token);
-        token_client.transfer(
-            &env.current_contract_address(),
-            &job.freelancer,
-            &milestone.amount,
-        );
-
         let next_status = if job.released_amount == job.total_amount {
             EscrowStatus::Completed
         } else {
@@ -600,6 +612,15 @@ impl EscrowContract {
             .expect("invalid state transition");
         job.status = next_status;
 
+        enter_reentrancy_guard(&env);
+
+        let token_client = token::Client::new(&env, &job.token);
+        token_client.transfer(
+            &env.current_contract_address(),
+            &job.freelancer,
+            &milestone.amount,
+        );
+
         log!(
             &env,
             "release_funds: job {} amount {}",
@@ -608,6 +629,8 @@ impl EscrowContract {
         );
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
+
+        exit_reentrancy_guard(&env);
     }
 
     /// Either party opens a dispute, locking remaining funds.
@@ -739,6 +762,15 @@ impl EscrowContract {
         let total_payout = payee_amount + payer_amount;
         assert!(total_payout <= remaining, "payout exceeds remaining funds");
 
+        let next_status = EscrowStatus::Resolved;
+        job.status
+            .validate_transition(&next_status)
+            .expect("invalid state transition");
+        job.released_amount += total_payout;
+        job.status = next_status;
+
+        enter_reentrancy_guard(&env);
+
         let token_client = token::Client::new(&env, &job.token);
         if payee_amount > 0 {
             token_client.transfer(
@@ -751,12 +783,6 @@ impl EscrowContract {
             token_client.transfer(&env.current_contract_address(), &job.client, &payer_amount);
         }
 
-        let next_status = EscrowStatus::Resolved;
-        job.status
-            .validate_transition(&next_status)
-            .expect("invalid state transition");
-        job.released_amount += total_payout;
-        job.status = next_status;
         log!(
             &env,
             "resolve_dispute: job {} payee {} payer {}",
@@ -766,6 +792,8 @@ impl EscrowContract {
         );
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
+
+        exit_reentrancy_guard(&env);
     }
 
     /// Client recoups funds if freelancer never responded or deadline has passed.
@@ -789,18 +817,24 @@ impl EscrowContract {
         }
 
         let remaining = job.total_amount - job.released_amount;
-        if remaining > 0 {
-            let token_client = token::Client::new(&env, &job.token);
-            token_client.transfer(&env.current_contract_address(), &job.client, &remaining);
-        }
 
         let next_status = EscrowStatus::Refunded;
         job.status.validate_transition(&next_status)?;
         job.released_amount = job.total_amount;
         job.status = next_status;
+
+        enter_reentrancy_guard(&env);
+
+        if remaining > 0 {
+            let token_client = token::Client::new(&env, &job.token);
+            token_client.transfer(&env.current_contract_address(), &job.client, &remaining);
+        }
+
         log!(&env, "refund: job {} amount {}", job_id, remaining);
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
+
+        exit_reentrancy_guard(&env);
 
         env.events().publish(
             ("escrow", "Refunded"),

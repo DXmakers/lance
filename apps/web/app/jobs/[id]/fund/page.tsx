@@ -5,8 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { LoaderCircle, ShieldAlert } from "lucide-react";
 import { SiteShell } from "@/components/site-shell";
 import { api, type Job } from "@/lib/api";
-import { depositEscrow } from "@/lib/contracts";
+import { depositEscrow, getEscrowContractId } from "@/lib/contracts";
 import { formatUsdc } from "@/lib/format";
+import { TransactionPendingNotification } from "@/components/wallet/transaction-pending-notification";
 
 const PLATFORM_FEE_BPS = 200;
 
@@ -145,6 +146,18 @@ export default function EscrowFundingPage() {
       title="Fund Escrow"
       description="Review the full contract value, platform fee, and milestone count before authorising the blockchain transfer."
     >
+      <div className="mx-auto mb-6 max-w-5xl">
+        <TransactionPendingNotification
+          isPending={fundingState === "signing" || fundingState === "polling"}
+          pendingText={
+            fundingState === "signing"
+              ? "Awaiting wallet approval for escrow funding signature."
+              : "Transaction submitted. Waiting for ledger confirmation."
+          }
+          txHash={txHash}
+        />
+      </div>
+
       <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_25px_80px_-48px_rgba(15,23,42,0.5)] sm:p-8">
           <div className="rounded-[1.6rem] border border-amber-200 bg-amber-50 p-5">
@@ -163,6 +176,10 @@ export default function EscrowFundingPage() {
               <div className="flex justify-between gap-4">
                 <span>Contract value</span>
                 <span className="font-medium">{formatUsdc(job.budget_usdc)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span>Escrow contract</span>
+                <span className="font-mono text-xs">{getEscrowContractId() || "Not configured"}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span>Platform fee (2%)</span>
