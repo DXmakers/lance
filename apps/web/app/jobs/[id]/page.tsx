@@ -15,6 +15,8 @@ import {
 import { BidList } from "@/components/jobs/bid-list";
 import { SiteShell } from "@/components/site-shell";
 import { Stars } from "@/components/stars";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { SubmitBidModal } from "@/components/jobs/submit-bid-modal";
 import { JobDetailsSkeleton } from "@/components/ui/skeleton";
 import { useLiveJobWorkspace } from "@/hooks/use-live-job-workspace";
 import { api } from "@/lib/api";
@@ -32,7 +34,6 @@ export default function JobDetailsPage() {
   const router = useRouter();
   const workspace = useLiveJobWorkspace(id);
   const [viewerAddress, setViewerAddress] = useState<string | null>(null);
-  const [proposal, setProposal] = useState("");
   const [deliverableLabel, setDeliverableLabel] = useState("");
   const [deliverableLink, setDeliverableLink] = useState("");
   const [deliverableFile, setDeliverableFile] = useState<File | null>(null);
@@ -47,26 +48,6 @@ export default function JobDetailsPage() {
     const connected = await connectWallet();
     setViewerAddress(connected);
     return connected;
-  }
-
-  async function handleBid(event: React.FormEvent) {
-    event.preventDefault();
-    setBusyAction("bid");
-
-    try {
-      const freelancerAddress =
-        (await getConnectedWalletAddress()) ?? "GD...FREELANCER";
-      await api.bids.create(id, {
-        freelancer_address: freelancerAddress,
-        proposal,
-      });
-      setProposal("");
-      await workspace.refresh();
-    } catch {
-      alert("Failed to submit bid");
-    } finally {
-      setBusyAction(null);
-    }
   }
 
   async function handleAcceptBid(bidId: string) {
@@ -299,24 +280,17 @@ export default function JobDetailsPage() {
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   Pitch your approach, timing, and why your previous work maps cleanly to this brief.
                 </p>
-                <form onSubmit={handleBid} className="mt-5 space-y-4">
-                  <textarea
-                    value={proposal}
-                    onChange={(event) => setProposal(event.target.value)}
-                    className="min-h-[160px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
-                    placeholder="Tell the client why you're a fit..."
-                    required
-                    id="bid-proposal"
-                  />
-                  <button
-                    type="submit"
-                    disabled={busyAction === "bid"}
-                    className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
-                    id="submit-bid"
+                <div className="mt-5">
+                  <ErrorBoundary
+                    fallback={
+                      <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                        Submit Bid is temporarily unavailable. Refresh the page to retry.
+                      </div>
+                    }
                   >
-                    {busyAction === "bid" ? "Submitting..." : "Submit Bid"}
-                  </button>
-                </form>
+                    <SubmitBidModal jobId={id} onSubmitted={workspace.refresh} />
+                  </ErrorBoundary>
+                </div>
               </section>
 
               <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">

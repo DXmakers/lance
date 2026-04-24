@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@tanstack/react-query": ["../../packages/react-query/src/index.ts"]
     },
     "types": ["node", "react", "react-dom"]
   },
