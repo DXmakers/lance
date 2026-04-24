@@ -5,6 +5,7 @@ import { useWalletSession } from "@/hooks/use-wallet-session";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { WalletErrorBanner } from "./wallet-error-display";
+import { shortenAddress } from "@/lib/format";
 
 interface ConnectWalletButtonProps {
   className?: string;
@@ -65,7 +66,7 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
   }
 
   if (isConnected && address) {
-    const truncated = `${address.slice(0, 4)}…${address.slice(-4)}`;
+    const truncated = shortenAddress(address, 4, 4);
 
     return (
       <div className={cn("flex flex-col items-end gap-1 responsive-gap", className)}>

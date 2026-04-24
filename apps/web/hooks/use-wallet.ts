@@ -1,6 +1,5 @@
 "use client";
-
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { useWalletStore } from "@/lib/store/use-wallet-store";
 import { getWalletsKit } from "@/lib/stellar";
 import { toast } from "sonner";
@@ -16,6 +15,7 @@ export function useWallet() {
     disconnect,
   } = useWalletStore();
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const isInitialized = useRef(false);
 
   const connect = useCallback(async (connectedAddress: string) => {
@@ -23,6 +23,7 @@ export function useWallet() {
     try {
       setConnection(connectedAddress, connectedAddress);
       toast.success("Wallet connected successfully");
+      setIsModalOpen(false);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to connect wallet";
       setError(message);
@@ -36,7 +37,7 @@ export function useWallet() {
     toast.info("Wallet disconnected");
   }, [disconnect]);
 
-  // Auto-connect logic
+  // Auto-connect
   useEffect(() => {
     if (isInitialized.current) return;
 
@@ -70,5 +71,7 @@ export function useWallet() {
     disconnect: handleDisconnect,
     isConnected: status === "connected",
     isConnecting: status === "connecting",
+    isModalOpen,
+    setIsModalOpen,
   };
 }

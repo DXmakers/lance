@@ -9,7 +9,7 @@ export default defineConfig({
     exclude: ["components/wallet/__tests__/**"],
     coverage: {
       reporter: ["text", "html"],
-      include: ["components/theme/theme-toggle.tsx"],
+      include: ["components/theme/theme-toggle.tsx", "lib/notifications.ts"],
     },
   },
   resolve: {
