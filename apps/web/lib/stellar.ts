@@ -9,7 +9,7 @@ import {
 let kit: StellarWalletsKit | null = null;
 
 export function getWalletsKit(): StellarWalletsKit {
-  if (typeof window === "undefined") return null as any;
+  if (typeof window === "undefined") return null as unknown as StellarWalletsKit;
   
   if (!kit) {
     kit = new StellarWalletsKit({
