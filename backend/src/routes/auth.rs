@@ -1,9 +1,9 @@
-use crate::{db::AppState, error::Result};
-use axum::{
-    routing::{get, post},
-    Json, Router,
-};
+use crate::{db::AppState, error::{AppError, Result}};
+use axum::{extract::State, routing::{get, post}, Json, Router};
+use ed25519_dalek::{Signature, VerifyingKey};
+use jsonwebtoken::{encode, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
+use stellar_strkey::ed25519::PublicKey as StrKey;
 use uuid::Uuid;
 
 pub fn router() -> Router<AppState> {
@@ -12,49 +12,82 @@ pub fn router() -> Router<AppState> {
         .route("/verify", post(verify_signature))
 }
 
+// ── GET /nonce ────────────────────────────────────────────────────────────────
+
 #[derive(Serialize)]
 struct NonceResponse {
     nonce: String,
 }
 
-async fn get_nonce() -> Result<Json<NonceResponse>> {
+async fn get_nonce(State(state): State<AppState>) -> Result<Json<NonceResponse>> {
     let nonce = Uuid::new_v4().to_string();
-    // In a real app, you might store this nonce in Redis with a TTL
+    state.nonces.insert(&nonce);
     Ok(Json(NonceResponse { nonce }))
 }
 
+// ── POST /verify ──────────────────────────────────────────────────────────────
+
+/// The frontend must sign exactly this message (UTF-8 bytes):
+///   "lance:auth:<nonce>"
 #[derive(Deserialize)]
-#[allow(dead_code)]
 struct VerifyRequest {
+    /// Stellar G… address of the signer.
     address: String,
-    message: String,
-    signature: String, // hex encoded
+    /// The nonce obtained from GET /nonce.
+    nonce: String,
+    /// Hex-encoded 64-byte ed25519 signature over "lance:auth:<nonce>".
+    signature: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Claims {
+    sub: String, // Stellar address
+    exp: usize,
 }
 
 #[derive(Serialize)]
 struct VerifyResponse {
     token: String,
-    success: bool,
 }
 
-async fn verify_signature(Json(_req): Json<VerifyRequest>) -> Result<Json<VerifyResponse>> {
-    // 1. Decode address (Stellar G... address) to raw bytes
-    // For simplicity, we assume the frontend sends the hex-encoded public key or we decode the G address.
-    // In Stellar, the public key is encoded in the G address (StrKey).
+async fn verify_signature(
+    State(state): State<AppState>,
+    Json(req): Json<VerifyRequest>,
+) -> Result<Json<VerifyResponse>> {
+    // 1. Consume nonce (one-time, TTL-checked).
+    if !state.nonces.consume(&req.nonce) {
+        return Err(AppError::Unauthorized("invalid or expired nonce".into()));
+    }
 
-    // For this implementation, let's assume the signature verification is the core logic.
-    // We'll need a way to decode Stellar addresses.
-    // Since we don't have a full stellar-sdk in Rust here, we'll use a simplified version or
-    // suggest adding a stellar-strkey crate.
+    // 2. Decode Stellar G… address → raw 32-byte public key.
+    let strkey = StrKey::from_string(&req.address)
+        .map_err(|_| AppError::BadRequest("invalid Stellar address".into()))?;
+    let verifying_key = VerifyingKey::from_bytes(&strkey.0)
+        .map_err(|_| AppError::BadRequest("invalid public key bytes".into()))?;
 
-    // Placeholder for actual Stellar StrKey decoding
-    // let public_key_bytes = decode_stellar_address(&req.address)?;
+    // 3. Decode hex signature → 64 bytes.
+    let sig_bytes = hex::decode(&req.signature)
+        .map_err(|_| AppError::BadRequest("signature must be hex-encoded".into()))?;
+    let sig_array: [u8; 64] = sig_bytes
+        .try_into()
+        .map_err(|_| AppError::BadRequest("signature must be 64 bytes".into()))?;
+    let signature = Signature::from_bytes(&sig_array);
 
-    // For now, we'll return success if the logic is implemented.
-    // In a real scenario, we'd use ed25519-dalek to verify.
+    // 4. Verify ed25519 signature over canonical message.
+    let message = format!("lance:auth:{}", req.nonce);
+    verifying_key
+        .verify_strict(message.as_bytes(), &signature)
+        .map_err(|_| AppError::Unauthorized("signature verification failed".into()))?;
 
-    Ok(Json(VerifyResponse {
-        token: "mock-jwt-token".into(),
-        success: true,
-    }))
+    // 5. Issue JWT (24-hour expiry).
+    let exp = (chrono::Utc::now() + chrono::Duration::hours(24)).timestamp() as usize;
+    let claims = Claims { sub: req.address, exp };
+    let token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(state.jwt_secret.as_bytes()),
+    )
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    Ok(Json(VerifyResponse { token }))
 }

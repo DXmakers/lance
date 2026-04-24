@@ -24,9 +24,12 @@ dotenvy      = { workspace = true }
 tower        = { workspace = true }
 tower-http   = { workspace = true }
 bytes        = { workspace = true }
-base64       = "0.22"
-sha2         = "0.10"
+base64        = "0.22"
+sha2          = "0.10"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
+stellar-strkey = "0.0.8"
+jsonwebtoken  = "9"
+hex           = "0.4"
 
 [dev-dependencies]
 axum-test    = "16.0"
