@@ -132,6 +132,11 @@ impl ReputationContract {
     }
 
     fn score_from_profile(address: &Address, role: Role, profile: &profile::Profile) -> ReputationScore {
+    fn score_from_profile(
+        address: &Address,
+        role: Role,
+        profile: &profile::Profile,
+    ) -> ReputationScore {
         match role {
             Role::Client => ReputationScore {
                 address: address.clone(),
@@ -465,6 +470,7 @@ mod test {
             env.storage()
                 .persistent()
                 .set(&MockKey::Job(job_id), &job);
+            env.storage().persistent().set(&MockKey::Job(job_id), &job);
         }
 
         pub fn get_job(env: Env, _job_id: u64) -> Result<JobRecord, soroban_sdk::Error> {
@@ -593,6 +599,14 @@ mod test {
 
     #[test]
     #[should_panic(expected = "Error(Contract, #3)")] 
+        assert_eq!(view.client.total_points, 0);
+        assert_eq!(view.freelancer.score, 6000);
+        assert_eq!(view.freelancer.total_jobs, 1);
+        assert_eq!(view.freelancer.total_points, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #3)")]
     fn test_get_public_metrics_rejects_unknown_role() {
         let env = Env::default();
         let address = Address::generate(&env);
@@ -653,6 +667,7 @@ mod test {
 
     #[test]
     #[should_panic(expected = "Error(Contract, #2)")] 
+    #[should_panic(expected = "Error(Contract, #2)")]
     fn test_upgrade_requires_admin() {
         let env = Env::default();
         env.mock_all_auths();

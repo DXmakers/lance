@@ -19,7 +19,7 @@ import {
   shortenAddress,
 } from "@/lib/format";
 import {
-  getReputationMetrics,
+  getReputationView,
   type ReputationMetrics,
 } from "@/lib/reputation";
 import { connectWallet, getConnectedWalletAddress } from "@/lib/stellar";
@@ -51,16 +51,15 @@ export default function PublicProfilePage() {
 
     async function loadProfile() {
       try {
-        const [profileData, nextFreelancerRep, nextClientRep] = await Promise.all([
+        const [profileData, reputationView] = await Promise.all([
           api.users.getProfile(address),
-          getReputationMetrics(address, "freelancer"),
-          getReputationMetrics(address, "client"),
+          getReputationView(address),
         ]);
 
         if (!active) return;
         setProfile(profileData);
-        setFreelancerRep(nextFreelancerRep);
-        setClientRep(nextClientRep);
+        setFreelancerRep(reputationView.freelancer);
+        setClientRep(reputationView.client);
         setDisplayName(profileData.display_name ?? "");
         setHeadline(profileData.headline);
         setBio(profileData.bio);

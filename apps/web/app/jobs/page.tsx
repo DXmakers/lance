@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight, Clock3, Search, SlidersHorizontal } from "lucide-react";
 import { SiteShell } from "@/components/site-shell";
 import { Stars } from "@/components/stars";
+import { JobCardSkeleton } from "@/components/ui/skeleton";
 import { useJobBoard } from "@/hooks/use-job-board";
 import { formatDate, formatUsdc, shortenAddress } from "@/lib/format";
 
@@ -83,13 +84,11 @@ export default function JobsPage() {
 
       <section className="mt-8">
         {loading ? (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2" role="status" aria-live="polite">
             {Array.from({ length: 6 }, (_, index) => (
-              <div
-                key={index}
-                className="h-72 animate-pulse rounded-[1.75rem] border border-slate-200 bg-white/70"
-              />
+              <JobCardSkeleton key={index} />
             ))}
+            <span className="sr-only">Loading open jobs</span>
           </div>
         ) : (
           <div className="grid gap-5 lg:grid-cols-2">
