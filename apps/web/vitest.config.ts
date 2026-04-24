@@ -1,4 +1,3 @@
-// @ts-nocheck
 import path from "node:path";
 import { defineConfig } from "vitest/config";
 
@@ -7,6 +6,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     globals: true,
+
     coverage: {
       reporter: ["text", "html"],
       include: [
@@ -15,13 +15,10 @@ export default defineConfig({
       ],
     },
   },
+
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./"),
-      "@tanstack/react-query": path.resolve(
-        __dirname,
-        "../../packages/react-query/src/index.ts",
-      ),
     },
   },
 });
