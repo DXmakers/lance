@@ -51,6 +51,7 @@ describe("SubmitBidModal", () => {
     expect(
       await screen.findByText("Proposal must be at least 80 characters."),
     ).toBeInTheDocument();
+
     expect(vi.mocked(api.bids.create)).not.toHaveBeenCalled();
   });
 

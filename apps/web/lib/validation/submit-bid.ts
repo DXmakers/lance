@@ -6,11 +6,13 @@ export const submitBidSchema = z.object({
     .trim()
     .min(80, "Proposal must be at least 80 characters.")
     .max(2000, "Proposal must be 2000 characters or less."),
+
   timelineDays: z
     .number({ invalid_type_error: "Timeline is required." })
     .int("Timeline must be a whole number of days.")
     .min(1, "Timeline must be at least 1 day.")
     .max(365, "Timeline must be 365 days or fewer."),
+
   milestoneSummary: z
     .string()
     .trim()
