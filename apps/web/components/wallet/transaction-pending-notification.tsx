@@ -2,15 +2,12 @@
 
 import { LoaderCircle, TriangleAlert, Unplug } from "lucide-react";
 import { useWalletSession } from "@/hooks/use-wallet-session";
+import { CopyAddressButton } from "@/components/wallet/copy-address-button";
 
 interface TransactionPendingNotificationProps {
   isPending: boolean;
   pendingText?: string;
   txHash?: string | null;
-}
-
-function shortAddress(address: string): string {
-  return `${address.slice(0, 6)}...${address.slice(-6)}`;
 }
 
 export function TransactionPendingNotification({
@@ -42,9 +39,10 @@ export function TransactionPendingNotification({
           </p>
           <p className="text-sm text-zinc-300" aria-live="polite">
             {isConnected && address
-              ? `Connected as ${shortAddress(address)}`
+              ? "Connected wallet"
               : "No wallet connected"}
           </p>
+          {isConnected && address ? <CopyAddressButton address={address} /> : null}
           <p className="text-xs text-zinc-400">App network: {appNetwork}</p>
           {walletNetwork ? (
             <p className="text-xs text-zinc-400">Wallet network: {walletNetwork}</p>
