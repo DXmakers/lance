@@ -1,4 +1,4 @@
-import { StellarWalletsKit, Networks, ISupportedWallet } from "@creit.tech/stellar-wallets-kit";
+import { StellarWalletsKit, Networks } from "@creit.tech/stellar-wallets-kit";
 import { Horizon, StrKey, Transaction } from "@stellar/stellar-sdk";
 import { categorizeWalletError } from "./wallet-errors";
 
@@ -99,7 +99,7 @@ export async function connectWalletWithInfo(): Promise<ConnectedWallet> {
   const walletsKit = getWalletsKit();
   return new Promise<ConnectedWallet>((resolve, reject) => {
     walletsKit.openModal({
-      onWalletSelected: async (option: ISupportedWallet) => {
+      onWalletSelected: async (option) => {
         try {
           walletsKit.setWallet(option.id);
           writeStoredWalletId(option.id);
