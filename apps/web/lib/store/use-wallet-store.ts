@@ -10,6 +10,7 @@ interface WalletState {
   status: WalletStatus;
   network: Networks;
   networkMismatch: boolean;
+  error: string | null;
   
   // Actions
   setConnection: (address: string, walletId: string) => void;
@@ -38,6 +39,7 @@ export const useWalletStore = create<WalletState>()(
       status: "disconnected",
       network: (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET,
       networkMismatch: false,
+      error: null,
 
       setConnection: (address, walletId) => 
         set({ address, walletId, status: "connected", error: null }),
