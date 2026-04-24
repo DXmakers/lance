@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { SiteShell } from "@/components/site-shell";
 import { Stars } from "@/components/stars";
+import { JobDetailsSkeleton } from "@/components/ui/skeleton";
 import { useLiveJobWorkspace } from "@/hooks/use-live-job-workspace";
 import { api } from "@/lib/api";
 import { releaseFunds, openDispute } from "@/lib/contracts";
@@ -171,7 +172,7 @@ export default function JobDetailsPage() {
         title="Loading workspace"
         description="Fetching counterparties, milestones, deliverables, and dispute state."
       >
-        <div className="h-96 animate-pulse rounded-[2rem] border border-slate-200 bg-white/70" />
+        <JobDetailsSkeleton />
       </SiteShell>
     );
   }
