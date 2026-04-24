@@ -15,12 +15,20 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  --radius-xl: 12px;
+}
+
+@layer utilities {
+  .glass-surface {
+    @apply border border-white/10 bg-white/5 backdrop-blur-md;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #09090b; /* zinc-950 */
+    --foreground: #fafafa; /* zinc-50 */
   }
 }
 
@@ -28,4 +36,5 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
+  @apply antialiased selection:bg-indigo-500/30;
 }

@@ -1,15 +1,25 @@
-import { StellarWalletsKit, Networks } from "@creit.tech/stellar-wallets-kit";
+import { 
+  StellarWalletsKit, 
+  WalletNetwork, 
+  AllowHttpProvider,
+  FREIGHTER_ID,
+  ALBEDO_ID,
+  XBULL_ID,
+} from "@creit.tech/stellar-wallets-kit";
 
-// TODO: See docs/ISSUES.md — "Wallet Connection"
 let kit: StellarWalletsKit | null = null;
+
+export const SUPPORTED_WALLETS = [
+  FREIGHTER_ID,
+  ALBEDO_ID,
+  XBULL_ID,
+];
 
 export function getWalletsKit(): StellarWalletsKit {
   if (!kit) {
     kit = new StellarWalletsKit({
-      network:
-        (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ??
-        Networks.TESTNET,
-      selectedWalletId: "freighter",
+      network: (process.env.NEXT_PUBLIC_STELLAR_NETWORK as WalletNetwork) ?? WalletNetwork.TESTNET,
+      allowHttpProviders: true,
     });
   }
   return kit;
@@ -54,10 +64,29 @@ export async function getConnectedWalletAddress(): Promise<string | null> {
 export async function signTransaction(xdr: string): Promise<string> {
   if (process.env.NEXT_PUBLIC_E2E === "true") return xdr;
   const walletsKit = getWalletsKit();
-  const networkPassphrase =
-    (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET;
+  const network = (process.env.NEXT_PUBLIC_STELLAR_NETWORK as WalletNetwork) ?? WalletNetwork.TESTNET;
   const { signedTxXdr } = await walletsKit.signTransaction(xdr, {
-    networkPassphrase,
+    network,
   });
   return signedTxXdr;
+}
+
+/**
+ * Signs a SIWS message for backend verification.
+ */
+export async function signAuthMessage(message: string): Promise<string> {
+  const walletsKit = getWalletsKit();
+  const { signature } = await walletsKit.signAuthMessage(message);
+  return signature;
+}
+
+export async function disconnectWallet(): Promise<void> {
+  const walletsKit = getWalletsKit();
+  // kit doesn't have a direct disconnect but we can clear state
+}
+
+export async function getNetwork(): Promise<string> {
+  const walletsKit = getWalletsKit();
+  const { network } = await walletsKit.getNetwork();
+  return network;
 }
