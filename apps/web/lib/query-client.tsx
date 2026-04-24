@@ -1,6 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 export class QueryClient {}
 
@@ -14,7 +21,9 @@ export function QueryClientProvider({
   children: React.ReactNode;
 }) {
   return (
-    <QueryClientContext.Provider value={client}>{children}</QueryClientContext.Provider>
+    <QueryClientContext.Provider value={client}>
+      {children}
+    </QueryClientContext.Provider>
   );
 }
 
@@ -27,14 +36,17 @@ export function useQuery<TData>({
   staleTime?: number;
 }) {
   useContext(QueryClientContext);
+
   const [data, setData] = useState<TData | undefined>();
   const [error, setError] = useState<Error | null>(null);
+
+  // starts loading immediately — no need to set it inside useEffect
   const [isLoading, setIsLoading] = useState(true);
+
   const key = useMemo(() => JSON.stringify(queryKey), [queryKey]);
 
   useEffect(() => {
     let mounted = true;
-    setIsLoading(true);
 
     queryFn()
       .then((result) => {
@@ -44,7 +56,11 @@ export function useQuery<TData>({
       })
       .catch((queryError: unknown) => {
         if (!mounted) return;
-        setError(queryError instanceof Error ? queryError : new Error("Query failed"));
+        setError(
+          queryError instanceof Error
+            ? queryError
+            : new Error("Query failed"),
+        );
       })
       .finally(() => {
         if (!mounted) return;
@@ -67,9 +83,11 @@ export function useMutation<TVariables>({
   onSuccess?: () => Promise<void> | void;
 }) {
   useContext(QueryClientContext);
+
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+
   const mutationFnRef = useRef(mutationFn);
   mutationFnRef.current = mutationFn;
 
@@ -84,7 +102,10 @@ export function useMutation<TVariables>({
       await onSuccess?.();
     } catch (mutationError) {
       const normalized =
-        mutationError instanceof Error ? mutationError : new Error("Mutation failed");
+        mutationError instanceof Error
+          ? mutationError
+          : new Error("Mutation failed");
+
       setError(normalized);
       throw normalized;
     } finally {
