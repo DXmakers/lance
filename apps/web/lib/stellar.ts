@@ -394,3 +394,71 @@ export async function getXlmBalance(address: string): Promise<number> {
     return 0;
   }
 }
+
+// ── Wallet provider identity ──────────────────────────────────────────────────
+// These exports support the wallet-provider-icon UI: the connected wallet's
+// display name and icon are surfaced alongside the truncated address.
+
+export interface ConnectedWallet {
+  address: string;
+  walletId: string;
+  walletName: string;
+  walletIcon: string;
+}
+
+/**
+ * Opens the wallet-select modal and returns address + provider metadata.
+ * Falls back to generic display values when the kit abstraction does not
+ * expose per-wallet icons (which is the case for the v2 auth-modal API).
+ */
+export async function connectWalletWithInfo(): Promise<ConnectedWallet> {
+  if (isE2EMode()) {
+    storeWalletAddress(MOCK_WALLET_ADDRESS);
+    return {
+      address: MOCK_WALLET_ADDRESS,
+      walletId: "freighter",
+      walletName: "Freighter",
+      walletIcon: "",
+    };
+  }
+
+  let capturedId = WALLET_KIT_ID;
+  const { address } = await getWalletsKit().openModal({
+    onWalletSelected: (option) => {
+      capturedId = option.id;
+    },
+  });
+
+  return {
+    address,
+    walletId: capturedId,
+    walletName: capturedId === WALLET_KIT_ID ? "Stellar Wallet" : capturedId,
+    walletIcon: "",
+  };
+}
+
+/**
+ * Returns the wallet provider id previously stored in localStorage, or null
+ * if no wallet has been connected in this browser.
+ */
+export function getSelectedWalletId(): string | null {
+  if (!isBrowser()) return null;
+  return localStorage.getItem(WALLET_TYPE_STORAGE_KEY);
+}
+
+/**
+ * Returns minimal provider metadata for the given wallet id.
+ * The v2 kit auth-modal abstraction does not expose per-wallet icons, so
+ * `icon` is always an empty string; `WalletProviderIcon` renders the
+ * lucide fallback in that case.
+ */
+export async function getWalletInfo(
+  walletId: string,
+): Promise<{ id: string; name: string; icon: string } | null> {
+  if (!walletId) return null;
+  return {
+    id: walletId,
+    name: walletId === WALLET_KIT_ID ? "Stellar Wallet" : walletId,
+    icon: "",
+  };
+}
