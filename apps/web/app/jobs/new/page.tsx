@@ -13,6 +13,7 @@ export default function NewJobPage() {
   const [description, setDescription] = useState("");
   const [budget, setBudget] = useState(1000);
   const [milestones, setMilestones] = useState(1);
+  const [memo, setMemo] = useState("");
   const [walletAddress, setWalletAddress] = useState("GD...CLIENT");
 
   const { submit, isSubmitting } = usePostJob();
@@ -43,6 +44,7 @@ export default function NewJobPage() {
         description,
         budgetUsdc: budget * 10_000_000,
         milestones,
+        memo: memo || undefined,
       });
     } catch {
       // Error handling is managed by usePostJob + toast system
@@ -123,6 +125,22 @@ export default function NewJobPage() {
                   disabled={isSubmitting || isTxInProgress}
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Memo (optional)
+              </label>
+              <input
+                type="text"
+                value={memo}
+                onChange={(event) => setMemo(event.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
+                placeholder="Add a reference or internal note for this job"
+                maxLength={100}
+                id="job-memo"
+                disabled={isSubmitting || isTxInProgress}
+              />
             </div>
 
             {/* Transaction Tracker */}
