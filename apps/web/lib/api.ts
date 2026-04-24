@@ -127,20 +127,35 @@ export const api = {
   },
 };
 
-export interface Job {
-  id: string;
-  title: string;
-  description: string;
-  budget_usdc: number;
-  milestones: number;
-  client_address: string;
-  freelancer_address?: string;
-  status: string;
-  metadata_hash?: string;
-  on_chain_job_id?: number;
-  created_at: string;
-  updated_at: string;
-}
+import { z } from "zod";
+
+export const BidSchema = z.object({
+  id: z.string().uuid(),
+  job_id: z.string().uuid(),
+  freelancer_address: z.string(),
+  proposal: z.string(),
+  status: z.enum(["pending", "accepted", "rejected"]),
+  created_at: z.string(),
+});
+
+export type Bid = z.infer<typeof BidSchema>;
+
+export const JobSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  description: z.string(),
+  budget_usdc: z.number(),
+  milestones: z.number(),
+  client_address: z.string(),
+  freelancer_address: z.string().optional(),
+  status: z.string(),
+  metadata_hash: z.string().optional(),
+  on_chain_job_id: z.number().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export type Job = z.infer<typeof JobSchema>;
 
 export interface CreateJobBody {
   title: string;
@@ -152,15 +167,6 @@ export interface CreateJobBody {
 
 export interface MarkFundedBody {
   client_address: string;
-}
-
-export interface Bid {
-  id: string;
-  job_id: string;
-  freelancer_address: string;
-  proposal: string;
-  status: string;
-  created_at: string;
 }
 
 export interface CreateBidBody {

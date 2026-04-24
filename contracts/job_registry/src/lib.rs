@@ -48,10 +48,19 @@ pub struct JobRecord {
 }
 
 #[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub enum BidStatus {
+    Pending,
+    Accepted,
+    Rejected,
+}
+
+#[contracttype]
 #[derive(Clone)]
 pub struct BidRecord {
     pub freelancer: Address,
     pub proposal_hash: Bytes,
+    pub status: BidStatus,
 }
 
 #[contracttype]
@@ -187,6 +196,7 @@ impl JobRegistryContract {
         bids.push_back(BidRecord {
             freelancer: freelancer.clone(),
             proposal_hash,
+            status: BidStatus::Pending,
         });
         env.storage().persistent().set(&bids_key, &bids);
 
@@ -220,16 +230,22 @@ impl JobRegistryContract {
             .get(&DataKey::Bids(job_id))
             .unwrap_or(Vec::new(&env));
 
-        let mut found = false;
-        for bid in bids.iter() {
+        let mut updated_bids = Vec::new(&env);
+        for mut bid in bids.iter() {
             if bid.freelancer == freelancer {
+                bid.status = BidStatus::Accepted;
                 found = true;
-                break;
+            } else {
+                bid.status = BidStatus::Rejected;
             }
+            updated_bids.push_back(bid);
         }
+
         if !found {
             panic_with_error!(&env, JobRegistryError::BidNotFound);
         }
+
+        env.storage().persistent().set(&DataKey::Bids(job_id), &updated_bids);
 
         job.freelancer = Some(freelancer.clone());
         job.status = JobStatus::InProgress;
@@ -578,6 +594,32 @@ mod test {
         cc.post_job(&1u64, &client, &hash, &5000i128);
 
         cc.mark_disputed(&1u64);
+    }
+
+    #[test]
+    fn test_bid_status_transitions() {
+        let (env, cc, admin, client, f1) = setup();
+        let f2 = Address::generate(&env);
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmJob");
+        cc.post_job(&1u64, &client, &hash, &5000i128);
+
+        let p1 = Bytes::from_slice(&env, b"P1");
+        let p2 = Bytes::from_slice(&env, b"P2");
+
+        cc.submit_bid(&1u64, &f1, &p1);
+        cc.submit_bid(&1u64, &f2, &p2);
+
+        let bids = cc.get_bids(&1u64);
+        assert_eq!(bids.get(0).unwrap().status, BidStatus::Pending);
+        assert_eq!(bids.get(1).unwrap().status, BidStatus::Pending);
+
+        cc.accept_bid(&1u64, &client, &f1);
+
+        let bids_after = cc.get_bids(&1u64);
+        assert_eq!(bids_after.get(0).unwrap().status, BidStatus::Accepted);
+        assert_eq!(bids_after.get(1).unwrap().status, BidStatus::Rejected);
     }
 
     #[test]

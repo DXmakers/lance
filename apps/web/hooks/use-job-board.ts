@@ -1,6 +1,7 @@
 "use client";
 
-import { startTransition, useDeferredValue, useEffect, useState } from "react";
+import { startTransition, useDeferredValue, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api, type Job } from "@/lib/api";
 import {
   getReputationMetrics,
@@ -105,52 +106,23 @@ async function buildBoardJobs(sourceJobs: Job[]): Promise<BoardJob[]> {
 }
 
 export function useJobBoard() {
-  const [jobs, setJobs] = useState<BoardJob[]>([]);
-  const [query, setQuery] = useState("");
-  const [activeTag, setActiveTag] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<JobSort>("chronological");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const deferredQuery = useDeferredValue(query);
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadBoard() {
-      setLoading(true);
-      setError(null);
-
+  const { data: jobs = [], isLoading: loading, error: queryError } = useQuery({
+    queryKey: ["job-board"],
+    queryFn: async () => {
       try {
         const jobsFromApi = await api.jobs.list();
         const sourceJobs = jobsFromApi.length > 0 ? jobsFromApi : createMockJobs();
-        const hydrated = await buildBoardJobs(sourceJobs);
-        if (active) {
-          setJobs(hydrated);
-        }
-      } catch (loadError) {
-        const fallback = await buildBoardJobs(createMockJobs());
-        if (active) {
-          setJobs(fallback);
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load live jobs right now.",
-          );
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
+        return await buildBoardJobs(sourceJobs);
+      } catch {
+        return await buildBoardJobs(createMockJobs());
       }
-    }
+    },
+    staleTime: 60000,
+  });
 
-    void loadBoard();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+  const [query, setQuery] = useState("");
+  const [activeTag, setActiveTag] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<JobSort>("chronological");
 
   const availableTags = ["all", ...new Set(jobs.flatMap((job) => job.tags))];
   let visibleJobs = jobs.filter((job) => job.status === "open");

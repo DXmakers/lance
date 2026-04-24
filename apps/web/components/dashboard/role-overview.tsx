@@ -65,81 +65,87 @@ export function RoleOverview() {
   const copy = ROLE_COPY[role];
 
   return (
-    <>
-      <div className="grid gap-6 lg:grid-cols-[1.35fr_0.9fr]">
-        <Card className="border-border/70">
-          <CardHeader className="gap-4">
-            <Badge variant="secondary" className="w-fit rounded-full">
+    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="grid gap-8 lg:grid-cols-[1.35fr_0.9fr]">
+        <Card className="relative overflow-hidden border-zinc-800 bg-zinc-900/40 backdrop-blur-xl shadow-2xl rounded-[32px] p-4">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
+          <CardHeader className="gap-6 p-8">
+            <Badge variant="secondary" className="w-fit rounded-lg bg-zinc-800 text-zinc-400 border-zinc-700 font-bold uppercase tracking-widest text-[10px] px-3 py-1">
               {copy.pill}
             </Badge>
-            <CardTitle className="max-w-2xl text-3xl sm:text-4xl">{copy.title}</CardTitle>
-            <CardDescription className="max-w-2xl text-base leading-7">
+            <CardTitle className="max-w-3xl text-4xl sm:text-5xl font-black text-white leading-tight tracking-tighter">
+              {copy.title}
+            </CardTitle>
+            <CardDescription className="max-w-2xl text-lg leading-relaxed text-zinc-400 font-medium">
               {copy.body}
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-3 sm:flex-row">
+          <CardContent className="flex flex-col gap-4 sm:flex-row p-8 pt-0">
             <Link
               href={copy.cta.href}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+              className="inline-flex h-14 items-center justify-center gap-3 rounded-2xl bg-white px-8 text-sm font-black text-zinc-950 transition-all hover:bg-zinc-200 active:scale-[0.98] shadow-xl shadow-white/5"
             >
               {copy.cta.label}
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               href="/disputes/1"
-              className="inline-flex items-center justify-center rounded-full border border-border/70 px-6 py-3 text-sm font-semibold text-foreground transition hover:border-primary/35 hover:text-primary"
+              className="inline-flex h-14 items-center justify-center rounded-2xl border border-zinc-800 px-8 text-sm font-black text-white transition-all hover:bg-zinc-900 active:scale-[0.98]"
             >
-              Review dispute flow
+              Review Dispute Flow
             </Link>
           </CardContent>
         </Card>
 
-        <Card className="border-border/70 bg-slate-950 text-slate-50 dark:bg-card dark:text-card-foreground">
-          <CardHeader>
-            <Badge className="w-fit rounded-full bg-amber-500 text-slate-950 hover:bg-amber-500">
-              Release posture
+        <Card className="relative overflow-hidden border-zinc-800 bg-zinc-950 shadow-2xl rounded-[32px] p-4">
+          <CardHeader className="p-8">
+            <Badge className="w-fit rounded-lg bg-emerald-500 text-zinc-950 hover:bg-emerald-400 font-black uppercase tracking-widest text-[10px] px-3 py-1">
+              Live Posture
             </Badge>
-            <CardTitle className="text-4xl">4</CardTitle>
-            <CardDescription className="text-slate-300 dark:text-muted-foreground">
-              Core surfaces aligned: profiles, marketplace, job overview, and dispute resolution.
+            <div className="mt-8">
+              <span className="text-7xl font-black text-white tracking-tighter">4</span>
+              <span className="ml-4 text-sm font-bold text-zinc-600 uppercase tracking-widest">Surfaces Aligned</span>
+            </div>
+            <CardDescription className="mt-6 text-zinc-400 font-medium leading-relaxed">
+              Profiles, marketplace, job overview, and dispute resolution are currently synced with the Stellar Mainnet state.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5 dark:border-border/50 dark:bg-background/40">
+          <CardContent className="p-8 pt-0">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 backdrop-blur-md">
               <div className="flex items-center gap-3">
-                <ShieldCheck className="h-5 w-5 text-amber-300" />
-                <p className="text-sm font-medium">Escrow-first workflow</p>
+                <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                <p className="text-sm font-black text-white uppercase tracking-widest">Escrow Logic Active</p>
               </div>
-              <p className="mt-3 text-sm leading-6 text-slate-300 dark:text-muted-foreground">
-                Fund milestones, upload proof, approve releases, or escalate into a locked dispute flow with on-chain receipts.
+              <p className="mt-4 text-xs leading-relaxed text-zinc-500 font-medium">
+                Fund milestones, upload proof, approve releases, or escalate into a locked dispute flow with immutable receipts.
               </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <section className="mt-10 grid gap-5 lg:grid-cols-3">
+      <section className="grid gap-6 lg:grid-cols-3">
         {HIGHLIGHTS.map((item) => {
           const Icon = item.icon;
           return (
-            <Link key={item.title} href={item.href}>
-              <Card className="group h-full border-border/70 transition hover:-translate-y-1 hover:border-primary/35">
-                <CardContent className="p-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                    <Icon className="h-5 w-5" />
+            <Link key={item.title} href={item.href} className="group">
+              <Card className="h-full border-zinc-800 bg-zinc-900/40 backdrop-blur-xl transition-all duration-300 group-hover:-translate-y-2 group-hover:border-zinc-600 rounded-[24px]">
+                <CardContent className="p-8">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-800 text-white border border-zinc-700 transition-colors group-hover:bg-zinc-700">
+                    <Icon className="h-6 w-6" />
                   </div>
-                  <h3 className="mt-5 text-xl font-semibold text-card-foreground">{item.title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.description}</p>
-                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-card-foreground">
-                    Open surface
-                    <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-                  </span>
+                  <h3 className="mt-8 text-xl font-black text-white tracking-tight">{item.title}</h3>
+                  <p className="mt-4 text-sm leading-relaxed text-zinc-500 font-medium">{item.description}</p>
+                  <div className="mt-8 flex items-center gap-2 text-xs font-black text-zinc-400 group-hover:text-white transition-colors uppercase tracking-widest">
+                    Enter Surface
+                    <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
+                  </div>
                 </CardContent>
               </Card>
             </Link>
           );
         })}
       </section>
-    </>
+    </div>
   );
 }
