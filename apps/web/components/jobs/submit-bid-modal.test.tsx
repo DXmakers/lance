@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@/lib/query-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SubmitBidModal } from "@/components/jobs/submit-bid-modal";
 import { api } from "@/lib/api";
 import { getConnectedWalletAddress } from "@/lib/stellar";
@@ -51,6 +51,7 @@ describe("SubmitBidModal", () => {
     expect(
       await screen.findByText("Proposal must be at least 80 characters."),
     ).toBeInTheDocument();
+
     expect(vi.mocked(api.bids.create)).not.toHaveBeenCalled();
   });
 

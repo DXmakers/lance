@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   Wallet,
 } from "lucide-react";
+import { BidList } from "@/components/jobs/bid-list";
 import { SiteShell } from "@/components/site-shell";
 import { Stars } from "@/components/stars";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -293,7 +294,7 @@ export default function JobDetailsPage() {
               </section>
 
               <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
-                <div className="flex items-center justify-between gap-3">
+                <div className="mb-5 flex items-center justify-between gap-3">
                   <h2 className="text-xl font-semibold text-slate-950">
                     Bids ({workspace.bids.length})
                   </h2>
@@ -301,30 +302,20 @@ export default function JobDetailsPage() {
                     Client shortlist
                   </span>
                 </div>
-                <div className="mt-5 space-y-4">
-                  {workspace.bids.map((bid) => (
-                    <article
-                      key={bid.id}
-                      className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4"
-                    >
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        {shortenAddress(bid.freelancer_address)}
-                      </p>
-                      <p className="mt-3 text-sm leading-6 text-slate-700">
-                        {bid.proposal}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => handleAcceptBid(bid.id)}
-                        disabled={busyAction === `accept-${bid.id}`}
-                        className="mt-4 w-full rounded-full bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
-                        id={`accept-bid-${bid.id}`}
-                      >
-                        {busyAction === `accept-${bid.id}` ? "Accepting..." : "Accept Bid"}
-                      </button>
-                    </article>
-                  ))}
-                </div>
+                <BidList
+                  bids={workspace.bids}
+                  isClientOwner={
+                    Boolean(viewerAddress) &&
+                    viewerAddress === workspace.job?.client_address
+                  }
+                  jobStatus={job.status}
+                  acceptingBidId={
+                    busyAction?.startsWith("accept-")
+                      ? busyAction.replace("accept-", "")
+                      : null
+                  }
+                  onAccept={handleAcceptBid}
+                />
               </section>
             </div>
           ) : null}

@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { SessionSwitcher } from "@/components/auth/session-switcher";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { ConnectWalletButton } from "@/components/wallet/connect-wallet-button";
 
 export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
   const { isLoggedIn, logout, login, role, user } = useAuthStore();
@@ -94,6 +95,7 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
             </div>
           ) : (
             <div className="flex items-center gap-2">
+              <ConnectWalletButton />
               <Button
                 variant="ghost"
                 size="sm"

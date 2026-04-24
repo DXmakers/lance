@@ -18,6 +18,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./"),
+      "@tanstack/react-query": path.resolve(
+        __dirname,
+        "../../packages/react-query/src/index.ts",
+      ),
     },
   },
 });
