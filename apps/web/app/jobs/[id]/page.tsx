@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { BidList } from "@/components/jobs/bid-list";
+import { SubmitBidErrorBoundary } from "@/components/jobs/submit-bid-error-boundary";
+import { SubmitBidModal } from "@/components/jobs/submit-bid-modal";
 import { SiteShell } from "@/components/site-shell";
 import { Stars } from "@/components/stars";
 import { JobDetailsSkeleton } from "@/components/ui/skeleton";
@@ -27,7 +29,7 @@ import {
   useAcceptBidMutation,
 } from "@/hooks/use-queries";
 import { api } from "@/lib/api";
-import { releaseFunds, openDispute } from "@/lib/contracts";
+import { releaseFunds, openDispute, getEscrowContractId } from "@/lib/contracts";
 import {
   formatDate,
   formatUsdc,
@@ -54,7 +56,6 @@ export default function JobDetailsPage() {
   const acceptBidMutation = useAcceptBidMutation(id);
 
   const [viewerAddress, setViewerAddress] = useState<string | null>(null);
-  const [proposal, setProposal] = useState("");
   const [deliverableLabel, setDeliverableLabel] = useState("");
   const [deliverableLink, setDeliverableLink] = useState("");
   const [deliverableFile, setDeliverableFile] = useState<File | null>(null);
@@ -245,6 +246,63 @@ export default function JobDetailsPage() {
                   <p className="mt-2 text-xs font-semibold text-zinc-500">
                     {job.milestones} Structured Milestones
                   </p>
+            <div className="mt-6 grid gap-4 rounded-[1.6rem] border border-slate-200 bg-slate-50 p-5 sm:grid-cols-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                  Client
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-700">
+                  {shortenAddress(job.client_address)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                  Freelancer
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-700">
+                  {job.freelancer_address
+                    ? shortenAddress(job.freelancer_address)
+                    : "Not assigned"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                  Updated
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-700">
+                  {formatDateTime(job.updated_at)}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                Escrow Contract
+              </p>
+              <p className="mt-2 font-mono text-xs text-slate-600 break-all">
+                {getEscrowContractId() || "Not configured"}
+              </p>
+            </div>
+
+            {workflowLocked ? (
+              <div className="mt-6 rounded-[1.6rem] border border-red-200 bg-red-50 p-5 text-red-800">
+                <div className="flex items-start gap-3">
+                  <ShieldAlert className="mt-0.5 h-5 w-5" />
+                  <div>
+                    <p className="font-semibold">
+                      Regular workflow is locked while the dispute center is active.
+                    </p>
+                    <p className="mt-2 text-sm leading-6">
+                      Deliverable uploads and release actions stay frozen until the
+                      Agent Judge returns an immutable verdict.
+                    </p>
+                    <Link
+                      href={`/jobs/${id}/dispute${workspace.dispute ? `?disputeId=${workspace.dispute.id}` : ""}`}
+                      className="mt-4 inline-flex items-center gap-2 text-sm font-semibold underline"
+                    >
+                      Open dispute center
+                    </Link>
+                  </div>
                 </div>
               </div>
 
@@ -258,6 +316,66 @@ export default function JobDetailsPage() {
                     <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-600">{item.label}</p>
                     <p className={cn("mt-2 text-sm font-mono font-medium", item.highlight ? "text-emerald-400" : "text-zinc-300")}>
                       {item.value}
+          {job.status === "open" ? (
+            <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
+              <section className="rounded-[2rem] border border-zinc-700/60 bg-zinc-950/90 p-6 shadow-[0_20px_60px_-48px_rgba(0,0,0,0.8)]">
+                <h2 className="text-xl font-semibold text-zinc-50">
+                  Submit a Proposal
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">
+                  Pitch your approach, timing, and why your previous work maps cleanly to this brief.
+                </p>
+                <div className="mt-5">
+                  <SubmitBidErrorBoundary>
+                    <SubmitBidModal
+                      jobId={id}
+                      disabled={busyAction !== null}
+                      onSubmitted={workspace.refresh}
+                      resolveFreelancerAddress={async () =>
+                        (await getConnectedWalletAddress()) ?? "GD...FREELANCER"
+                      }
+                    />
+                  </SubmitBidErrorBoundary>
+                </div>
+              </section>
+
+              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <h2 className="text-xl font-semibold text-slate-950">
+                    Bids ({workspace.bids.length})
+                  </h2>
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                    Client shortlist
+                  </span>
+                </div>
+                <BidList
+                  bids={workspace.bids}
+                  isClientOwner={
+                    Boolean(viewerAddress) &&
+                    viewerAddress === workspace.job?.client_address
+                  }
+                  jobStatus={job.status}
+                  acceptingBidId={
+                    busyAction?.startsWith("accept-")
+                      ? busyAction.replace("accept-", "")
+                      : null
+                  }
+                  onAccept={handleAcceptBid}
+                />
+              </section>
+            </div>
+          ) : null}
+
+          {job.status !== "open" ? (
+            <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-semibold text-slate-950">
+                      Milestone Ledger
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Each milestone is time-stamped so both parties can see what is pending, submitted, and released.
                     </p>
                   </div>
                 ))}
