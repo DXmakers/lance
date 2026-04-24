@@ -46,6 +46,12 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
               Browse Jobs
             </Link>
             <Link 
+              href="/jobs/saved" 
+              className="rounded-full border border-transparent px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:bg-card/80 hover:text-foreground"
+            >
+              Saved
+            </Link>
+            <Link 
               href="/jobs/new" 
               className="rounded-full border border-transparent px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:bg-card/80 hover:text-foreground"
             >
