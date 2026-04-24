@@ -13,8 +13,6 @@ import { api } from "@/lib/api";
 const EXPECTED_NETWORK =
   (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET;
 
-const JWT_SESSION_KEY = "lance_jwt";
-
 export function useWalletAuth() {
   const {
     walletAddress,
@@ -24,19 +22,8 @@ export function useWalletAuth() {
     setWalletAddress,
     setJwt,
     setNetworkMismatch,
-    setHydrated,
     logout,
   } = useAuthStore();
-
-  // Rehydrate JWT from sessionStorage on mount
-  useEffect(() => {
-    const stored = sessionStorage.getItem(JWT_SESSION_KEY);
-    if (stored) {
-      jwtMemory.set(stored);
-      setJwt(stored);
-    }
-    setHydrated(true);
-  }, [setJwt, setHydrated]);
 
   const checkNetwork = useCallback(async () => {
     try {
@@ -77,7 +64,7 @@ export function useWalletAuth() {
       await checkNetwork();
 
       const { token } = await api.auth.getChallenge(address);
-      sessionStorage.setItem(JWT_SESSION_KEY, token);
+      sessionStorage.setItem("lance_jwt", token);
       jwtMemory.set(token);
       setJwt(token);
 
@@ -89,7 +76,7 @@ export function useWalletAuth() {
   }, [setWalletAddress, setJwt, checkNetwork]);
 
   const disconnect = useCallback(() => {
-    sessionStorage.removeItem(JWT_SESSION_KEY);
+    sessionStorage.removeItem("lance_jwt");
     jwtMemory.clear();
     logout();
   }, [logout]);
