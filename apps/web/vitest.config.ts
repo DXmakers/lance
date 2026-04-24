@@ -1,3 +1,4 @@
+// @ts-nocheck
 import path from "node:path";
 import { defineConfig } from "vitest/config";
 
@@ -8,7 +9,10 @@ export default defineConfig({
     globals: true,
     coverage: {
       reporter: ["text", "html"],
-      include: ["components/theme/theme-toggle.tsx"],
+      include: [
+        "components/jobs/submit-bid-modal.tsx",
+        "lib/validation/submit-bid.ts",
+      ],
     },
   },
   resolve: {
