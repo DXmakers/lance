@@ -120,6 +120,82 @@ const STELLAR_ERROR_MAP: Record<string, ErrorToast> = {
     title: "Not Sponsored",
     description: "The entry is not sponsored by any account.",
   },
+
+  // ── Job Registry contract errors ─────────────────────────────────────────
+  "AlreadyInitialized": {
+    title: "Contract Already Initialized",
+    description: "The job registry contract has already been initialized.",
+  },
+  "NotInitialized": {
+    title: "Contract Not Initialized",
+    description: "The job registry contract has not been initialized. Contact the admin.",
+  },
+  "InvalidJobId": {
+    title: "Invalid Job ID",
+    description: "The provided job ID is invalid. Job IDs must be positive integers.",
+  },
+  "InvalidBudget": {
+    title: "Invalid Budget",
+    description: "The budget must be greater than zero.",
+  },
+  "InvalidHash": {
+    title: "Invalid Metadata Hash",
+    description: "The metadata hash is empty or exceeds the maximum allowed length.",
+  },
+  "JobAlreadyExists": {
+    title: "Job Already Exists",
+    description: "A job with this ID already exists on-chain. Try again with a different ID.",
+  },
+  "JobNotFound": {
+    title: "Job Not Found",
+    description: "The specified job does not exist on-chain.",
+  },
+  "JobNotOpen": {
+    title: "Job Not Open",
+    description: "This job is no longer accepting bids.",
+  },
+  "Unauthorized": {
+    title: "Unauthorized",
+    description: "You are not authorized to perform this action on this job.",
+  },
+  "BidAlreadySubmitted": {
+    title: "Bid Already Submitted",
+    description: "You have already submitted a bid for this job.",
+  },
+  "BidNotFound": {
+    title: "Bid Not Found",
+    description: "The specified bid could not be found for this job.",
+  },
+  "InvalidStateTransition": {
+    title: "Invalid State Transition",
+    description: "This action is not allowed in the current job state.",
+  },
+  "NoDeliverable": {
+    title: "No Deliverable",
+    description: "No deliverable has been submitted for this job.",
+  },
+  "Overflow": {
+    title: "Arithmetic Overflow",
+    description: "An arithmetic overflow occurred. The values may be too large.",
+  },
+
+  // ── Simulation / pipeline errors ─────────────────────────────────────────
+  "Simulation failed": {
+    title: "Simulation Failed",
+    description: "The transaction simulation failed. Check the contract parameters and try again.",
+  },
+  "Confirmation timed out": {
+    title: "Confirmation Timeout",
+    description: "The transaction was submitted but not confirmed in time. Check the explorer for status.",
+  },
+  "Transaction submission failed": {
+    title: "Submission Failed",
+    description: "The transaction was rejected by the network. Please try again.",
+  },
+  "Transaction failed on-chain": {
+    title: "On-Chain Failure",
+    description: "The transaction was included but execution failed on-chain.",
+  },
 };
 
 const BACKEND_ERROR_MAP: Record<string, ErrorToast> = {

@@ -85,12 +85,18 @@ export function useWalletSession() {
     return () => clearInterval(interval);
   }, [refreshWalletState]);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (walletId?: string) => {
     setIsConnecting(true);
     setError(null);
     setConnectionStep("Connecting to wallet...");
 
     try {
+      const walletsKit = (await import("@/lib/stellar")).getWalletsKit();
+      
+      if (walletId) {
+        await walletsKit.setWallet(walletId as any);
+      }
+
       const connectedAddress = await connectWallet();
       const network = await getWalletNetwork();
       const balance = await getXlmBalance(connectedAddress);

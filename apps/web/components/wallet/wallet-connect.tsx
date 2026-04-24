@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { WalletSelectionModal } from "./wallet-selection-modal";
+import { useState } from "react";
 
 export function WalletConnect() {
   const { 
@@ -30,6 +32,8 @@ export function WalletConnect() {
     isConnected, 
     isConnecting 
   } = useWalletSession();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const truncateAddress = (addr: string) => 
     `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -41,9 +45,10 @@ export function WalletConnect() {
     }
   };
 
-  const handleConnect = async () => {
+  const handleConnect = async (walletId?: string) => {
     try {
-      await connect();
+      setIsModalOpen(false);
+      await connect(walletId);
     } catch (err) {
       console.error("Connection error:", err);
     }
@@ -51,28 +56,36 @@ export function WalletConnect() {
 
   if (!isConnected) {
     return (
-      <Button
-        onClick={handleConnect}
-        disabled={isConnecting}
-        aria-label={isConnecting ? "Connecting to wallet" : "Connect Stellar wallet"}
-        className={cn(
-          "relative h-11 rounded-[12px] bg-[#18181b] px-6 text-sm font-medium text-white transition-all duration-200 hover:bg-[#27272a] hover:shadow-[0_0_20px_rgba(99,102,241,0.15)] active:scale-[0.98] disabled:opacity-50",
-          "border border-white/5 ring-indigo-500/20 focus:ring-4"
-        )}
-      >
-        {isConnecting ? (
-          <>
-            <RefreshCw className="mr-2 h-4 w-4 animate-spin text-indigo-400" />
-            Connecting...
-          </>
-        ) : (
-          <>
-            <Wallet className="mr-2 h-4 w-4 text-indigo-400" />
-            Connect Wallet
-          </>
-        )}
-        <div className="absolute inset-0 rounded-[12px] bg-gradient-to-r from-indigo-500/0 via-indigo-500/5 to-indigo-500/0 opacity-0 transition-opacity hover:opacity-100" />
-      </Button>
+      <>
+        <Button
+          onClick={() => setIsModalOpen(true)}
+          disabled={isConnecting}
+          aria-label={isConnecting ? "Connecting to wallet" : "Connect Stellar wallet"}
+          className={cn(
+            "relative h-11 rounded-[12px] bg-[#18181b] px-6 text-sm font-medium text-white transition-all duration-200 hover:bg-[#27272a] hover:shadow-[0_0_20px_rgba(99,102,241,0.15)] active:scale-[0.98] disabled:opacity-50",
+            "border border-white/5 ring-indigo-500/20 focus:ring-4"
+          )}
+        >
+          {isConnecting ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin text-indigo-400" />
+              Connecting...
+            </>
+          ) : (
+            <>
+              <Wallet className="mr-2 h-4 w-4 text-indigo-400" />
+              Connect Wallet
+            </>
+          )}
+          <div className="absolute inset-0 rounded-[12px] bg-gradient-to-r from-indigo-500/0 via-indigo-500/5 to-indigo-500/0 opacity-0 transition-opacity hover:opacity-100" />
+        </Button>
+
+        <WalletSelectionModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSelect={handleConnect}
+        />
+      </>
     );
   }
 
