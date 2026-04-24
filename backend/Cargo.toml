@@ -27,6 +27,8 @@ bytes        = { workspace = true }
 base64       = "0.22"
 sha2         = "0.10"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
+fred = { version = "9", features = ["enable-rustls"] }
+fastrand = "2"
 
 [dev-dependencies]
 axum-test    = "16.0"
