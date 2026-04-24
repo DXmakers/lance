@@ -1,6 +1,6 @@
 "use client";
 
-import { useWallet } from "@/hooks/use-wallet";
+import { useWalletSession } from "@/hooks/use-wallet-session";
 import { Button } from "@/components/ui/button";
 import { 
   Wallet, 
@@ -25,12 +25,11 @@ import { cn } from "@/lib/utils";
 export function WalletConnect() {
   const { 
     address, 
-    status, 
     connect, 
     disconnect, 
     isConnected, 
     isConnecting 
-  } = useWallet();
+  } = useWalletSession();
 
   const truncateAddress = (addr: string) => 
     `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -43,18 +42,11 @@ export function WalletConnect() {
   };
 
   const handleConnect = async () => {
-    const kit = (await import("@/lib/stellar")).getWalletsKit();
-    kit.openModal({
-      onWalletSelected: async () => {
-        try {
-          kit.closeModal();
-          const { address: connectedAddress } = await kit.getAddress();
-          await connect(connectedAddress as string);
-        } catch (err) {
-          console.error("Connection error:", err);
-        }
-      },
-    });
+    try {
+      await connect();
+    } catch (err) {
+      console.error("Connection error:", err);
+    }
   };
 
   if (!isConnected) {

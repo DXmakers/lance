@@ -83,15 +83,19 @@ export async function getWalletNetwork(): Promise<StellarNetwork | null> {
     getNetwork?: () => Promise<{ network: string }>;
   };
 
-  if (!walletKit.getNetwork) {
+  if (!walletKit || typeof walletKit.getNetwork !== "function") {
     return null;
   }
 
   try {
     const result = await walletKit.getNetwork();
-    const network = result.network;
-    if (network === Networks.TESTNET || network === Networks.PUBLIC) {
-      return network;
+    const network = result.network?.toLowerCase();
+    
+    if (network === "testnet" || network === Networks.TESTNET.toLowerCase()) {
+      return Networks.TESTNET;
+    }
+    if (network === "public" || network === "mainnet" || network === Networks.PUBLIC.toLowerCase()) {
+      return Networks.PUBLIC;
     }
     return null;
   } catch {
