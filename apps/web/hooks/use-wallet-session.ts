@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   APP_STELLAR_NETWORK,
   connectWallet,
@@ -95,13 +95,15 @@ export function useWalletSession() {
       
       if (walletId) {
         // The library uses static setWallet or allows setting it on the kit instance if cast to any
-        const kit = walletsKit as any;
+        const kit = walletsKit as typeof walletsKit & { setWallet?: (walletId: string) => Promise<void> };
         if (typeof kit.setWallet === 'function') {
           await kit.setWallet(walletId);
         } else {
           // Fallback to static if available
           const { StellarWalletsKit: KitClass } = await import("@creit.tech/stellar-wallets-kit");
-          (KitClass as any).setWallet(walletId);
+          if (typeof (KitClass as any).setWallet === 'function') {
+            (KitClass as any).setWallet(walletId);
+          }
         }
       }
 

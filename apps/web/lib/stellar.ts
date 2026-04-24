@@ -135,7 +135,7 @@ export async function getXlmBalance(address: string): Promise<string | null> {
   try {
     const account = await server.loadAccount(validatedAddress);
     const nativeBalance = account.balances.find(
-      (balance: any): balance is Horizon.HorizonApi.BalanceLineNative =>
+      (balance: Horizon.HorizonApi.BalanceLine): balance is Horizon.HorizonApi.BalanceLineNative =>
         balance.asset_type === "native",
     );
     return nativeBalance?.balance ?? null;
