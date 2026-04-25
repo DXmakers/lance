@@ -4,7 +4,7 @@ import { SiteShell } from "@/components/site-shell";
 import { RoleOverview } from "@/components/dashboard/role-overview";
 import { ClientDashboard } from "@/components/dashboard/client-dashboard";
 import { useAuthStore } from "@/lib/store/use-auth-store";
-import { WalletConnect } from "@/components/WalletConnect";
+import { WalletConnect } from "@/components/wallet/wallet-connect";
 
 export default function Home() {
   const { role, isLoggedIn } = useAuthStore();
