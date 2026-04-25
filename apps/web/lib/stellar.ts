@@ -14,6 +14,13 @@ import {
 } from "@creit.tech/stellar-wallets-kit";
 
 export type StellarNetwork = "public" | "testnet";
+type WalletDisplayNetwork = "PUBLIC" | "TESTNET";
+type WalletKitNetwork = Parameters<typeof StellarWalletsKit.setNetwork>[0];
+type StellarWalletsKitSelection = typeof StellarWalletsKit & {
+  selectedModule?: {
+    productId?: string;
+  };
+};
 
 export const FREIGHTER_ID = "freighter";
 export const ALBEDO_ID = "albedo";
@@ -49,7 +56,7 @@ export type WalletKit = {
   openModal: (options?: WalletModalOptions) => Promise<{ address: string }>;
   closeModal: () => void;
   getAddress: () => Promise<{ address: string }>;
-  setNetwork: (network: any) => void;
+  setNetwork: (network: WalletKitNetwork) => void;
   getNetwork: () => Promise<{ network: string }>;
   signTransaction: (xdr: string) => Promise<string>;
   signMessage: (message: string) => Promise<string>;
@@ -198,6 +205,14 @@ function getNetworkPassphrase(network = APP_STELLAR_NETWORK): string {
   return network === "public" ? Networks.PUBLIC : Networks.TESTNET;
 }
 
+function getWalletKitNetwork(network = APP_STELLAR_NETWORK): WalletKitNetwork {
+  return getNetworkPassphrase(network) as WalletKitNetwork;
+}
+
+function getAppDisplayNetwork(): WalletDisplayNetwork {
+  return APP_STELLAR_NETWORK === "public" ? "PUBLIC" : "TESTNET";
+}
+
 function storeWalletAddress(address: string): void {
   if (!isBrowser()) return;
   localStorage.setItem(WALLET_ADDRESS_STORAGE_KEY, address);
@@ -219,9 +234,8 @@ async function initializeWalletsKit(): Promise<void> {
       import("@creit.tech/stellar-wallets-kit/modules/xbull"),
     ]);
 
-  // Fixed: Forced cast to resolve version mismatch between stellar-sdk and wallets-kit
   StellarWalletsKit.init({
-    network: getNetworkPassphrase() as any,
+    network: getWalletKitNetwork(),
     selectedWalletId: FREIGHTER_ID,
     modules: [new FreighterModule(), new AlbedoModule(), new xBullModule()],
   });
@@ -272,10 +286,10 @@ export function getWalletsKit(): WalletKit {
 
     getNetwork: async () => {
       if (!isBrowser() || isE2EMode()) {
-        return { network: APP_STELLAR_NETWORK.toUpperCase() };
+        return { network: getAppDisplayNetwork() };
       }
       await initializeWalletsKit();
-      return StellarWalletsKit.getNetwork();
+      return { network: getAppDisplayNetwork() };
     },
 
     signTransaction: async (xdr) => {
@@ -307,7 +321,7 @@ export function getWalletsKit(): WalletKit {
       const { signedMessage } = await StellarWalletsKit.signMessage(message, {
         networkPassphrase: getNetworkPassphrase(),
       });
-      return { signature: signedMessage };
+      return { signature: signedMessage ?? "" };
     },
 
     disconnect: async () => {
@@ -321,7 +335,7 @@ export function getWalletsKit(): WalletKit {
       await StellarWalletsKit.disconnect();
     },
     get selectedWalletId() {
-      return (StellarWalletsKit as any).selectedModule?.productId;
+      return (StellarWalletsKit as StellarWalletsKitSelection).selectedModule?.productId;
     }
   };
 }

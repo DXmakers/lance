@@ -27,7 +27,8 @@ test.describe('Client Dashboard', () => {
 
     // Set role to client via UI
     await page.goto('/');
-    await page.getByRole('button', { name: 'Client Log In' }).click();
+    await page.getByRole('button', { name: 'Visitor' }).click();
+    await page.getByRole('menuitem', { name: /Client/ }).click();
     
     // Wait for the client dashboard to load
     await expect(page.locator('h1')).toContainText('Manage hiring and escrow milestones');
