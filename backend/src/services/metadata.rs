@@ -41,12 +41,8 @@ pub struct BidMetadata {
 ///
 /// Serializes the provided metadata to JSON, pins it to IPFS,
 /// and returns the content identifier (CID) for retrieval.
-pub async fn store_job_metadata(
-    client: &Client,
-    metadata: &JobMetadata,
-) -> Result<String> {
-    let json = serde_json::to_vec(&metadata)
-        .context("failed to serialize job metadata to JSON")?;
+pub async fn store_job_metadata(client: &Client, metadata: &JobMetadata) -> Result<String> {
+    let json = serde_json::to_vec(&metadata).context("failed to serialize job metadata to JSON")?;
 
     let filename = format!("job-{}-metadata.json", metadata.job_id);
     ipfs::pin_to_ipfs(client, json, &filename, "application/json")
@@ -55,12 +51,8 @@ pub async fn store_job_metadata(
 }
 
 /// Pin bid metadata to IPFS and return the CID.
-pub async fn store_bid_metadata(
-    client: &Client,
-    metadata: &BidMetadata,
-) -> Result<String> {
-    let json = serde_json::to_vec(&metadata)
-        .context("failed to serialize bid metadata to JSON")?;
+pub async fn store_bid_metadata(client: &Client, metadata: &BidMetadata) -> Result<String> {
+    let json = serde_json::to_vec(&metadata).context("failed to serialize bid metadata to JSON")?;
 
     let filename = format!("bid-{}-metadata.json", metadata.bid_id);
     ipfs::pin_to_ipfs(client, json, &filename, "application/json")
@@ -81,7 +73,11 @@ pub async fn retrieve_job_metadata(client: &Client, cid: &str) -> Result<JobMeta
         .context("failed to fetch metadata from IPFS gateway")?;
 
     if !response.status().is_success() {
-        anyhow::bail!("IPFS gateway returned {}: {}", response.status(), response.text().await?);
+        anyhow::bail!(
+            "IPFS gateway returned {}: {}",
+            response.status(),
+            response.text().await?
+        );
     }
 
     response
@@ -101,7 +97,11 @@ pub async fn retrieve_bid_metadata(client: &Client, cid: &str) -> Result<BidMeta
         .context("failed to fetch metadata from IPFS gateway")?;
 
     if !response.status().is_success() {
-        anyhow::bail!("IPFS gateway returned {}: {}", response.status(), response.text().await?);
+        anyhow::bail!(
+            "IPFS gateway returned {}: {}",
+            response.status(),
+            response.text().await?
+        );
     }
 
     response
@@ -122,7 +122,8 @@ mod tests {
             description: "Need a modern landing page for my startup".to_string(),
             budget_usdc: 5_000_000,
             milestones: 2,
-            client_address: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX".to_string(),
+            client_address: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                .to_string(),
             tags: vec!["web".to_string(), "react".to_string()],
             skills_required: vec!["React".to_string(), "TypeScript".to_string()],
             estimated_duration_days: Some(14),
@@ -138,7 +139,8 @@ mod tests {
         let metadata = BidMetadata {
             bid_id: Uuid::new_v4(),
             job_id: Uuid::new_v4(),
-            freelancer_address: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX".to_string(),
+            freelancer_address: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                .to_string(),
             proposal: "I can build this in 10 days with a pixel-perfect design.".to_string(),
             proposed_rate_usdc_per_day: Some(500_000),
             estimated_hours: Some(80),
@@ -165,7 +167,8 @@ mod tests {
             "estimated_duration_days": 14
         }"#;
 
-        let metadata: JobMetadata = serde_json::from_str(json).expect("deserialization should succeed");
+        let metadata: JobMetadata =
+            serde_json::from_str(json).expect("deserialization should succeed");
         assert_eq!(metadata.title, "Build a landing page");
         assert_eq!(metadata.milestones, 2);
         assert_eq!(metadata.skills_required.len(), 2);
@@ -184,8 +187,12 @@ mod tests {
             "cover_letter": "I'm excited!"
         }"#;
 
-        let metadata: BidMetadata = serde_json::from_str(json).expect("deserialization should succeed");
-        assert_eq!(metadata.freelancer_address, "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+        let metadata: BidMetadata =
+            serde_json::from_str(json).expect("deserialization should succeed");
+        assert_eq!(
+            metadata.freelancer_address,
+            "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        );
         assert_eq!(metadata.estimated_hours, Some(80));
     }
 }
