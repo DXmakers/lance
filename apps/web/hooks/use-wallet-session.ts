@@ -9,6 +9,7 @@ import {
   type StellarNetwork,
 } from "@/lib/stellar";
 import { SIWSService, SIWSResponse } from "@/lib/siws";
+import { useWalletStore } from "@/lib/store/use-wallet-store";
 
 const SESSION_STORAGE_KEY = "lance.wallet.session.v1";
 
@@ -103,12 +104,6 @@ export function useWalletSession() {
   }, [setConnection, disconnectStore, setStoreNetworkMismatch, storedAddress]);
 
   useEffect(() => {
-    const cached = readCachedSession();
-
-    if (cached?.address) {
-      setAddress(cached.address);
-    }
-
     void refreshWalletState();
   }, [refreshWalletState]);
 
@@ -182,14 +177,12 @@ export function useWalletSession() {
 
   const disconnect = useCallback(() => {
     disconnectWallet();
-
-    setAddress(null);
+    disconnectStore();
     setWalletNetwork(null);
     setXlmBalance(null);
     setSiwsResponse(null);
-
     persistSession(null);
-  }, []);
+  }, [disconnectStore]);
 
   return {
     address: storedAddress,
