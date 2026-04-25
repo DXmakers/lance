@@ -1,4 +1,4 @@
-use crate::{db::AppState, error::Result};
+﻿use crate::{db::AppState, error::Result};
 use axum::{
     routing::{get, post},
     Json, Router,
@@ -45,7 +45,7 @@ async fn verify_signature(Json(req): Json<VerifyRequest>) -> Result<Json<VerifyR
     // 2. Verify the nonce exists and hasn't expired (checked against DB/Redis)
     // 3. Verify the address matches the signer of the signature
     // 4. Verify the cryptographic signature using Ed25519
-    
+
     // Basic structural check
     if req.address.is_empty() || req.signature.is_empty() {
         return Ok(Json(VerifyResponse {
@@ -68,7 +68,7 @@ async fn verify_signature(Json(req): Json<VerifyRequest>) -> Result<Json<VerifyR
         }
         _ => false,
     };
-    
+
     if !is_valid {
         return Ok(Json(VerifyResponse {
             token: "".into(),
