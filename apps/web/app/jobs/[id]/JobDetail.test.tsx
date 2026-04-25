@@ -11,6 +11,21 @@ vi.mock("@/lib/store/use-wallet-store", () => ({
   useWalletStore: () => ({ address: "GD...CLIENT" }),
 }));
 
+interface JobQueryReturn {
+  isLoading: boolean;
+  data?: {
+    job: unknown;
+    bids: unknown[];
+    milestones: unknown[];
+    deliverables: unknown[];
+    dispute: unknown;
+  };
+  mutations?: {
+    createBid: { mutateAsync?: unknown; isPending: boolean };
+    acceptBid?: { mutateAsync?: unknown; isPending: boolean };
+  };
+}
+
 describe("JobDetailsPage", () => {
   const mockJob = {
     id: "test-job-id",
@@ -31,7 +46,7 @@ describe("JobDetailsPage", () => {
   it("renders loading state", () => {
     vi.mocked(useJobQuery).mockReturnValue({
       isLoading: true,
-    } as any);
+    } as JobQueryReturn);
 
     render(<JobDetailsPage />);
     expect(screen.getByTestId("skeleton-loader")).toBeDefined();
@@ -51,7 +66,7 @@ describe("JobDetailsPage", () => {
         createBid: { isPending: false },
         acceptBid: { isPending: false },
       },
-    } as any);
+    } as JobQueryReturn);
 
     render(<JobDetailsPage />);
     expect(await screen.findByText("World Class Frontend")).toBeDefined();
@@ -72,7 +87,7 @@ describe("JobDetailsPage", () => {
       mutations: {
         createBid: { isPending: false },
       },
-    } as any);
+    } as JobQueryReturn);
 
     render(<JobDetailsPage />);
     expect(await screen.findByPlaceholderText(/Outline your strategy/i)).toBeDefined();
@@ -93,7 +108,7 @@ describe("JobDetailsPage", () => {
       mutations: {
         createBid: { mutateAsync, isPending: false },
       },
-    } as any);
+    } as JobQueryReturn);
 
     render(<JobDetailsPage />);
     const textarea = await screen.findByPlaceholderText(/Outline your strategy/i);

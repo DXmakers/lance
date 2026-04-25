@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { AlertCircle, LoaderCircle } from "lucide-react";
 import { z } from "zod";
-import { api } from "@/lib/api";
 import { useSubmitBid } from "@/hooks/use-submit-bid";
 import { TransactionTracker } from "@/components/transaction/transaction-tracker";
 import { useTxStatusStore } from "@/lib/store/use-tx-status-store";
@@ -21,7 +20,6 @@ interface SubmitBidModalProps {
   onChainJobId: bigint;
   disabled?: boolean;
   onSubmitted: () => Promise<void>;
-  resolveFreelancerAddress: () => Promise<string>;
 }
 
 export function SubmitBidModal({
@@ -29,7 +27,6 @@ export function SubmitBidModal({
   onChainJobId,
   disabled = false,
   onSubmitted,
-  resolveFreelancerAddress,
 }: SubmitBidModalProps) {
   const [open, setOpen] = useState(false);
   const [proposal, setProposal] = useState("");

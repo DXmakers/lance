@@ -1,6 +1,5 @@
 import { Milestone } from "@/lib/api";
 import { formatUsdc, formatDateTime } from "@/lib/format";
-import { GlassCard } from "@/components/ui/glass-card";
 import { CheckCircle2, Clock } from "lucide-react";
 
 interface MilestoneLedgerProps {

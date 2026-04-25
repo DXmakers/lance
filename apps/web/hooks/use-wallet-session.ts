@@ -97,16 +97,6 @@ export function useWalletSession() {
     } catch (refreshError) {
       console.error("Failed to refresh wallet state:", refreshError);
       setError(refreshError instanceof Error ? refreshError.message : "Failed to restore wallet session.");
-      const connected = await getConnectedWalletAddress();
-      const network = getWalletNetwork();
-      const balance = connected ? await getXlmBalance(connected) : null;
-
-      setAddress(connected);
-      setWalletNetwork(network);
-      setXlmBalance(balance);
-      persistSession(connected);
-    } catch {
-      setError("Failed to restore wallet session.");
     } finally {
       setIsLoading(false);
     }
@@ -169,21 +159,6 @@ export function useWalletSession() {
     } catch (connectError) {
       const message = connectError instanceof Error ? connectError.message : "Wallet connection failed.";
       setError(message);
-
-    try {
-      const connectedAddress = await connectWallet();
-      const network = getWalletNetwork();
-      const balance = await getXlmBalance(connectedAddress);
-
-      setAddress(connectedAddress);
-      setWalletNetwork(network);
-      setXlmBalance(balance);
-
-      persistSession(connectedAddress);
-
-      return connectedAddress;
-    } catch {
-      setError("Wallet connection failed.");
       return null;
     } finally {
       setIsConnecting(false);
@@ -215,11 +190,6 @@ export function useWalletSession() {
 
     persistSession(null);
   }, []);
-
-  const networkMismatch = useMemo(
-    () => walletNetwork !== null && walletNetwork !== APP_STELLAR_NETWORK,
-    [walletNetwork],
-  );
 
   return {
     address: storedAddress,

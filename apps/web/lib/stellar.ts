@@ -447,8 +447,6 @@ export function getSelectedWalletId(): string | null {
   return localStorage.getItem(WALLET_TYPE_STORAGE_KEY);
 }
 
-export async function getXlmBalance(_address: string): Promise<number> {
-  return 0;
 /**
  * Returns minimal provider metadata for the given wallet id.
  * The v2 kit auth-modal abstraction does not expose per-wallet icons, so

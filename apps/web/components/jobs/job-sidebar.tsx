@@ -2,7 +2,6 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Stars } from "@/components/stars";
 import { ReputationMetrics } from "@/lib/reputation";
 import { Wallet, ShieldCheck, TrendingUp } from "lucide-react";
-import { shortenAddress } from "@/lib/format";
 
 interface JobSidebarProps {
   viewerAddress: string | null;
