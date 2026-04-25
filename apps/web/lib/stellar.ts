@@ -433,9 +433,9 @@ export function getSelectedWalletId(): string | null {
 
 export interface WalletInfo {
   address: string | null;
-  walletId: string | null;
-  walletName: string;
-  walletIcon: string;
+  id: string | null;
+  name: string;
+  icon: string;
 }
 
 export function getWalletInfo(walletId?: string | null): WalletInfo {
@@ -447,8 +447,8 @@ export function getWalletInfo(walletId?: string | null): WalletInfo {
 
   return {
     address,
-    walletId: resolvedId,
-    walletName: resolvedId ? "Stellar Wallet" : "",
-    walletIcon: "",
+    id: resolvedId,
+    name: resolvedId ? "Stellar Wallet" : "",
+    icon: "",
   };
 }
