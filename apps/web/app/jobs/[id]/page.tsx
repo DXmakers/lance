@@ -33,7 +33,7 @@ export default function JobDetailsPage() {
   const [deliverableLink, setDeliverableLink] = useState("");
   const [isSubmittingEvidence, setIsSubmittingEvidence] = useState(false);
 
-  if (workspace.isLoading) {
+  if (workspace.loading) {
     return (
       <div className="min-h-screen bg-zinc-950 p-8">
         <JobDetailsSkeleton />
