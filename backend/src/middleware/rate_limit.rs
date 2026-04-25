@@ -168,7 +168,7 @@ fn extract_ip(req: &Request<Body>) -> IpAddr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{body::Body, http::Request, routing::get, Router};
+    use axum::{routing::get, Router};
     use axum_test::TestServer;
     use std::net::IpAddr;
 

@@ -194,7 +194,7 @@ function isE2EMode(): boolean {
   return process.env.NEXT_PUBLIC_E2E === "true";
 }
 
-function getNetworkPassphrase(network = APP_STELLAR_NETWORK): Networks {
+function getNetworkPassphrase(network = APP_STELLAR_NETWORK): string {
   return network === "public" ? Networks.PUBLIC : Networks.TESTNET;
 }
 
@@ -219,6 +219,7 @@ async function initializeWalletsKit(): Promise<void> {
       import("@creit.tech/stellar-wallets-kit/modules/xbull"),
     ]);
 
+  // Fixed: Forced cast to resolve version mismatch between stellar-sdk and wallets-kit
   StellarWalletsKit.init({
     network: getNetworkPassphrase() as any,
     selectedWalletId: FREIGHTER_ID,

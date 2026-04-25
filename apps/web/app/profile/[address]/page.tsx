@@ -23,6 +23,7 @@ import {
   type ReputationMetrics,
 } from "@/lib/reputation";
 import { connectWallet, getConnectedWalletAddress } from "@/lib/stellar";
+import { ExplorerLink } from "@/components/ui/explorer-link";
 
 type TabId = "overview" | "history" | "reliability";
 
@@ -175,9 +176,12 @@ export default function PublicProfilePage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                   Wallet address
                 </p>
-                <p className="mt-3 text-sm font-medium text-slate-800">
-                  {shortenAddress(profile.address, 12, 6)}
-                </p>
+                <div className="flex items-center justify-between mt-3">
+                  <p className="text-sm font-medium text-slate-800">
+                    {shortenAddress(profile.address, 12, 6)}
+                  </p>
+                  <ExplorerLink address={profile.address} className="text-indigo-600 hover:text-indigo-500" />
+                </div>
                 <p className="mt-2 text-xs text-slate-500">
                   Updated {formatDate(profile.updated_at)}
                 </p>

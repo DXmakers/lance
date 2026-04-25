@@ -18,6 +18,7 @@ pub fn api_router() -> Router<AppState> {
     Router::new()
         // health check — outside versioned prefix so load balancers can reach it
         .route("/health", get(health::health))
+        .route("/metrics", get(health::prometheus_metrics))
         // v1 API routes
         .nest(
             "/v1",
