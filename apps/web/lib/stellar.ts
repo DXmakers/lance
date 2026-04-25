@@ -433,7 +433,7 @@ export function getSelectedWalletId(): string | null {
 
 export interface WalletInfo {
   address: string | null;
-  id: string | null;
+  id: string;
   name: string;
   icon: string;
 }
@@ -443,7 +443,7 @@ export function getWalletInfo(walletId?: string | null): WalletInfo {
     ? localStorage.getItem(WALLET_ADDRESS_STORAGE_KEY)
     : null;
   const resolvedId =
-    walletId ?? (isBrowser() ? localStorage.getItem(WALLET_TYPE_STORAGE_KEY) : null);
+    walletId ?? (isBrowser() ? localStorage.getItem(WALLET_TYPE_STORAGE_KEY) : null) ?? "";
 
   return {
     address,
