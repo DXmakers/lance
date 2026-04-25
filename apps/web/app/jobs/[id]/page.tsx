@@ -32,11 +32,7 @@ export default function JobDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const { data: job, isLoading: jobLoading, error: jobError } = useJobQuery(id);
-  const { data: bids = [], isLoading: bidsLoading } = useBidsQuery(id);
-  const { data: milestones = [], isLoading: milestonesLoading } = useMilestonesQuery(id);
-  const { data: deliverables = [], isLoading: deliverablesLoading } = useDeliverablesQuery(id);
-  const { data: dispute = null } = useDisputeQuery(id);
+  const workspace = useLiveJobWorkspace(id);
 
   const createBidMutation = useCreateBidMutation(id);
   const acceptBidMutation = useAcceptBidMutation(id);
@@ -74,11 +70,11 @@ export default function JobDetailsPage() {
   }
 
   async function handleAcceptBid(bidId: string) {
-    if (!job) return;
+    if (!workspace.job) return;
     try {
       const acceptedJob = await acceptBidMutation.mutateAsync({
         bidId,
-        body: { client_address: job.client_address },
+        body: { client_address: workspace.job.client_address },
       });
       router.push(`/jobs/${acceptedJob.id}/fund`);
     } catch {
