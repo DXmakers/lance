@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { ArrowUpRight, Clock3, Search, SlidersHorizontal } from "lucide-react";
+import { ShareJobButton } from "@/components/jobs/share-job-button";
 import { SiteShell } from "@/components/site-shell";
 import { Stars } from "@/components/stars";
+import { EmptyState } from "@/components/ui/empty-state";
 import { JobCardSkeleton } from "@/components/ui/skeleton";
 import { useJobBoard } from "@/hooks/use-job-board";
 import { formatDate, formatUsdc, shortenAddress } from "@/lib/format";
@@ -17,6 +19,12 @@ const sortOptions = [
 export default function JobsPage() {
   const { jobs, loading, error, query, activeTag, sortBy, availableTags, actions } =
     useJobBoard();
+
+  function resetFilters() {
+    actions.setQuery("");
+    actions.setActiveTag("all");
+    actions.setSortBy("chronological");
+  }
 
   return (
     <SiteShell
@@ -107,7 +115,14 @@ export default function JobsPage() {
                       {job.title}
                     </h2>
                   </div>
-                  <ArrowUpRight className="h-5 w-5 text-slate-400 transition group-hover:text-slate-950" />
+                  <div className="flex items-center gap-2">
+                    <ShareJobButton
+                      path={`/jobs/${job.id}`}
+                      title={job.title}
+                      className="border-slate-200 bg-white/95"
+                    />
+                    <ArrowUpRight className="h-5 w-5 text-slate-400 transition group-hover:text-slate-950" />
+                  </div>
                 </div>
 
                 <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-600">
@@ -178,9 +193,20 @@ export default function JobsPage() {
         )}
 
         {!loading && jobs.length === 0 ? (
-          <div className="rounded-[1.75rem] border border-dashed border-slate-300 bg-white/70 px-6 py-16 text-center text-slate-500">
-            No open jobs matched that filter.
-          </div>
+          <EmptyState
+            icon={<Search className="h-5 w-5" />}
+            title="No open jobs matched that filter"
+            description="Try clearing your search and tag filter to surface more opportunities."
+            action={
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-amber-300 hover:text-slate-950"
+              >
+                Reset filters
+              </button>
+            }
+          />
         ) : null}
       </section>
     </SiteShell>

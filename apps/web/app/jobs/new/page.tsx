@@ -1,12 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Wallet } from "lucide-react";
+import { CalendarDays, Wallet } from "lucide-react";
 import { SiteShell } from "@/components/site-shell";
 import { TransactionTracker } from "@/components/transaction/transaction-tracker";
 import { usePostJob } from "@/hooks/use-post-job";
 import { useTxStatusStore } from "@/lib/store/use-tx-status-store";
 import { connectWallet, getConnectedWalletAddress } from "@/lib/stellar";
+
+function buildDefaultCompletionDate() {
+  const target = new Date();
+  target.setDate(target.getDate() + 14);
+  return target.toISOString().slice(0, 10);
+}
 
 export default function NewJobPage() {
   const [title, setTitle] = useState("");
@@ -14,10 +20,14 @@ export default function NewJobPage() {
   const [budget, setBudget] = useState(1000);
   const [milestones, setMilestones] = useState(1);
   const [memo, setMemo] = useState("");
+  const [estimatedCompletionDate, setEstimatedCompletionDate] = useState(
+    buildDefaultCompletionDate(),
+  );
   const [walletAddress, setWalletAddress] = useState("GD...CLIENT");
 
   const { submit, isSubmitting } = usePostJob();
   const txStep = useTxStatusStore((state: { step: string }) => state.step);
+  const today = new Date().toISOString().slice(0, 10);
 
   const isTxInProgress = !["idle", "confirmed", "failed"].includes(txStep);
 
@@ -43,6 +53,7 @@ export default function NewJobPage() {
         budgetUsdc: budget * 10_000_000,
         milestones,
         memo: memo || undefined,
+        estimatedCompletionDate,
       });
     } catch {
       // Error handling is managed by usePostJob + toast system
@@ -141,6 +152,29 @@ export default function NewJobPage() {
               />
             </div>
 
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Estimated Completion Date
+              </label>
+              <div className="relative">
+                <CalendarDays className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="date"
+                  value={estimatedCompletionDate}
+                  onChange={(event) => setEstimatedCompletionDate(event.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-950 outline-none transition focus:border-amber-400"
+                  min={today}
+                  required
+                  id="job-estimated-completion-date"
+                  disabled={isSubmitting || isTxInProgress}
+                />
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                This projected date is attached to the brief so freelancers can plan
+                around your expected delivery window.
+              </p>
+            </div>
+
             {/* Transaction Tracker */}
             <TransactionTracker />
 
@@ -187,6 +221,12 @@ export default function NewJobPage() {
             <li>
               Split the budget into meaningful milestones to keep approval moments
               clean.
+            </li>
+            <li>
+              Estimated completion target:{" "}
+              <span className="font-semibold text-slate-100">
+                {estimatedCompletionDate}
+              </span>
             </li>
           </ul>
 

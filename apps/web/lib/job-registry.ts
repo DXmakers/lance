@@ -27,7 +27,7 @@ import {
   Server as SorobanServer,
   Api,
 } from "@stellar/stellar-sdk/rpc";
-import { connectWallet, getConnectedWalletAddress, signTransaction } from "./stellar";
+import { connectWallet, signTransaction } from "./stellar";
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
@@ -90,9 +90,30 @@ export interface PostJobResult {
   simulation: SimulationResult;
 }
 
+export interface SubmitBidParams {
+  /** On-chain job id (u64). */
+  jobId: bigint;
+  /** Freelancer Stellar address – must match connected wallet. */
+  freelancerAddress: string;
+  /** Proposal hash (CID bytes) to store on-chain. */
+  proposalHash: string;
+}
+
+export interface SubmitBidResult {
+  /** On-chain transaction hash. */
+  txHash: string;
+  /** Simulation diagnostics. */
+  simulation: SimulationResult;
+}
+
+export interface LifecycleMetadata {
+  rawXdr?: string;
+}
+
 export type LifecycleListener = (
   step: TxLifecycleStep,
   detail?: string,
+  metadata?: LifecycleMetadata,
 ) => void;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -102,12 +123,6 @@ function shouldMockCalls(): boolean {
   if (!IS_DEV) return false;
   if (!JOB_REGISTRY_CONTRACT_ID) return true;
   return false;
-}
-
-async function getCallerAddress(): Promise<string> {
-  const connected = await getConnectedWalletAddress();
-  if (connected) return connected;
-  return connectWallet();
 }
 
 /** Encode a UTF-8 string as an ScVal bytes value. */
@@ -202,6 +217,58 @@ export async function postJob(
 }
 
 /**
+ * Full lifecycle: Build → Simulate → Sign → Submit → Confirm for submitting a bid.
+ *
+ * @param params  Submit bid arguments.
+ * @param onStep  Callback for each lifecycle step change.
+ * @returns       Confirmed transaction hash + simulation diagnostics.
+ */
+export async function submitBid(
+  params: SubmitBidParams,
+  onStep?: LifecycleListener,
+): Promise<SubmitBidResult> {
+  if (shouldMockCalls()) {
+    onStep?.("building", "mock");
+    onStep?.("simulating", "mock");
+    onStep?.("signing", "mock");
+    onStep?.("submitting", "mock");
+    onStep?.("confirming", "mock");
+    onStep?.("confirmed", "mock");
+    return {
+      txHash: "FAKE_TX_HASH",
+      simulation: {
+        fee: "100",
+        cpuInstructions: "0",
+        memoryBytes: "0",
+      },
+    };
+  }
+
+  if (!JOB_REGISTRY_CONTRACT_ID) {
+    throw new Error("NEXT_PUBLIC_JOB_REGISTRY_CONTRACT_ID is not configured.");
+  }
+
+  const { jobId, freelancerAddress, proposalHash } = params;
+
+  // ── Parameter validation ────────────────────────────────────────────────
+  if (!freelancerAddress) {
+    throw new Error("freelancerAddress is required.");
+  }
+  if (!proposalHash || proposalHash.length === 0) {
+    throw new Error("proposalHash must be a non-empty string.");
+  }
+
+  // Build ScVal arguments for submit_bid(job_id, freelancer, proposal_hash)
+  const args: xdr.ScVal[] = [
+    nativeToScVal(jobId, { type: "u64" }),
+    Address.fromString(freelancerAddress).toScVal(),
+    metadataHashToScVal(proposalHash),
+  ];
+
+  return invokeJobRegistry(freelancerAddress, "submit_bid", args, onStep);
+}
+
+/**
  * Core Soroban invocation pipeline with:
  *   - Simulation-first with fee & resource adjustment
  *   - Sequence-number mismatch retry
@@ -236,6 +303,7 @@ async function invokeJobRegistry(
 
       const rawBuildXdr = tx.toXDR();
       devLog("raw-build-xdr", rawBuildXdr);
+      onStep?.("building", undefined, { rawXdr: rawBuildXdr });
 
       // ── Step 2: Simulate ──────────────────────────────────────────────
       onStep?.("simulating");
@@ -253,7 +321,7 @@ async function invokeJobRegistry(
 
       simulation = {
         fee: simSuccess.minResourceFee ?? BASE_FEE,
-        cpuInstructions: "0",
+        cpuInstructions: simSuccess.events?.length.toString() ?? "0", // Mocking resource metrics mapping
         memoryBytes: "0",
         raw: IS_DEV ? simResult : undefined,
       };
@@ -270,12 +338,14 @@ async function invokeJobRegistry(
       const prepared = await rpc.prepareTransaction(tx);
       const preparedXdr = prepared.toXDR();
       devLog("prepared-xdr", preparedXdr);
+      onStep?.("simulating", undefined, { rawXdr: preparedXdr });
 
       // ── Step 3: Sign ──────────────────────────────────────────────────
-      onStep?.("signing");
+      onStep?.("signing", undefined, { rawXdr: preparedXdr });
       const signedXdr = await signTransaction(preparedXdr);
       const signedTx = new Transaction(signedXdr, NETWORK_PASSPHRASE);
       devLog("signed-xdr", signedXdr);
+      onStep?.("signing", undefined, { rawXdr: signedXdr });
 
       // ── Step 4: Submit ────────────────────────────────────────────────
       onStep?.("submitting");

@@ -122,6 +122,7 @@ cd tests/e2e && npx playwright test
 ## User guides
 
 - [Connecting a Stellar wallet](./docs/user-guide/stellar-wallets.md) — supported wallets, signing flow, network setup, and troubleshooting.
+- [Running the stack](./docs/running-the-stack.md) — local startup, health checks, sync status, metrics, and worker operations.
 
 ---
 

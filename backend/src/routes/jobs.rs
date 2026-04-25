@@ -1,8 +1,11 @@
 use axum::{
     extract::{Path, State},
+    http::StatusCode,
     routing::{get, post},
     Json, Router,
 };
+use reqwest::Client;
+use serde_json::json;
 use uuid::Uuid;
 
 use crate::{
@@ -10,6 +13,7 @@ use crate::{
     error::{AppError, Result},
     models::{CreateJobRequest, Job, MarkJobFundedRequest},
     routes::{bids, deliverables, milestones},
+    services::metadata,
 };
 
 pub fn router() -> Router<AppState> {
@@ -17,8 +21,16 @@ pub fn router() -> Router<AppState> {
         .route("/", get(list_jobs).post(create_job))
         .route("/:id", get(get_job))
         .route("/:id/fund", post(mark_job_funded))
+        .route(
+            "/:id/metadata",
+            post(store_job_metadata).get(retrieve_job_metadata),
+        )
         .route("/:id/bids", get(bids::list_bids).post(bids::create_bid))
         .route("/:id/bids/:bid_id/accept", post(bids::accept_bid))
+        .route(
+            "/:id/bids/:bid_id/metadata",
+            post(store_bid_metadata).get(retrieve_bid_metadata),
+        )
         .route(
             "/:id/deliverables",
             get(deliverables::list_deliverables).post(deliverables::submit_deliverable),
@@ -184,4 +196,165 @@ async fn mark_job_funded(
     }
 
     Ok(Json(job))
+}
+
+/// Store job metadata to IPFS and update job record with metadata CID.
+///
+/// POST /api/jobs/:id/metadata
+///
+/// Request body: metadata::JobMetadata JSON
+/// Returns: { "cid": "Qm...", "metadata_hash": "Qm...", "job_id": "..." }
+async fn store_job_metadata(
+    State(state): State<AppState>,
+    Path(job_id): Path<Uuid>,
+    Json(metadata): Json<metadata::JobMetadata>,
+) -> Result<(StatusCode, Json<serde_json::Value>)> {
+    // Verify job exists
+    let _job: (String,) = sqlx::query_as("SELECT title FROM jobs WHERE id = $1")
+        .bind(job_id)
+        .fetch_optional(&state.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("job {job_id} not found")))?;
+
+    // Validate metadata matches job ID
+    if metadata.job_id != job_id {
+        return Err(AppError::BadRequest(
+            "metadata job_id does not match route parameter".into(),
+        ));
+    }
+
+    // Pin metadata to IPFS
+    let client = Client::new();
+    let cid = metadata::store_job_metadata(&client, &metadata)
+        .await
+        .map_err(|e| AppError::BadRequest(e.to_string()))?;
+
+    // Update job record with metadata CID
+    sqlx::query("UPDATE jobs SET metadata_hash = $1 WHERE id = $2")
+        .bind(&cid)
+        .bind(job_id)
+        .execute(&state.pool)
+        .await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({
+            "cid": cid,
+            "metadata_hash": cid,
+            "job_id": job_id.to_string()
+        })),
+    ))
+}
+
+/// Retrieve job metadata from IPFS by job ID.
+///
+/// GET /api/jobs/:id/metadata
+///
+/// Returns: metadata::JobMetadata from IPFS
+async fn retrieve_job_metadata(
+    State(state): State<AppState>,
+    Path(job_id): Path<Uuid>,
+) -> Result<Json<metadata::JobMetadata>> {
+    // Fetch job and get metadata CID
+    let (metadata_cid,): (Option<String>,) =
+        sqlx::query_as("SELECT metadata_hash FROM jobs WHERE id = $1")
+            .bind(job_id)
+            .fetch_optional(&state.pool)
+            .await?
+            .ok_or_else(|| AppError::NotFound(format!("job {job_id} not found")))?;
+
+    let cid = metadata_cid
+        .ok_or_else(|| AppError::NotFound(format!("no metadata stored for job {job_id}")))?;
+
+    // Fetch from IPFS gateway
+    let client = Client::new();
+    let metadata = metadata::retrieve_job_metadata(&client, &cid)
+        .await
+        .map_err(|e| AppError::BadRequest(e.to_string()))?;
+
+    Ok(Json(metadata))
+}
+
+/// Store bid metadata to IPFS and update bid record with metadata CID.
+///
+/// POST /api/jobs/:id/bids/:bid_id/metadata
+///
+/// Request body: metadata::BidMetadata JSON
+/// Returns: { "cid": "Qm...", "proposal_hash": "Qm...", "bid_id": "..." }
+async fn store_bid_metadata(
+    State(state): State<AppState>,
+    Path((job_id, bid_id)): Path<(Uuid, Uuid)>,
+    Json(metadata): Json<metadata::BidMetadata>,
+) -> Result<(StatusCode, Json<serde_json::Value>)> {
+    // Verify bid exists and belongs to job
+    let (_bidder,): (String,) =
+        sqlx::query_as("SELECT freelancer_address FROM bids WHERE id = $1 AND job_id = $2")
+            .bind(bid_id)
+            .bind(job_id)
+            .fetch_optional(&state.pool)
+            .await?
+            .ok_or_else(|| {
+                AppError::NotFound(format!("bid {bid_id} not found for job {job_id}"))
+            })?;
+
+    // Validate metadata matches bid and job IDs
+    if metadata.bid_id != bid_id || metadata.job_id != job_id {
+        return Err(AppError::BadRequest(
+            "metadata bid_id or job_id does not match route parameters".into(),
+        ));
+    }
+
+    // Pin metadata to IPFS
+    let client = Client::new();
+    let cid = metadata::store_bid_metadata(&client, &metadata)
+        .await
+        .map_err(|e| AppError::BadRequest(e.to_string()))?;
+
+    // Update bid record with proposal hash (using CID as hash)
+    sqlx::query("UPDATE bids SET proposal_hash = $1 WHERE id = $2")
+        .bind(&cid)
+        .bind(bid_id)
+        .execute(&state.pool)
+        .await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({
+            "cid": cid,
+            "proposal_hash": cid,
+            "bid_id": bid_id.to_string()
+        })),
+    ))
+}
+
+/// Retrieve bid metadata from IPFS by bid ID.
+///
+/// GET /api/jobs/:id/bids/:bid_id/metadata
+///
+/// Returns: metadata::BidMetadata from IPFS
+async fn retrieve_bid_metadata(
+    State(state): State<AppState>,
+    Path((job_id, bid_id)): Path<(Uuid, Uuid)>,
+) -> Result<Json<metadata::BidMetadata>> {
+    // Fetch bid and get proposal hash (CID)
+    let (proposal_hash,): (Option<String>,) =
+        sqlx::query_as("SELECT proposal_hash FROM bids WHERE id = $1 AND job_id = $2")
+            .bind(bid_id)
+            .bind(job_id)
+            .fetch_optional(&state.pool)
+            .await?
+            .ok_or_else(|| {
+                AppError::NotFound(format!("bid {bid_id} not found for job {job_id}"))
+            })?;
+
+    let cid = proposal_hash
+        .ok_or_else(|| AppError::NotFound(format!("no metadata stored for bid {bid_id}")))?;
+
+    // Fetch from IPFS gateway
+    let client = Client::new();
+    let metadata = metadata::retrieve_bid_metadata(&client, &cid)
+        .await
+        .map_err(|e| AppError::BadRequest(e.to_string()))?;
+
+    Ok(Json(metadata))
 }
