@@ -37,7 +37,8 @@ export type WalletKit = {
   openModal: (options?: WalletModalOptions) => Promise<{ address: string }>;
   closeModal: () => void;
   getAddress: () => Promise<{ address: string }>;
-  setNetwork: (network: Networks) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setNetwork: (network: any) => void;
   signTransaction: (xdr: string) => Promise<string>;
   signMessage: (message: string) => Promise<string>;
   disconnect: () => Promise<void>;
@@ -167,7 +168,7 @@ export async function submitTransaction(
         isSeqMismatch =
           response.errorResult.result().switch().name === 'txBadSeq'
       }
-    } catch (_) {
+    } catch {
       // Ignore parsing errors fallback to generic error
     }
 
@@ -225,7 +226,7 @@ function isE2EMode(): boolean {
   return process.env.NEXT_PUBLIC_E2E === "true";
 }
 
-function getNetworkPassphrase(network = APP_STELLAR_NETWORK): Networks {
+function getNetworkPassphrase(network = APP_STELLAR_NETWORK): string {
   return network === "public" ? Networks.PUBLIC : Networks.TESTNET;
 }
 
@@ -250,8 +251,10 @@ async function initializeWalletsKit(): Promise<void> {
       import("@creit.tech/stellar-wallets-kit/modules/xbull"),
     ]);
 
+  // Fixed: Forced cast to resolve version mismatch between stellar-sdk and wallets-kit
   StellarWalletsKit.init({
-    network: getNetworkPassphrase(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    network: getNetworkPassphrase() as unknown as any,
     selectedWalletId: "freighter",
     modules: [new FreighterModule(), new AlbedoModule(), new xBullModule()],
   });
