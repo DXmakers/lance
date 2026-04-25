@@ -94,7 +94,7 @@ export async function getConnectedWalletAddress(): Promise<string | null> {
 
 export function getSelectedWalletId(): string | null {
   // The kit might store this internally or we can get it from its configuration
-  return (getWalletsKit() as any).selectedWalletId || null;
+  return (getWalletsKit() as unknown as { selectedWalletId?: string }).selectedWalletId || null;
 }
 
 export async function getWalletInfo(id: string): Promise<{
@@ -157,7 +157,7 @@ export async function signMessage(message: string): Promise<string> {
   
   // Use signMessage for SIWS (Sign-In With Stellar).
   // Cast to any because the kit types may be slightly behind the implementation for some modules.
-  const { signedMessage } = await (walletsKit as any).signMessage(message);
+  const { signedMessage } = await (walletsKit as unknown as { signMessage: (m: string) => Promise<{ signedMessage: string }> }).signMessage(message);
   
   return signedMessage;
 }

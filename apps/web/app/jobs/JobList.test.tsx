@@ -24,14 +24,13 @@ const mockJobs: jobQueries.BoardJob[] = [
     id: "1",
     title: "Senior Soroban Developer",
     description: "Build an escrow system on Stellar.",
-    budget_usdc: 5000 * 10_000_000,
-    milestones: 1,
+    budget: 5000 * 10_000_000,
     status: "open",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     tags: ["soroban", "stellar"],
     deadlineAt: new Date().toISOString(),
-    client_address: "GABC123",
+    employerAddress: "GABC123",
     clientReputation: {
       scoreBps: 9000,
       totalJobs: 5,
@@ -39,6 +38,26 @@ const mockJobs: jobQueries.BoardJob[] = [
       reviews: 5,
       starRating: 5,
       averageStars: 5,
+    },
+  },
+  {
+    id: "2",
+    title: "UI Designer",
+    description: "Design a marketplace dashboard.",
+    budget: 2000 * 10_000_000,
+    status: "open",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    tags: ["design", "figma"],
+    deadlineAt: new Date().toISOString(),
+    employerAddress: "GDEF456",
+    clientReputation: {
+      scoreBps: 7000,
+      totalJobs: 2,
+      totalPoints: 14,
+      reviews: 2,
+      starRating: 4,
+      averageStars: 4,
     },
   },
 ];
@@ -58,18 +77,59 @@ describe("JobList / JobsPage CI Audit", () => {
       error: null,
     } as unknown as ReturnType<typeof jobQueries.useJobs>);
 
-    const { findByText, findByLabelText } = render(
+    const { findByText } = render(
       <QueryClientProvider client={queryClient}>
         <JobsPage />
       </QueryClientProvider>
     );
 
-    // Use findBy to account for micro-task timing and CI latency
-    const title = await findByText("Senior Soroban Developer");
-    expect(title).toBeDefined();
+    expect(await findByText("Senior Soroban Developer")).toBeDefined();
+    expect(await findByText("UI Designer")).toBeDefined();
+  });
+
+  it("filters jobs by search query", async () => {
+    useJobsMock.mockReturnValue({
+      data: mockJobs,
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof jobQueries.useJobs>);
+
+    const { findByText, queryByText, findByPlaceholderText } = render(
+      <QueryClientProvider client={queryClient}>
+        <JobsPage />
+      </QueryClientProvider>
+    );
+
+    const searchInput = await findByPlaceholderText("Search jobs...");
+    const userEvent = (await import("@testing-library/user-event")).default;
+    await userEvent.type(searchInput, "Soroban");
+
+    expect(await findByText("Senior Soroban Developer")).toBeDefined();
+    expect(queryByText("UI Designer")).toBeNull();
+  });
+
+  it("filters jobs by category", async () => {
+    useJobsMock.mockReturnValue({
+      data: mockJobs,
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof jobQueries.useJobs>);
+
+    const { findByText, queryByText } = render(
+      <QueryClientProvider client={queryClient}>
+        <JobsPage />
+      </QueryClientProvider>
+    );
+
+    // Categories are in a select element
+    const categorySelect = document.querySelector('select');
+    if (!categorySelect) throw new Error("Category select not found");
     
-    const status = await findByLabelText(/Job status: open/);
-    expect(status).toBeDefined();
+    const userEvent = (await import("@testing-library/user-event")).default;
+    await userEvent.selectOptions(categorySelect, "Design");
+
+    expect(await findByText("UI Designer")).toBeDefined();
+    expect(queryByText("Senior Soroban Developer")).toBeNull();
   });
 
   it("shows skeleton state while loading", () => {
@@ -85,29 +145,25 @@ describe("JobList / JobsPage CI Audit", () => {
       </QueryClientProvider>
     );
 
-    const loadingState = getByRole("status");
-    expect(loadingState).toBeDefined();
+    expect(getByRole("status")).toBeDefined();
     expect(getByText(/Loading jobs.../i)).toBeDefined();
   });
 
   it("triggers Error Boundary on fetch failure", async () => {
-    // Simulate a hard error that should bubble up to the ErrorBoundary
     useJobsMock.mockImplementation(() => {
       throw new Error("Network Disruption");
     });
 
-    // Suppress console.error for this expected error to keep CI logs clean
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const { findByText, getByText } = render(
+    const { findByText } = render(
       <QueryClientProvider client={queryClient}>
         <JobsPage />
       </QueryClientProvider>
     );
 
-    const errorHeading = await findByText("Something went wrong");
-    expect(errorHeading).toBeDefined();
-    expect(getByText(/Network Disruption/i)).toBeDefined();
+    expect(await findByText("Something went wrong")).toBeDefined();
+    expect(await findByText(/Network Disruption/i)).toBeDefined();
     
     spy.mockRestore();
   });

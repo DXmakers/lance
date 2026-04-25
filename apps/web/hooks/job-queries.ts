@@ -1,14 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { api, type Job } from "@/lib/api";
+import { z } from "zod";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { getReputationMetrics, type ReputationMetrics } from "@/lib/reputation";
 
-export type JobSort = "budget" | "chronological" | "reputation";
+import { JobSchema, type BoardJob, BoardJobSchema } from "@/types/jobs";
 
-export interface BoardJob extends Job {
-  tags: string[];
-  deadlineAt: string;
-  clientReputation: ReputationMetrics;
-}
+export type JobSort = 'newest' | 'oldest' | 'budget-high' | 'budget-low';
+export const JOB_CATEGORIES = ["Development", "Design", "Marketing", "Legal", "Other"] as const;
+export type JobCategory = typeof JOB_CATEGORIES[number];
 
 const TAG_PATTERNS: Array<[string, RegExp]> = [
   ["soroban", /soroban|stellar|smart contract|escrow/i],
@@ -19,7 +18,7 @@ const TAG_PATTERNS: Array<[string, RegExp]> = [
   ["growth", /seo|marketing|community|content/i],
 ];
 
-function inferTags(job: Job): string[] {
+function inferTags(job: { title: string; description: string }): string[] {
   const source = `${job.title} ${job.description}`;
   const tags = TAG_PATTERNS.filter(([, pattern]) => pattern.test(source)).map(([tag]) => tag);
   if (tags.length === 0) tags.push("general");
@@ -32,8 +31,8 @@ function buildDeadline(index: number, createdAt: string): string {
   return base.toISOString();
 }
 
-async function buildBoardJobs(sourceJobs: Job[]): Promise<BoardJob[]> {
-  const uniqueClients = [...new Set(sourceJobs.map((job) => job.client_address))];
+async function buildBoardJobs(sourceJobs: z.infer<typeof JobSchema>[]): Promise<BoardJob[]> {
+  const uniqueClients = [...new Set(sourceJobs.map((job) => job.employerAddress))];
   const reputationEntries: Array<[string, ReputationMetrics]> = await Promise.all(
     uniqueClients.map(async (address) => [
       address,
@@ -46,7 +45,7 @@ async function buildBoardJobs(sourceJobs: Job[]): Promise<BoardJob[]> {
     ...job,
     tags: inferTags(job),
     deadlineAt: buildDeadline(index, job.created_at),
-    clientReputation: reputationMap.get(job.client_address) ?? {
+    clientReputation: reputationMap.get(job.employerAddress) ?? {
       scoreBps: 5000,
       totalJobs: 0,
       totalPoints: 0,
@@ -62,13 +61,31 @@ async function buildBoardJobs(sourceJobs: Job[]): Promise<BoardJob[]> {
  * Integrates with on-chain reputation metrics.
  */
 export function useJobs() {
-  return useQuery<BoardJob[]>({
+  return useSuspenseQuery<BoardJob[]>({
     queryKey: ["jobs"],
     queryFn: async () => {
       const jobsFromApi = await api.jobs.list();
-      // If API fails or is empty, we could throw or handle mock here, 
-      // but let's assume API is stable for now or handled in queryFn.
-      return buildBoardJobs(jobsFromApi);
+      
+      // Map and validate raw API response to the new JobSchema
+      const validatedJobs = jobsFromApi.map(rawJob => {
+        const mappedJob = {
+          id: rawJob.id,
+          title: rawJob.title,
+          description: rawJob.description,
+          budget: rawJob.budget_usdc,
+          status: rawJob.status.toLowerCase(),
+          escrowId: rawJob.on_chain_job_id,
+          employerAddress: rawJob.client_address,
+          created_at: rawJob.created_at,
+          updated_at: rawJob.updated_at,
+        };
+        return JobSchema.parse(mappedJob);
+      });
+      
+      const hydratedJobs = await buildBoardJobs(validatedJobs);
+      
+      // Validate hydrated board jobs
+      return hydratedJobs.map(job => BoardJobSchema.parse(job));
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });

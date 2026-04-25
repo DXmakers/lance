@@ -27,7 +27,7 @@ import {
   Server as SorobanServer,
   Api,
 } from "@stellar/stellar-sdk/rpc";
-import { connectWallet, signTransaction } from "./stellar";
+import { signTransaction } from "./stellar";
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 

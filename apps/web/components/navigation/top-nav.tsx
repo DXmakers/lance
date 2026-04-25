@@ -14,7 +14,7 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
   const { isLoggedIn, logout, login, role, user } = useAuthStore();
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 w-full border-b border-border/50 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4 md:px-8">
         <div className="flex items-center gap-4">
           <button

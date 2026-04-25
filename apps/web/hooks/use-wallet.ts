@@ -65,7 +65,9 @@ export function useWallet() {
     const stellarNetwork =
       newNetwork === "MAINNET" ? Networks.PUBLIC : Networks.TESTNET;
     const kit = getWalletsKit();
-    (kit as any).setNetwork(stellarNetwork);
+    if ('setNetwork' in kit && typeof kit.setNetwork === 'function') {
+      (kit as { setNetwork: (n: Networks) => void }).setNetwork(stellarNetwork);
+    }
     setStoreNetwork(stellarNetwork);
   }, [setStoreNetwork]);
 

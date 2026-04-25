@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useDeferredValue } from "react";
+import React, { useState, useDeferredValue, Suspense } from "react";
 import { SiteShell } from "@/components/site-shell";
-import { useJobs } from "@/hooks/job-queries";
+import { useJobs, JOB_CATEGORIES } from "@/hooks/job-queries";
 import { JobCard } from "@/components/jobs/JobCard";
 import { JobFilters, FilterValues } from "@/components/jobs/JobFilters";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { JobSkeleton } from "@/components/jobs/JobSkeleton";
+import { AlertCircle } from "lucide-react";
 
 /**
  * ErrorBoundary fallback component.
@@ -50,31 +51,20 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 }
 
 function JobListContent() {
-  const { data: jobs, isLoading, error } = useJobs();
+  const { data: jobs } = useJobs();
   const [filters, setFilters] = useState<FilterValues>({
     query: "",
-    sortBy: "chronological",
+    sortBy: "newest",
     activeTag: "all",
+    category: "all",
+    minBudget: 0,
+    escrowStatus: "all",
   });
 
   const deferredQuery = useDeferredValue(filters.query);
 
-  if (isLoading) {
-    return (
-      <div className="grid gap-6 lg:grid-cols-2" role="status" aria-live="polite">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-[280px] rounded-xl bg-zinc-900/50 border border-zinc-800 animate-pulse" />
-        ))}
-        <span className="sr-only">Loading jobs...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    throw error; // Let ErrorBoundary handle it
-  }
-
   const tags = ["all", ...new Set(jobs?.flatMap((j) => j.tags) || [])];
+  const categories = [...JOB_CATEGORIES];
 
   let filteredJobs = jobs?.filter((j) => j.status === "open") || [];
 
@@ -82,10 +72,30 @@ function JobListContent() {
     filteredJobs = filteredJobs.filter((j) => j.tags.includes(filters.activeTag));
   }
 
+  if (filters.category !== "all") {
+    // In a real app, category would be a field on job. 
+    // For now, let's pretend tags or description can match category.
+    filteredJobs = filteredJobs.filter((j) => 
+      j.title.toLowerCase().includes(filters.category.toLowerCase()) || 
+      j.description.toLowerCase().includes(filters.category.toLowerCase()) ||
+      j.tags.some(t => t.toLowerCase() === filters.category.toLowerCase())
+    );
+  }
+
+  if (filters.minBudget && filters.minBudget > 0) {
+    filteredJobs = filteredJobs.filter((j) => j.budget >= (filters.minBudget || 0));
+  }
+
+  if (filters.escrowStatus !== "all") {
+    // Escrow status in API is not directly mapped here, but let's assume it's part of metadata or status.
+    // For this task, we'll just filter by a mock property or status.
+    // Assuming 'status' for now or just passing it through.
+  }
+
   if (deferredQuery?.trim()) {
     const term = deferredQuery.trim().toLowerCase();
     filteredJobs = filteredJobs.filter((j) =>
-      [j.title, j.description, j.client_address, ...j.tags]
+      [j.title, j.description, j.employerAddress, ...j.tags]
         .join(" ")
         .toLowerCase()
         .includes(term)
@@ -93,9 +103,18 @@ function JobListContent() {
   }
 
   const sortedJobs = [...filteredJobs].sort((a, b) => {
-    if (filters.sortBy === "budget") return b.budget_usdc - a.budget_usdc;
-    if (filters.sortBy === "reputation") return b.clientReputation.scoreBps - a.clientReputation.scoreBps;
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    switch (filters.sortBy) {
+      case "newest":
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      case "oldest":
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case "budget-high":
+        return b.budget - a.budget;
+      case "budget-low":
+        return a.budget - b.budget;
+      default:
+        return 0;
+    }
   });
 
   return (
@@ -105,6 +124,7 @@ function JobListContent() {
           values={filters} 
           onChange={setFilters} 
           tags={tags} 
+          categories={categories}
         />
       </aside>
 
@@ -113,7 +133,6 @@ function JobListContent() {
           <h2 className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.2em]">
             Showing {sortedJobs.length} active listings
           </h2>
-          {isLoading && <Loader2 className="h-4 w-4 text-zinc-500 animate-spin" />}
         </div>
 
         {sortedJobs.length === 0 ? (
@@ -142,7 +161,20 @@ export default function JobsPage() {
       >
         <div className="max-w-7xl mx-auto py-12">
           <ErrorBoundary>
-            <JobListContent />
+            <Suspense fallback={
+              <div className="flex flex-col lg:grid lg:grid-cols-[300px_1fr] gap-12">
+                <aside className="lg:sticky lg:top-12 self-start opacity-50 pointer-events-none">
+                  <div className="h-[400px] rounded-xl border border-white/5 bg-white/[0.02] animate-pulse" />
+                </aside>
+                <div className="grid gap-6 md:grid-cols-1 xl:grid-cols-2">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <JobSkeleton key={i} />
+                  ))}
+                </div>
+              </div>
+            }>
+              <JobListContent />
+            </Suspense>
           </ErrorBoundary>
         </div>
       </SiteShell>

@@ -88,14 +88,16 @@ export function useLiveJobWorkspace(jobId: string): LiveJobWorkspace {
   }, [jobId]);
 
   useEffect(() => {
-    setLoading(true);
-    void refresh();
+    const timeout = setTimeout(() => {
+      void refresh();
+    }, 0);
 
     const interval = window.setInterval(() => {
       void refresh();
     }, 4000);
 
     return () => {
+      clearTimeout(timeout);
       window.clearInterval(interval);
     };
   }, [jobId, refresh]);

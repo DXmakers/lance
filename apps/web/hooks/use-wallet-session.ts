@@ -50,7 +50,7 @@ function persistSession(address: string | null): void {
 }
 
 export function useWalletSession() {
-  const [address, setAddress] = useState<string | null>(null);
+  const [address, setAddress] = useState<string | null>(() => readCachedSession()?.address || null);
   const [walletNetwork, setWalletNetwork] = useState<StellarNetwork | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -77,12 +77,9 @@ export function useWalletSession() {
   }, []);
 
   useEffect(() => {
-    const cached = readCachedSession();
-    if (cached?.address) {
-      setAddress(cached.address);
-    }
-
-    void refreshWalletState();
+    const timeout = setTimeout(() => {
+      void refreshWalletState();
+    }, 0);
 
     const visibilityListener = () => {
       if (!document.hidden) {
@@ -91,7 +88,10 @@ export function useWalletSession() {
     };
 
     document.addEventListener("visibilitychange", visibilityListener);
-    return () => document.removeEventListener("visibilitychange", visibilityListener);
+    return () => {
+      clearTimeout(timeout);
+      document.removeEventListener("visibilitychange", visibilityListener);
+    };
   }, [refreshWalletState]);
 
   const connect = useCallback(async () => {
