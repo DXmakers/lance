@@ -15,6 +15,8 @@ export interface TxStatusState {
   detail: string | null;
   /** On-chain transaction hash once available. */
   txHash: string | null;
+  /** Raw XDR of the transaction (base64). */
+  rawXdr: string | null;
   /** Simulation diagnostics (fee, resources). */
   simulation: SimulationResult | null;
   /** Timestamp (ms) when the current transaction started. */
@@ -25,6 +27,7 @@ export interface TxStatusState {
   // ── Actions ────────────────────────────────────────────────────────────
   setStep: (step: TxLifecycleStep, detail?: string) => void;
   setTxHash: (hash: string) => void;
+  setRawXdr: (xdr: string) => void;
   setSimulation: (simulation: SimulationResult) => void;
   reset: () => void;
 }
@@ -33,6 +36,7 @@ const INITIAL = {
   step: "idle" as TxLifecycleStep,
   detail: null as string | null,
   txHash: null as string | null,
+  rawXdr: null as string | null,
   simulation: null as SimulationResult | null,
   startedAt: null as number | null,
   finishedAt: null as number | null,
@@ -41,8 +45,8 @@ const INITIAL = {
 export const useTxStatusStore = create<TxStatusState>()((set) => ({
   ...INITIAL,
 
-  setStep: (step, detail) =>
-    set((state) => ({
+  setStep: (step: TxLifecycleStep, detail?: string) =>
+    set((state: TxStatusState) => ({
       step,
       detail: detail ?? null,
       startedAt:
@@ -50,12 +54,11 @@ export const useTxStatusStore = create<TxStatusState>()((set) => ({
           ? Date.now()
           : state.startedAt,
       finishedAt:
-        step === "confirmed" || step === "failed" ? Date.now() : null,
+        step === "building" ? null : (step === "confirmed" || step === "failed" ? Date.now() : state.finishedAt),
     })),
 
-  setTxHash: (hash) => set({ txHash: hash }),
-
-  setSimulation: (simulation) => set({ simulation }),
-
+  setTxHash: (hash: string) => set({ txHash: hash }),
+  setRawXdr: (xdr: string) => set({ rawXdr: xdr }),
+  setSimulation: (simulation: SimulationResult) => set({ simulation }),
   reset: () => set(INITIAL),
 }));
