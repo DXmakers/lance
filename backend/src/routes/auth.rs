@@ -51,15 +51,15 @@ async fn verify_signature(
     Json(req): Json<AuthVerifyRequest>,
 ) -> Result<Json<AuthVerifyResponse>> {
     // 1. Fetch challenge
-    let challenge_row = sqlx::query!(
+    let challenge_row = sqlx::query_as::<_, (String, chrono::DateTime<Utc>)>(
         "SELECT challenge, expires_at FROM auth_challenges WHERE address = $1",
-        req.address
     )
+    .bind(&req.address)
     .fetch_optional(&state.pool)
     .await?;
 
     let challenge = match challenge_row {
-        Some(row) if row.expires_at > Utc::now() => row.challenge,
+        Some((challenge, expires_at)) if expires_at > Utc::now() => challenge,
         _ => {
             return Err(AppError::BadRequest(
                 "Challenge expired or not found".into(),

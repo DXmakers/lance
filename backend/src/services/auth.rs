@@ -23,17 +23,17 @@ pub async fn auth_middleware(
         _ => return Err(StatusCode::UNAUTHORIZED),
     };
 
-    let session = sqlx::query!(
+    let session = sqlx::query_as::<_, (String,)>(
         "SELECT address FROM sessions WHERE token = $1 AND expires_at > $2",
-        token,
-        Utc::now()
     )
+    .bind(token)
+    .bind(Utc::now())
     .fetch_optional(&state.pool)
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    if let Some(row) = session {
-        request.extensions_mut().insert(row.address);
+    if let Some((address,)) = session {
+        request.extensions_mut().insert(address);
         Ok(next.run(request).await)
     } else {
         Err(StatusCode::UNAUTHORIZED)
