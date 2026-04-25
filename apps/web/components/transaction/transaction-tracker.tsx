@@ -24,6 +24,7 @@ import {
   Send,
   ShieldCheck,
   Circle,
+  Terminal,
 } from "lucide-react";
 
 // ─── Step Configuration ─────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ const STELLAR_EXPLORER_URL =
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export function TransactionTracker() {
-  const { step, detail, txHash, simulation, startedAt, finishedAt } =
+  const { step, detail, txHash, rawXdr, simulation, startedAt, finishedAt } =
     useTxStatusStore();
 
   // Nothing to show when idle
@@ -217,6 +218,29 @@ export function TransactionTracker() {
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Raw XDR (Technical Transparency) ─────────────────────────────── */}
+      {rawXdr && (
+        <div className="mt-4 rounded-xl border border-slate-950 bg-slate-900 p-4 text-white">
+          <div className="mb-2 flex items-center gap-2">
+            <Terminal className="h-4 w-4 text-amber-400" />
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Raw Transaction XDR
+            </h4>
+          </div>
+          <div className="relative">
+            <pre className="max-h-32 overflow-y-auto break-all font-mono text-[10px] leading-relaxed text-slate-300">
+              {rawXdr}
+            </pre>
+            <div className="absolute top-0 right-0 rounded bg-slate-800 px-1.5 py-0.5 text-[8px] font-bold uppercase text-slate-400">
+              Base64
+            </div>
+          </div>
+          <p className="mt-2 text-[10px] text-slate-500">
+            This XDR represents the exact operations being sent to the Stellar network.
+          </p>
         </div>
       )}
     </div>

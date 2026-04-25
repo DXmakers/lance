@@ -8,7 +8,11 @@ export default defineConfig({
     globals: true,
     coverage: {
       reporter: ["text", "html"],
-      include: ["components/theme/theme-toggle.tsx", "lib/notifications.ts"],
+      include: [
+        "components/theme/theme-toggle.tsx",
+        "lib/notifications.ts",
+        "lib/profile.ts",
+      ],
     },
   },
   resolve: {

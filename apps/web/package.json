@@ -7,7 +7,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run --coverage"
+    "test": "vitest run --coverage",
+    "clean": "rimraf node_modules .next"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.0.1",
@@ -29,7 +30,8 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.6.0",
     "zod": "4.3.6",
-    "zustand": "^5.0.3"
+    "zustand": "^5.0.3",
+    "@tanstack/react-query": "^5.28.14"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

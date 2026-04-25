@@ -1,12 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Wallet } from "lucide-react";
+import { CalendarDays, Wallet } from "lucide-react";
 import { SiteShell } from "@/components/site-shell";
 import { TransactionTracker } from "@/components/transaction/transaction-tracker";
 import { usePostJob } from "@/hooks/use-post-job";
 import { useTxStatusStore } from "@/lib/store/use-tx-status-store";
 import { connectWallet, getConnectedWalletAddress } from "@/lib/stellar";
+
+function buildDefaultCompletionDate() {
+  const target = new Date();
+  target.setDate(target.getDate() + 14);
+  return target.toISOString().slice(0, 10);
+}
 
 export default function NewJobPage() {
   const [title, setTitle] = useState("");
@@ -14,12 +20,15 @@ export default function NewJobPage() {
   const [budget, setBudget] = useState(1000);
   const [milestones, setMilestones] = useState(1);
   const [memo, setMemo] = useState("");
+  const [estimatedCompletionDate, setEstimatedCompletionDate] = useState(
+    buildDefaultCompletionDate(),
+  );
   const [walletAddress, setWalletAddress] = useState("GD...CLIENT");
 
   const { submit, isSubmitting } = usePostJob();
   const txStep = useTxStatusStore((state: { step: string }) => state.step);
+  const today = new Date().toISOString().slice(0, 10);
 
-  // Determine if a transaction is in-flight (any non-idle, non-terminal step)
   const isTxInProgress = !["idle", "confirmed", "failed"].includes(txStep);
 
   async function ensureWallet() {
@@ -29,14 +38,13 @@ export default function NewJobPage() {
       return connected;
     }
 
-    const newlyConnected = await connectWallet();
-    setWalletAddress(newlyConnected);
-    return newlyConnected;
+    const address = await connectWallet();
+    setWalletAddress(address);
+    return address;
   }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-
     try {
       await ensureWallet();
       await submit({
@@ -45,6 +53,7 @@ export default function NewJobPage() {
         budgetUsdc: budget * 10_000_000,
         milestones,
         memo: memo || undefined,
+        estimatedCompletionDate,
       });
     } catch {
       // Error handling is managed by usePostJob + toast system
@@ -143,6 +152,29 @@ export default function NewJobPage() {
               />
             </div>
 
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Estimated Completion Date
+              </label>
+              <div className="relative">
+                <CalendarDays className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="date"
+                  value={estimatedCompletionDate}
+                  onChange={(event) => setEstimatedCompletionDate(event.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-950 outline-none transition focus:border-amber-400"
+                  min={today}
+                  required
+                  id="job-estimated-completion-date"
+                  disabled={isSubmitting || isTxInProgress}
+                />
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                This projected date is attached to the brief so freelancers can plan
+                around your expected delivery window.
+              </p>
+            </div>
+
             {/* Transaction Tracker */}
             <TransactionTracker />
 
@@ -163,8 +195,8 @@ export default function NewJobPage() {
 
         <aside className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-slate-50 shadow-[0_25px_80px_-48px_rgba(15,23,42,0.75)] sm:p-8">
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm">
-            <Wallet className="h-4 w-4 text-amber-300" />
-            Client wallet: {walletAddress}
+            <Wallet size={16} className="text-amber-300" />
+            <span>Client wallet: {walletAddress}</span>
           </div>
           <h2 className="mt-6 text-2xl font-semibold tracking-tight">
             Your job goes on-chain.
@@ -190,42 +222,37 @@ export default function NewJobPage() {
               Split the budget into meaningful milestones to keep approval moments
               clean.
             </li>
+            <li>
+              Estimated completion target:{" "}
+              <span className="font-semibold text-slate-100">
+                {estimatedCompletionDate}
+              </span>
+            </li>
           </ul>
 
-          {/* On-chain flow summary */}
           <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
               Transaction Lifecycle
             </h3>
             <ol className="space-y-2 text-xs text-slate-300">
               <li className="flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
-                  1
-                </span>
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">1</span>
                 Build – Construct XDR with contract arguments
               </li>
               <li className="flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
-                  2
-                </span>
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">2</span>
                 Simulate – Estimate fees and validate success
               </li>
               <li className="flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
-                  3
-                </span>
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">3</span>
                 Sign – Approve via your connected wallet
               </li>
               <li className="flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
-                  4
-                </span>
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">4</span>
                 Submit – Broadcast to Soroban RPC
               </li>
               <li className="flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-300">
-                  5
-                </span>
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-300">5</span>
                 Confirm – Verify on-chain finality
               </li>
             </ol>

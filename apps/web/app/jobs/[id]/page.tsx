@@ -13,9 +13,11 @@ import {
   Wallet,
 } from "lucide-react";
 import { BidList } from "@/components/jobs/bid-list";
+import { ShareJobButton } from "@/components/jobs/share-job-button";
 import { SubmitBidErrorBoundary } from "@/components/jobs/submit-bid-error-boundary";
 import { SubmitBidModal } from "@/components/jobs/submit-bid-modal";
 import { SiteShell } from "@/components/site-shell";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Stars } from "@/components/stars";
 import { JobDetailsSkeleton } from "@/components/ui/skeleton";
 import { useLiveJobWorkspace } from "@/hooks/use-live-job-workspace";
@@ -200,6 +202,7 @@ export default function JobDetailsPage() {
                   <span className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white">
                     {job.status}
                   </span>
+                  <ShareJobButton path={`/jobs/${id}`} title={job.title} />
                 </div>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
                   {job.description}
@@ -293,6 +296,7 @@ export default function JobDetailsPage() {
                   <SubmitBidErrorBoundary>
                     <SubmitBidModal
                       jobId={id}
+                      onChainJobId={BigInt(workspace.job?.on_chain_job_id ?? 0)}
                       disabled={busyAction !== null}
                       onSubmitted={workspace.refresh}
                       resolveFreelancerAddress={async () =>
@@ -433,9 +437,12 @@ export default function JobDetailsPage() {
 
                 <div className="mt-5 space-y-3">
                   {workspace.deliverables.length === 0 ? (
-                    <div className="rounded-[1.4rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                      No milestone evidence has been submitted yet.
-                    </div>
+                    <EmptyState
+                      icon={<FileUp className="h-5 w-5" />}
+                      title="No milestone evidence yet"
+                      description="Submitted files and links will appear here once a freelancer shares delivery proof."
+                      className="rounded-[1.4rem] bg-slate-50 py-8"
+                    />
                   ) : (
                     workspace.deliverables.map((deliverable) => (
                       <article
