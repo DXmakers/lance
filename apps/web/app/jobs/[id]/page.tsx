@@ -18,9 +18,14 @@ import { JobSidebar } from "@/components/jobs/job-sidebar";
 import { GlassCard } from "@/components/ui/glass-card";
 import { JobDetailsSkeleton } from "@/components/ui/skeleton";
 import { BidList } from "@/components/jobs/bid-list";
-import { SubmitBidModal } from "@/components/jobs/submit-bid-modal";
+import { ShareJobButton } from "@/components/jobs/share-job-button";
 import { SubmitBidErrorBoundary } from "@/components/jobs/submit-bid-error-boundary";
-import Link from "next/link";
+import { SubmitBidModal } from "@/components/jobs/submit-bid-modal";
+import { SiteShell } from "@/components/site-shell";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Stars } from "@/components/stars";
+import { JobDetailsSkeleton } from "@/components/ui/skeleton";
+import { useLiveJobWorkspace } from "@/hooks/use-live-job-workspace";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -80,14 +85,73 @@ export default function JobDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-200 antialiased selection:bg-indigo-500/30 selection:text-indigo-200">
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <Link href="/jobs" className="group inline-flex items-center gap-1 text-sm text-zinc-500 transition hover:text-zinc-300">
-            <ChevronRight className="h-4 w-4 rotate-180 transition group-hover:-translate-x-0.5" />
-            Back to Marketplace
-          </Link>
-        </div>
+    <SiteShell
+      eyebrow="Job Overview"
+      title={job.title}
+      description="A shared contract workspace for bids, deliverables, approvals, and escalation."
+    >
+      <section className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+        <div className="space-y-6">
+          <div className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_25px_80px_-48px_rgba(15,23,42,0.5)] sm:p-8">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">
+                  Status
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <h1 className="text-4xl font-semibold tracking-tight text-slate-950">
+                    {job.title}
+                  </h1>
+                  <span className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white">
+                    {job.status}
+                  </span>
+                  <ShareJobButton path={`/jobs/${id}`} title={job.title} />
+                </div>
+                <p className="mt-4 text-sm leading-7 text-slate-600">
+                  {job.description}
+                </p>
+              </div>
+              <div className="rounded-[1.6rem] border border-amber-200 bg-amber-50 p-5 text-right">
+                <p className="text-xs uppercase tracking-[0.22em] text-amber-700">
+                  Contract Value
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-slate-950">
+                  {formatUsdc(job.budget_usdc)}
+                </p>
+                <p className="mt-2 text-sm text-slate-600">
+                  {job.milestones} milestone approvals
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 rounded-[1.6rem] border border-slate-200 bg-slate-50 p-5 sm:grid-cols-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                  Client
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-700">
+                  {shortenAddress(job.client_address)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                  Freelancer
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-700">
+                  {job.freelancer_address
+                    ? shortenAddress(job.freelancer_address)
+                    : "Not assigned"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                  Updated
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-700">
+                  {formatDateTime(job.updated_at)}
+                </p>
+              </div>
+            </div>
 
         <JobHeader job={job} />
 
@@ -171,6 +235,68 @@ export default function JobDetailsPage() {
                             <div className="rounded-md bg-zinc-950 p-2 border border-zinc-800">
                               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                             </div>
+                  <FileUp className="h-5 w-5 text-amber-600" />
+                </div>
+
+                {!workflowLocked ? (
+                  <form onSubmit={handleSubmitDeliverable} className="mt-5 space-y-4">
+                    <input
+                      value={deliverableLabel}
+                      onChange={(event) => setDeliverableLabel(event.target.value)}
+                      placeholder="Submission title"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
+                    />
+                    <input
+                      value={deliverableLink}
+                      onChange={(event) => setDeliverableLink(event.target.value)}
+                      placeholder="GitHub repo, Figma file, hosted ZIP link, or leave blank to upload a file"
+                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
+                    />
+                    <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                      <FileUp className="h-4 w-4 text-amber-600" />
+                      <span>{deliverableFile ? deliverableFile.name : "Upload ZIP, image, JSON, or PDF evidence"}</span>
+                      <input
+                        type="file"
+                        className="hidden"
+                        onChange={(event) =>
+                          setDeliverableFile(event.target.files?.[0] ?? null)
+                        }
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={busyAction === "deliverable"}
+                      className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      {busyAction === "deliverable"
+                        ? "Submitting..."
+                        : "Submit Milestone"}
+                    </button>
+                  </form>
+                ) : null}
+
+                <div className="mt-5 space-y-3">
+                  {workspace.deliverables.length === 0 ? (
+                    <EmptyState
+                      icon={<FileUp className="h-5 w-5" />}
+                      title="No milestone evidence yet"
+                      description="Submitted files and links will appear here once a freelancer shares delivery proof."
+                      className="rounded-[1.4rem] bg-slate-50 py-8"
+                    />
+                  ) : (
+                    workspace.deliverables.map((deliverable) => (
+                      <article
+                        key={deliverable.id}
+                        className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                              Milestone {deliverable.milestone_index}
+                            </p>
+                            <p className="mt-2 text-sm font-medium text-slate-800">
+                              {deliverable.label}
+                            </p>
                           </div>
                           <a href={d.url} target="_blank" rel="noreferrer" className="mt-6 inline-flex w-full items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950 py-2 text-xs font-bold text-zinc-300 transition hover:border-zinc-700 hover:text-white">
                             View Submission

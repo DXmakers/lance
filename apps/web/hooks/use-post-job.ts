@@ -30,6 +30,7 @@ export interface PostJobInput {
   budgetUsdc: number;
   milestones: number;
   memo?: string;
+  estimatedCompletionDate: string;
 }
 
 export function usePostJob() {
@@ -64,6 +65,9 @@ export function usePostJob() {
           budget_usdc: input.budgetUsdc,
           milestones: input.milestones,
           client_address: clientAddress,
+          memo: [input.memo, `Estimated completion: ${input.estimatedCompletionDate}`]
+            .filter(Boolean)
+            .join(" | "),
         });
 
         // ── Step B: Submit on-chain post_job transaction ────────────────
