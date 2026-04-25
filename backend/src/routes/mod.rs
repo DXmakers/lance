@@ -16,8 +16,12 @@ use axum::{routing::get, Router};
 
 pub fn api_router() -> Router<AppState> {
     Router::new()
-        // health check — outside versioned prefix so load balancers can reach it
+        // health checks — outside versioned prefix so load balancers can reach them
+        .route("/health/live", get(health::liveness))
+        .route("/health/ready", get(health::readiness))
         .route("/health", get(health::health))
+        .route("/sync-status", get(health::sync_status))
+        .route("/metrics", get(health::prometheus_metrics))
         // v1 API routes
         .nest(
             "/v1",

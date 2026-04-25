@@ -13,12 +13,16 @@ import {
   Wallet,
 } from "lucide-react";
 import { BidList } from "@/components/jobs/bid-list";
+import { ShareJobButton } from "@/components/jobs/share-job-button";
+import { SubmitBidErrorBoundary } from "@/components/jobs/submit-bid-error-boundary";
+import { SubmitBidModal } from "@/components/jobs/submit-bid-modal";
 import { SiteShell } from "@/components/site-shell";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Stars } from "@/components/stars";
 import { JobDetailsSkeleton } from "@/components/ui/skeleton";
 import { useLiveJobWorkspace } from "@/hooks/use-live-job-workspace";
 import { api } from "@/lib/api";
-import { releaseFunds, openDispute } from "@/lib/contracts";
+import { releaseFunds, openDispute, getEscrowContractId } from "@/lib/contracts";
 import {
   formatDate,
   formatDateTime,
@@ -32,7 +36,6 @@ export default function JobDetailsPage() {
   const router = useRouter();
   const workspace = useLiveJobWorkspace(id);
   const [viewerAddress, setViewerAddress] = useState<string | null>(null);
-  const [proposal, setProposal] = useState("");
   const [deliverableLabel, setDeliverableLabel] = useState("");
   const [deliverableLink, setDeliverableLink] = useState("");
   const [deliverableFile, setDeliverableFile] = useState<File | null>(null);
@@ -47,26 +50,6 @@ export default function JobDetailsPage() {
     const connected = await connectWallet();
     setViewerAddress(connected);
     return connected;
-  }
-
-  async function handleBid(event: React.FormEvent) {
-    event.preventDefault();
-    setBusyAction("bid");
-
-    try {
-      const freelancerAddress =
-        (await getConnectedWalletAddress()) ?? "GD...FREELANCER";
-      await api.bids.create(id, {
-        freelancer_address: freelancerAddress,
-        proposal,
-      });
-      setProposal("");
-      await workspace.refresh();
-    } catch {
-      alert("Failed to submit bid");
-    } finally {
-      setBusyAction(null);
-    }
   }
 
   async function handleAcceptBid(bidId: string) {
@@ -219,6 +202,7 @@ export default function JobDetailsPage() {
                   <span className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white">
                     {job.status}
                   </span>
+                  <ShareJobButton path={`/jobs/${id}`} title={job.title} />
                 </div>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
                   {job.description}
@@ -266,6 +250,15 @@ export default function JobDetailsPage() {
               </div>
             </div>
 
+            <div className="mt-4 rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                Escrow Contract
+              </p>
+              <p className="mt-2 font-mono text-xs text-slate-600 break-all">
+                {getEscrowContractId() || "Not configured"}
+              </p>
+            </div>
+
             {workflowLocked ? (
               <div className="mt-6 rounded-[1.6rem] border border-red-200 bg-red-50 p-5 text-red-800">
                 <div className="flex items-start gap-3">
@@ -292,31 +285,26 @@ export default function JobDetailsPage() {
 
           {job.status === "open" ? (
             <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
-              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
-                <h2 className="text-xl font-semibold text-slate-950">
+              <section className="rounded-[2rem] border border-zinc-700/60 bg-zinc-950/90 p-6 shadow-[0_20px_60px_-48px_rgba(0,0,0,0.8)]">
+                <h2 className="text-xl font-semibold text-zinc-50">
                   Submit a Proposal
                 </h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
+                <p className="mt-2 text-sm leading-6 text-zinc-300">
                   Pitch your approach, timing, and why your previous work maps cleanly to this brief.
                 </p>
-                <form onSubmit={handleBid} className="mt-5 space-y-4">
-                  <textarea
-                    value={proposal}
-                    onChange={(event) => setProposal(event.target.value)}
-                    className="min-h-[160px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
-                    placeholder="Tell the client why you're a fit..."
-                    required
-                    id="bid-proposal"
-                  />
-                  <button
-                    type="submit"
-                    disabled={busyAction === "bid"}
-                    className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
-                    id="submit-bid"
-                  >
-                    {busyAction === "bid" ? "Submitting..." : "Submit Bid"}
-                  </button>
-                </form>
+                <div className="mt-5">
+                  <SubmitBidErrorBoundary>
+                    <SubmitBidModal
+                      jobId={id}
+                      onChainJobId={BigInt(workspace.job?.on_chain_job_id ?? 0)}
+                      disabled={busyAction !== null}
+                      onSubmitted={workspace.refresh}
+                      resolveFreelancerAddress={async () =>
+                        (await getConnectedWalletAddress()) ?? "GD...FREELANCER"
+                      }
+                    />
+                  </SubmitBidErrorBoundary>
+                </div>
               </section>
 
               <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
@@ -449,9 +437,12 @@ export default function JobDetailsPage() {
 
                 <div className="mt-5 space-y-3">
                   {workspace.deliverables.length === 0 ? (
-                    <div className="rounded-[1.4rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                      No milestone evidence has been submitted yet.
-                    </div>
+                    <EmptyState
+                      icon={<FileUp className="h-5 w-5" />}
+                      title="No milestone evidence yet"
+                      description="Submitted files and links will appear here once a freelancer shares delivery proof."
+                      className="rounded-[1.4rem] bg-slate-50 py-8"
+                    />
                   ) : (
                     workspace.deliverables.map((deliverable) => (
                       <article

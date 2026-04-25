@@ -26,6 +26,7 @@ import { WalletSelectionModal } from "./wallet-selection-modal";
 export function WalletConnect() {
   const { 
     address, 
+    network,
     status, 
     connect, 
     disconnect, 
@@ -130,12 +131,12 @@ export function WalletConnect() {
           className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-white/5 hover:text-white transition-colors"
         >
           <a 
-            href={`https://stellar.expert/explorer/testnet/account/${address}`}
+            href={`${network === 'TESTNET' ? 'https://stellar.expert/explorer/testnet' : 'https://stellar.expert/explorer/public'}/account/${address}`}
             target="_blank"
             rel="noopener noreferrer"
           >
             <ExternalLink className="h-4 w-4 text-indigo-400" />
-            View in Explorer
+            View on Explorer
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator className="bg-white/5" />

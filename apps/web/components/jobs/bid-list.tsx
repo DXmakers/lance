@@ -6,6 +6,7 @@ import { type Bid } from "@/lib/api";
 import { shortenAddress, formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 
 // ── Status helpers ──────────────────────────────────────────────────────────
@@ -69,13 +70,12 @@ function BidListSkeleton() {
 
 function EmptyBids() {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-zinc-800 py-12 text-center">
-      <Clock3 className="h-8 w-8 text-zinc-600" aria-hidden="true" />
-      <p className="text-sm font-medium text-zinc-400">No bids yet</p>
-      <p className="text-xs text-zinc-600">
-        Freelancers who apply will appear here.
-      </p>
-    </div>
+    <EmptyState
+      icon={<Clock3 className="h-5 w-5" aria-hidden="true" />}
+      title="No bids yet"
+      description="Freelancers who apply will appear here."
+      tone="dark"
+    />
   );
 }
 
