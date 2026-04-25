@@ -37,19 +37,28 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
 
   if (isLoading) {
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        disabled
-        aria-label="Checking wallet connection…"
-        className={cn(
-          "rounded-full border-zinc-700/60 bg-zinc-900/50 text-zinc-400",
-          className,
-        )}
-      >
-        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-        <span className="text-xs">Checking…</span>
-      </Button>
+      <div className={cn("flex flex-col items-end gap-2 responsive-gap", className)}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled
+          aria-label="Checking wallet connection…"
+          aria-describedby="loading-status"
+          className="rounded-[12px] border-zinc-700/60 bg-zinc-900/50 text-zinc-400 transition-all duration-200 min-h-[32px] px-4"
+        >
+          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          <span className="responsive-text-xs">Checking…</span>
+        </Button>
+        <div 
+          id="loading-status"
+          className="flex items-center gap-1.5 text-[10px] text-zinc-500 responsive-text-xs"
+          role="status"
+          aria-live="polite"
+        >
+          <Shield className="h-3 w-3" aria-hidden="true" />
+          <span>Securing connection</span>
+        </div>
+      </div>
     );
   }
 
@@ -128,6 +137,18 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
           </>
         )}
       </Button>
+      
+      {isConnecting && (
+        <div 
+          id="connection-status"
+          className="flex items-center gap-1.5 text-[10px] text-zinc-500 responsive-text-xs"
+          role="status"
+          aria-live="polite"
+        >
+          <Shield className="h-3 w-3 animate-pulse" aria-hidden="true" />
+          <span>Establishing secure connection</span>
+        </div>
+      )}
     </div>
   );
 }

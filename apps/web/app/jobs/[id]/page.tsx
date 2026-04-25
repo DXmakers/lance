@@ -187,7 +187,7 @@ export default function JobDetailsPage() {
     >
       <section className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
         <div className="space-y-6">
-          <div className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_25px_80px_-48px_rgba(15,23,42,0.5)] sm:p-8">
+          <div className="rounded-xl border border-white/5 bg-white/[0.02] backdrop-blur-md p-6 shadow-2xl sm:p-8">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">
@@ -205,7 +205,7 @@ export default function JobDetailsPage() {
                   {job.description}
                 </p>
               </div>
-              <div className="rounded-[1.6rem] border border-amber-200 bg-amber-50 p-5 text-right">
+              <div className="rounded-xl border border-white/10 bg-white/5 p-5 text-right">
                 <p className="text-xs uppercase tracking-[0.22em] text-amber-700">
                   Contract Value
                 </p>
@@ -218,7 +218,7 @@ export default function JobDetailsPage() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 rounded-[1.6rem] border border-slate-200 bg-slate-50 p-5 sm:grid-cols-3">
+            <div className="mt-6 grid gap-4 rounded-xl border border-white/5 bg-zinc-900/50 p-5 sm:grid-cols-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
                   Client
@@ -248,7 +248,7 @@ export default function JobDetailsPage() {
             </div>
 
             {workflowLocked ? (
-              <div className="mt-6 rounded-[1.6rem] border border-red-200 bg-red-50 p-5 text-red-800">
+              <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/5 p-5 text-red-400">
                 <div className="flex items-start gap-3">
                   <ShieldAlert className="mt-0.5 h-5 w-5" />
                   <div>
@@ -273,7 +273,7 @@ export default function JobDetailsPage() {
 
           {job.status === "open" ? (
             <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
-              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+              <section className="rounded-xl border border-white/5 bg-white/[0.02] backdrop-blur-md p-6 shadow-2xl">
                 <h2 className="text-xl font-semibold text-slate-950">
                   Submit a Proposal
                 </h2>
@@ -284,13 +284,13 @@ export default function JobDetailsPage() {
                   <SubmitBidModal
                     jobId={id}
                     onChainJobId={BigInt(job.on_chain_job_id ?? 0)}
-                    disabled={job.status !== "open"}
-                    onSubmitted={() => workspace.refresh()}
+                    disabled={job.status !== "open" || busyAction !== null}
+                    onSubmitted={workspace.refresh}
                   />
                 </SubmitBidErrorBoundary>
               </section>
 
-              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+              <section className="rounded-xl border border-white/5 bg-white/[0.02] backdrop-blur-md p-6 shadow-2xl">
                 <div className="mb-5 flex items-center justify-between gap-3">
                   <h2 className="text-xl font-semibold text-slate-950">
                     Bids ({workspace.bids.length})
@@ -319,7 +319,7 @@ export default function JobDetailsPage() {
 
           {job.status !== "open" ? (
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+              <section className="rounded-xl border border-white/5 bg-white/[0.02] backdrop-blur-md p-6 shadow-2xl">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-semibold text-slate-950">
@@ -336,10 +336,10 @@ export default function JobDetailsPage() {
 
                 <div className="mt-5 space-y-3">
                   {workspace.milestones.map((milestone) => (
-                    <div
-                      key={milestone.id}
-                      className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4"
-                    >
+                      <div
+                        key={milestone.id}
+                        className="rounded-xl border border-white/5 bg-zinc-900/40 p-4"
+                      >
                       <div className="flex items-center justify-between gap-4">
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -387,15 +387,15 @@ export default function JobDetailsPage() {
                       value={deliverableLabel}
                       onChange={(event) => setDeliverableLabel(event.target.value)}
                       placeholder="Submission title"
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
+                      className="w-full rounded-xl border border-white/10 bg-zinc-950/50 px-4 py-3 text-zinc-100 outline-none transition focus:border-emerald-500/50"
                     />
                     <input
                       value={deliverableLink}
                       onChange={(event) => setDeliverableLink(event.target.value)}
                       placeholder="GitHub repo, Figma file, hosted ZIP link, or leave blank to upload a file"
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
+                      className="w-full rounded-xl border border-white/10 bg-zinc-950/50 px-4 py-3 text-zinc-100 outline-none transition focus:border-emerald-500/50"
                     />
-                    <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-white/20 bg-zinc-950/50 px-4 py-3 text-sm text-zinc-400">
                       <FileUp className="h-4 w-4 text-amber-600" />
                       <span>{deliverableFile ? deliverableFile.name : "Upload ZIP, image, JSON, or PDF evidence"}</span>
                       <input
@@ -427,7 +427,7 @@ export default function JobDetailsPage() {
                     workspace.deliverables.map((deliverable) => (
                       <article
                         key={deliverable.id}
-                        className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4"
+                        className="rounded-xl border border-white/5 bg-zinc-900/40 p-4"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div>
@@ -593,13 +593,13 @@ export default function JobDetailsPage() {
               Activity pulse
             </h2>
             <div className="mt-5 space-y-4">
-              <div className="flex items-center justify-between rounded-[1.4rem] border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="flex items-center justify-between rounded-xl border border-white/5 bg-zinc-900/40 px-4 py-3">
                 <span className="text-sm text-slate-600">Next milestone</span>
                 <span className="text-sm font-semibold text-slate-900">
                   {nextMilestone ? `#${nextMilestone.index}` : "Complete"}
                 </span>
               </div>
-              <div className="flex items-center justify-between rounded-[1.4rem] border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="flex items-center justify-between rounded-xl border border-white/5 bg-zinc-900/40 px-4 py-3">
                 <span className="text-sm text-slate-600">Last update</span>
                 <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
                   <Clock3 className="h-4 w-4 text-amber-600" />

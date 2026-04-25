@@ -55,6 +55,7 @@ export function useWalletSession() {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [siwsResponse, setSiwsResponse] = useState<SIWSResponse | null>(null);
 
   const refreshWalletState = useCallback(async () => {
     try {
@@ -145,6 +146,7 @@ export function useWalletSession() {
     isConnecting,
     networkMismatch,
     error,
+    siwsResponse,
     connect,
     disconnect,
     refreshWalletState,
