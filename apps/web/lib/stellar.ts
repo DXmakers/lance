@@ -438,18 +438,17 @@ export interface WalletInfo {
   walletIcon: string;
 }
 
-export function getWalletInfo(): WalletInfo {
+export function getWalletInfo(walletId?: string | null): WalletInfo {
   const address = isBrowser()
     ? localStorage.getItem(WALLET_ADDRESS_STORAGE_KEY)
     : null;
-  const walletId = isBrowser()
-    ? localStorage.getItem(WALLET_TYPE_STORAGE_KEY)
-    : null;
+  const resolvedId =
+    walletId ?? (isBrowser() ? localStorage.getItem(WALLET_TYPE_STORAGE_KEY) : null);
 
   return {
     address,
-    walletId,
-    walletName: walletId ? "Stellar Wallet" : "",
+    walletId: resolvedId,
+    walletName: resolvedId ? "Stellar Wallet" : "",
     walletIcon: "",
   };
 }
