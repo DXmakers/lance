@@ -1,11 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import {
   submitBid,
-  type SubmitBidParams,
   type LifecycleListener,
 } from "@/lib/job-registry";
 import { useTxStatusStore } from "@/lib/store/use-tx-status-store";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useWallet } from "@/hooks/use-wallet";
+import { useWalletSession } from "@/hooks/use-wallet-session";
 import { Button } from "@/components/ui/button";
 import { 
   Wallet, 
@@ -22,19 +22,19 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { WalletSelectionModal } from "./wallet-selection-modal";
+import { useState } from "react";
 
 export function WalletConnect() {
   const { 
     address, 
-    network,
-    status, 
+    walletNetwork,
     connect, 
     disconnect, 
     isConnected, 
-    isConnecting,
-    isModalOpen,
-    setIsModalOpen
-  } = useWallet();
+    isConnecting 
+  } = useWalletSession();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const truncateAddress = (addr: string) => 
     `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -46,15 +46,20 @@ export function WalletConnect() {
     }
   };
 
-  const handleConnectClick = () => {
-    setIsModalOpen(true);
+  const handleConnect = async (walletId?: string) => {
+    try {
+      setIsModalOpen(false);
+      await connect(walletId);
+    } catch (err) {
+      console.error("Connection error:", err);
+    }
   };
 
   if (!isConnected) {
     return (
       <>
         <Button
-          onClick={handleConnectClick}
+          onClick={() => setIsModalOpen(true)}
           disabled={isConnecting}
           aria-label={isConnecting ? "Connecting to wallet" : "Connect Stellar wallet"}
           className={cn(
@@ -73,12 +78,13 @@ export function WalletConnect() {
               Connect Wallet
             </>
           )}
+          <div className="absolute inset-0 rounded-[12px] bg-gradient-to-r from-indigo-500/0 via-indigo-500/5 to-indigo-500/0 opacity-0 transition-opacity hover:opacity-100" />
         </Button>
 
         <WalletSelectionModal 
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          onSelect={connect}
+          onSelect={handleConnect}
         />
       </>
     );
@@ -131,7 +137,7 @@ export function WalletConnect() {
           className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-white/5 hover:text-white transition-colors"
         >
           <a 
-            href={`${network === 'TESTNET' ? 'https://stellar.expert/explorer/testnet' : 'https://stellar.expert/explorer/public'}/account/${address}`}
+            href={`${walletNetwork === 'testnet' ? 'https://stellar.expert/explorer/testnet' : 'https://stellar.expert/explorer/public'}/account/${address}`}
             target="_blank"
             rel="noopener noreferrer"
           >

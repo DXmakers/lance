@@ -9,12 +9,14 @@ interface WalletState {
   walletId: string | null;
   status: WalletStatus;
   network: Networks;
+  networkMismatch: boolean;
   error: string | null;
 
   setConnection: (address: string, walletId: string) => void;
   setStatus: (status: WalletStatus) => void;
   setError: (error: string | null) => void;
   setNetwork: (network: Networks) => void;
+  setNetworkMismatch: (mismatch: boolean) => void;
   disconnect: () => void;
 }
 
@@ -30,6 +32,7 @@ export const useWalletStore = create<WalletState>()(
       walletId: null,
       status: "disconnected",
       network: (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET,
+      networkMismatch: false,
       error: null,
 
       setConnection: (address, walletId) =>
@@ -40,6 +43,7 @@ export const useWalletStore = create<WalletState>()(
       setError: (error) => set({ error, status: error ? "error" : "disconnected" }),
 
       setNetwork: (network) => set({ network }),
+      setNetworkMismatch: (networkMismatch) => set({ networkMismatch }),
 
       disconnect: () =>
         set({ address: null, walletId: null, status: "disconnected", error: null }),
@@ -60,6 +64,7 @@ export const useWalletStore = create<WalletState>()(
         address: state.address,
         walletId: state.walletId,
         network: state.network,
+        networkMismatch: state.networkMismatch,
       }),
     }
   )

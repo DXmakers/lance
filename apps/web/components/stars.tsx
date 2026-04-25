@@ -15,7 +15,7 @@ export function Stars({
         const fill = Math.max(0, Math.min(1, value - index));
         return (
           <span key={index} className="relative inline-flex h-4 w-4">
-            <Star className="absolute h-4 w-4 text-slate-300" />
+            <Star className="absolute h-4 w-4 text-zinc-700" />
             <span
               className="absolute inset-0 overflow-hidden"
               style={{ width: `${fill * 100}%` }}

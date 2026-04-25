@@ -54,7 +54,7 @@ export function JobCardSkeleton() {
 
 export function JobDetailsSkeleton() {
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]" role="status" aria-live="polite">
+    <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]" role="status" aria-live="polite" data-testid="skeleton-loader">
       <div className="space-y-6">
         <section className="rounded-[2rem] border border-white/10 bg-zinc-950/70 p-6 backdrop-blur-sm sm:p-8">
           <div className="space-y-4">
