@@ -43,12 +43,12 @@ function persistSession(address: string | null): void {
 }
 
 export function useWalletSession() {
-  const { 
-    address: storedAddress, 
-    setConnection, 
+  const {
+    address: storedAddress,
+    setConnection,
     disconnect: disconnectStore,
     setNetworkMismatch: setStoreNetworkMismatch,
-    networkMismatch: storedNetworkMismatch
+    networkMismatch: storedNetworkMismatch,
   } = useWalletStore();
 
   const [walletNetwork, setWalletNetwork] = useState<StellarNetwork | null>(null);
@@ -66,25 +66,29 @@ export function useWalletSession() {
         getConnectedWalletAddress(),
         getWalletNetwork(),
       ]);
-      
+
       const balance = connected ? await getXlmBalance(connected) : null;
-      
+
       if (connected) {
-        setConnection(connected, "wallet"); 
+        setConnection(connected, "wallet");
       } else if (storedAddress) {
         disconnectStore();
       }
 
       setWalletNetwork(network);
       setXlmBalance(balance);
-      
+
       const mismatch = network !== null && network !== APP_STELLAR_NETWORK;
       setStoreNetworkMismatch(mismatch);
-      
+
       setConnectionStep("");
     } catch (refreshError) {
       console.error("Failed to refresh wallet state:", refreshError);
-      setError(refreshError instanceof Error ? refreshError.message : "Failed to restore wallet session.");
+      setError(
+        refreshError instanceof Error
+          ? refreshError.message
+          : "Failed to restore wallet session.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -97,10 +101,10 @@ export function useWalletSession() {
     const visibilityListener = () => {
       if (!document.hidden) void refreshWalletState();
     };
-    
+
     window.addEventListener("focus", visibilityListener);
     document.addEventListener("visibilitychange", visibilityListener);
-    
+
     return () => {
       window.removeEventListener("focus", visibilityListener);
       document.removeEventListener("visibilitychange", visibilityListener);
@@ -111,54 +115,63 @@ export function useWalletSession() {
   useEffect(() => {
     const interval = setInterval(() => {
       void refreshWalletState();
-    }, 5000); // 5s poll
-    
+    }, 5000);
+
     return () => clearInterval(interval);
   }, [refreshWalletState]);
 
-  const connect = useCallback(async (walletId?: string) => {
-    setIsConnecting(true);
-    setError(null);
-    setConnectionStep("Connecting to wallet...");
+  const connect = useCallback(
+    async (walletId?: string) => {
+      setIsConnecting(true);
+      setError(null);
+      setConnectionStep("Connecting to wallet...");
 
-    try {
-      const walletsKitModule = await import("@/lib/stellar");
-      const walletsKit = walletsKitModule.getWalletsKit();
-      
-      if (walletId) {
-        const kit = walletsKit as any;
-        if (typeof kit.setWallet === 'function') {
-          await kit.setWallet(walletId);
-        } else {
-          const { StellarWalletsKit: KitClass } = await import("@creit.tech/stellar-wallets-kit");
-          if (typeof (KitClass as any).setWallet === 'function') {
-            (KitClass as any).setWallet(walletId);
+      try {
+        const walletsKitModule = await import("@/lib/stellar");
+        const walletsKit = walletsKitModule.getWalletsKit();
+
+        if (walletId) {
+          const kit = walletsKit as { setWallet?: (id: string) => Promise<void> };
+          if (typeof kit.setWallet === "function") {
+            await kit.setWallet(walletId);
+          } else {
+            const { StellarWalletsKit: KitClass } = await import(
+              "@creit.tech/stellar-wallets-kit"
+            );
+            const typedKit = KitClass as { setWallet?: (id: string) => void };
+            if (typeof typedKit.setWallet === "function") {
+              typedKit.setWallet(walletId);
+            }
           }
         }
-      }
 
-      const connectedAddress = await connectWallet();
-      const network = await getWalletNetwork();
-      const balance = await getXlmBalance(connectedAddress);
-      
-      setConnection(connectedAddress, walletId ?? "wallet");
-      setWalletNetwork(network);
-      setXlmBalance(balance);
-      
-      const mismatch = network !== null && network !== APP_STELLAR_NETWORK;
-      setStoreNetworkMismatch(mismatch);
-      
-      persistSession(connectedAddress);
-      setConnectionStep("");
-      return connectedAddress;
-    } catch (connectError) {
-      const message = connectError instanceof Error ? connectError.message : "Wallet connection failed.";
-      setError(message);
-      return null;
-    } finally {
-      setIsConnecting(false);
-    }
-  }, [setConnection, setStoreNetworkMismatch]);
+        const connectedAddress = await connectWallet();
+        const network = await getWalletNetwork();
+        const balance = await getXlmBalance(connectedAddress);
+
+        setConnection(connectedAddress, walletId ?? "wallet");
+        setWalletNetwork(network);
+        setXlmBalance(balance);
+
+        const mismatch = network !== null && network !== APP_STELLAR_NETWORK;
+        setStoreNetworkMismatch(mismatch);
+
+        persistSession(connectedAddress);
+        setConnectionStep("");
+        return connectedAddress;
+      } catch (connectError) {
+        const message =
+          connectError instanceof Error
+            ? connectError.message
+            : "Wallet connection failed.";
+        setError(message);
+        return null;
+      } finally {
+        setIsConnecting(false);
+      }
+    },
+    [setConnection, setStoreNetworkMismatch],
+  );
 
   const authenticate = useCallback(async (walletAddress: string) => {
     setIsAuthenticating(true);
@@ -166,17 +179,15 @@ export function useWalletSession() {
 
     try {
       const response = await SIWSService.signIn(walletAddress);
-      // Assuming verify exists or handled within signIn if not explicitly needed here
-      // But user code had: const isValid = await SIWSService.verify(response);
-      // Let's check if SIWSService has verify. For now keep user's logic if it makes sense.
-      const isValid = await (SIWSService as any).verify?.(response) ?? true;
-      
+      const isValid = await SIWSService.verify(response);
+
       if (!isValid) throw new Error("Authentication verification failed");
-      
+
       setSiwsResponse(response);
       return response;
     } catch (authError) {
-      const message = authError instanceof Error ? authError.message : "Authentication failed";
+      const message =
+        authError instanceof Error ? authError.message : "Authentication failed";
       setError(message);
       return null;
     } finally {
@@ -184,12 +195,8 @@ export function useWalletSession() {
     }
   }, []);
 
-  const disconnect = useCallback(async () => {
-    try {
-      await disconnectWallet();
-    } catch {
-      // Best effort
-    }
+  const disconnect = useCallback(() => {
+    disconnectWallet();
     disconnectStore();
     setWalletNetwork(null);
     setXlmBalance(null);
