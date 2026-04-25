@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Loader2, Wallet, WifiOff } from "lucide-react";
+import { AlertTriangle, Loader2, Shield, Wallet, WifiOff } from "lucide-react";
 import { useWalletSession } from "@/hooks/use-wallet-session";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -77,7 +77,7 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
             aria-label={`Disconnect wallet ${truncated}`}
             className="rounded-full border-zinc-700/60 bg-zinc-900/50 text-xs text-zinc-300 transition-colors duration-200 hover:border-zinc-600 hover:bg-zinc-800 hover:text-white"
           >
-            <Wallet className="mr-1.5 h-3.5 w-3.5 text-indigo-400" aria-hidden="true" />
+            <Shield className="mr-1.5 h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
             <span className="font-mono">{truncated}</span>
           </Button>
           <Button
