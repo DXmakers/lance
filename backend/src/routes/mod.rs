@@ -26,6 +26,7 @@ pub fn api_router() -> Router<AppState> {
         .nest(
             "/v1",
             Router::new()
+                .nest("/auth", auth::router())
                 .nest("/jobs", jobs::router())
                 .nest("/disputes", disputes::router())
                 .nest("/appeals", appeals::router())

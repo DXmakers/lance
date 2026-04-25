@@ -12,7 +12,7 @@ use crate::{
     db::AppState,
     error::{AppError, Result},
     models::{CreateJobRequest, Job, MarkJobFundedRequest},
-    routes::{bids, deliverables, milestones},
+    routes::{auth::AuthenticatedUser, bids, deliverables, milestones},
     services::metadata,
 };
 

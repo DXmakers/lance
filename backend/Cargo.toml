@@ -27,6 +27,10 @@ bytes              = { workspace = true }
 base64             = "0.22"
 sha2               = "0.10"
 ed25519-dalek      = { version = "2", features = ["rand_core"] }
+jsonwebtoken       = "9"
+rand               = "0.8"
+dashmap            = "6"
+hex                = "0.4"
 
 # Rate limiting
 governor           = { version = "0.6", features = ["std"] }

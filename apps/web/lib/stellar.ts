@@ -463,3 +463,46 @@ export async function getWalletInfo(
     icon: "",
   };
 }
+
+// ── SIWS (Sign-In With Stellar) ───────────────────────────────────────────────
+
+export function getNetworkName(): string {
+  return APP_STELLAR_NETWORK === "public" ? "mainnet" : "testnet";
+}
+
+export function buildSiwsMessage(address: string, nonce: string): string {
+  const now = new Date();
+  const expiry = new Date(now.getTime() + 5 * 60 * 1000);
+  const network = getNetworkName();
+
+  return [
+    `Lance wants you to sign in with your Stellar account:`,
+    address,
+    ``,
+    `Sign this message to authenticate with Lance.`,
+    `This does not initiate any on-chain transaction or cost any fees.`,
+    ``,
+    `Nonce: ${nonce}`,
+    `Issued At: ${now.toISOString()}`,
+    `Expiration Time: ${expiry.toISOString()}`,
+    `Chain ID: ${network}`,
+  ].join("\n");
+}
+
+export async function signSiwsMessage(
+  address: string,
+  nonce: string
+): Promise<{ message: string; signature: string }> {
+  if (process.env.NEXT_PUBLIC_E2E === "true") {
+    const message = buildSiwsMessage(address, nonce);
+    return {
+      message,
+      signature:
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    };
+  }
+
+  const message = buildSiwsMessage(address, nonce);
+  const signature = await getWalletsKit().signMessage(message);
+  return { message, signature };
+}
