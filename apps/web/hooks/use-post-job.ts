@@ -36,7 +36,7 @@ export function usePostJob() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { setStep, setTxHash, setSimulation, reset } = useTxStatusStore();
+  const { setStep, setTxHash, setRawXdr, setSimulation, reset } = useTxStatusStore();
   const { showLoading, updateToSuccess, updateToError } = useTransactionToast();
 
   const submit = useCallback(
@@ -74,8 +74,9 @@ export function usePostJob() {
         );
 
         // Build lifecycle listener that updates store + toasts
-        const onStep: LifecycleListener = (step, detail) => {
+        const onStep: LifecycleListener = (step, detail, metadata) => {
           setStep(step, detail);
+          if (metadata?.rawXdr) setRawXdr(metadata.rawXdr);
 
           // Capture tx hash when available
           if (step === "confirming" && detail) {
@@ -143,7 +144,17 @@ export function usePostJob() {
         setIsSubmitting(false);
       }
     },
-    [reset, setStep, setTxHash, setSimulation, showLoading, updateToSuccess, updateToError, router],
+    [
+      reset,
+      setStep,
+      setTxHash,
+      setRawXdr,
+      setSimulation,
+      showLoading,
+      updateToSuccess,
+      updateToError,
+      router,
+    ],
   );
 
   return {

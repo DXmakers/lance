@@ -293,6 +293,7 @@ export default function JobDetailsPage() {
                   <SubmitBidErrorBoundary>
                     <SubmitBidModal
                       jobId={id}
+                      onChainJobId={BigInt(workspace.job?.on_chain_job_id ?? 0)}
                       disabled={busyAction !== null}
                       onSubmitted={workspace.refresh}
                       resolveFreelancerAddress={async () =>
