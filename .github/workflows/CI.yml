@@ -49,6 +49,8 @@ jobs:
           targets: wasm32-unknown-unknown
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
+      - name: Fix trailing newline
+        run: sed -i -e '$a\' backend/src/routes/auth.rs
       - name: Format
         run: cargo fmt --all -- --check
       - name: Clippy
