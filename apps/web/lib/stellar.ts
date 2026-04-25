@@ -430,3 +430,26 @@ export function getSelectedWalletId(): string | null {
   if (!isBrowser()) return null;
   return localStorage.getItem(WALLET_TYPE_STORAGE_KEY);
 }
+
+export interface WalletInfo {
+  address: string | null;
+  walletId: string | null;
+  walletName: string;
+  walletIcon: string;
+}
+
+export function getWalletInfo(): WalletInfo {
+  const address = isBrowser()
+    ? localStorage.getItem(WALLET_ADDRESS_STORAGE_KEY)
+    : null;
+  const walletId = isBrowser()
+    ? localStorage.getItem(WALLET_TYPE_STORAGE_KEY)
+    : null;
+
+  return {
+    address,
+    walletId,
+    walletName: walletId ? "Stellar Wallet" : "",
+    walletIcon: "",
+  };
+}
