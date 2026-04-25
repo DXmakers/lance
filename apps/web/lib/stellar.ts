@@ -102,13 +102,11 @@ export async function buildAndSimulateTransaction({
   transaction: Transaction;
   simulation: SorobanRpc.Api.SimulateTransactionResponse;
 }> {
-  // 1. Fetch fresh account state to avoid Sequence Number Mismatch
   const account = await getAccountState(sourceAddress);
   const contract = new Contract(contractId);
 
-  // 2. Build the base transaction
   const txBuilder = new TransactionBuilder(account, {
-    fee: "100", // Base fee; dynamically adjusted by simulation
+    fee: "100",
     networkPassphrase: NETWORK_PASSPHRASE,
   });
 
@@ -117,7 +115,6 @@ export async function buildAndSimulateTransaction({
 
   const tx = txBuilder.build();
 
-  // 3. Simulate the transaction
   let simulation: SorobanRpc.Api.SimulateTransactionResponse;
   try {
     simulation = await sorobanServer.simulateTransaction(tx);
@@ -125,7 +122,6 @@ export async function buildAndSimulateTransaction({
     throw new Error(`RPC Simulation request failed: ${error}`);
   }
 
-  // 4. Handle simulation errors
   if (SorobanRpc.Api.isSimulationError(simulation)) {
     if (process.env.NODE_ENV === "development") {
       console.error(
@@ -141,7 +137,6 @@ export async function buildAndSimulateTransaction({
     console.log("Raw XDR Before Assembly:", tx.toXDR());
   }
 
-  // 5. Assemble transaction with dynamic resource limits and fees from simulation
   try {
     const assembledTx = SorobanRpc.assembleTransaction(
       tx,
@@ -158,32 +153,31 @@ export async function buildAndSimulateTransaction({
 export async function submitTransaction(
   signedTx: Transaction
 ): Promise<SorobanRpc.Api.SendTransactionResponse> {
-  const response = await sorobanServer.sendTransaction(signedTx)
+  const response = await sorobanServer.sendTransaction(signedTx);
 
-  if (response.status === 'ERROR') {
-    let isSeqMismatch = false
+  if (response.status === "ERROR") {
+    let isSeqMismatch = false;
     try {
       if (response.errorResult) {
-        // response.errorResult is already an xdr.TransactionResult object in v12+
         isSeqMismatch =
-          response.errorResult.result().switch().name === 'txBadSeq'
+          response.errorResult.result().switch().name === "txBadSeq";
       }
     } catch {
       // Ignore parsing errors fallback to generic error
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Transaction Submit Error:', response.errorResult)
+    if (process.env.NODE_ENV === "development") {
+      console.error("Transaction Submit Error:", response.errorResult);
     }
 
     if (isSeqMismatch) {
-      throw new Error('SEQUENCE_MISMATCH')
+      throw new Error("SEQUENCE_MISMATCH");
     }
 
-    throw new Error('Transaction submission failed with network status ERROR.')
+    throw new Error("Transaction submission failed with network status ERROR.");
   }
 
-  return response
+  return response;
 }
 
 export async function pollTransactionStatus(
@@ -213,7 +207,7 @@ export async function pollTransactionStatus(
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Stellar Wallets Kit Integration (from main)
+// Stellar Wallets Kit Integration
 // ──────────────────────────────────────────────────────────────────────────────
 
 let isWalletKitInitialized = false;
@@ -251,7 +245,6 @@ async function initializeWalletsKit(): Promise<void> {
       import("@creit.tech/stellar-wallets-kit/modules/xbull"),
     ]);
 
-  // Fixed: Forced cast to resolve version mismatch between stellar-sdk and wallets-kit
   StellarWalletsKit.init({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     network: getNetworkPassphrase() as unknown as any,
@@ -396,9 +389,9 @@ export async function getXlmBalance(address: string): Promise<number> {
   }
 }
 
-// ── Wallet provider identity ──────────────────────────────────────────────────
-// These exports support the wallet-provider-icon UI: the connected wallet's
-// display name and icon are surfaced alongside the truncated address.
+// ──────────────────────────────────────────────────────────────────────────────
+// Wallet provider identity
+// ──────────────────────────────────────────────────────────────────────────────
 
 export interface ConnectedWallet {
   address: string;
@@ -407,11 +400,6 @@ export interface ConnectedWallet {
   walletIcon: string;
 }
 
-/**
- * Opens the wallet-select modal and returns address + provider metadata.
- * Falls back to generic display values when the kit abstraction does not
- * expose per-wallet icons (which is the case for the v2 auth-modal API).
- */
 export async function connectWalletWithInfo(): Promise<ConnectedWallet> {
   if (isE2EMode()) {
     storeWalletAddress(MOCK_WALLET_ADDRESS);
@@ -438,28 +426,29 @@ export async function connectWalletWithInfo(): Promise<ConnectedWallet> {
   };
 }
 
-/**
- * Returns the wallet provider id previously stored in localStorage, or null
- * if no wallet has been connected in this browser.
- */
 export function getSelectedWalletId(): string | null {
   if (!isBrowser()) return null;
   return localStorage.getItem(WALLET_TYPE_STORAGE_KEY);
 }
 
-/**
- * Returns minimal provider metadata for the given wallet id.
- * The v2 kit auth-modal abstraction does not expose per-wallet icons, so
- * `icon` is always an empty string; `WalletProviderIcon` renders the
- * lucide fallback in that case.
- */
-export async function getWalletInfo(
-  walletId: string,
-): Promise<{ id: string; name: string; icon: string } | null> {
-  if (!walletId) return null;
+export interface WalletInfo {
+  address: string | null;
+  id: string;
+  name: string;
+  icon: string;
+}
+
+export function getWalletInfo(walletId?: string | null): WalletInfo {
+  const address = isBrowser()
+    ? localStorage.getItem(WALLET_ADDRESS_STORAGE_KEY)
+    : null;
+  const resolvedId =
+    walletId ?? (isBrowser() ? localStorage.getItem(WALLET_TYPE_STORAGE_KEY) : null) ?? "";
+
   return {
-    id: walletId,
-    name: walletId === WALLET_KIT_ID ? "Stellar Wallet" : walletId,
+    address,
+    id: resolvedId,
+    name: resolvedId ? "Stellar Wallet" : "",
     icon: "",
   };
 }

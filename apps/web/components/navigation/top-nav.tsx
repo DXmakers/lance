@@ -137,7 +137,7 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
               </button>
             )}
             {networkMismatch ? (
-              <span className="inline-flex items-center rounded-xl border border-indigo-500/40 bg-zinc-900 px-2 py-1 text-[10px] text-indigo-300">
+              <span className="inline-flex items-center rounded-xl border border-indigo-500/40 bg-zinc-900 px-2 py-1 text-[10px] text-indigo-300 animate-pulse">
                 <TriangleAlert className="h-3 w-3" />
               </span>
             ) : null}
@@ -171,9 +171,9 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
               </button>
             )}
             {networkMismatch ? (
-              <span className="inline-flex items-center gap-1 rounded-xl border border-indigo-500/40 bg-zinc-900 px-2.5 py-1.5 text-xs text-indigo-300">
+              <span className="inline-flex items-center gap-1 rounded-xl border border-indigo-500/40 bg-zinc-900 px-2.5 py-1.5 text-xs text-indigo-300 animate-pulse">
                 <TriangleAlert className="h-3.5 w-3.5" />
-                {walletNetwork} vs {appNetwork}
+                Network Mismatch
               </span>
             ) : null}
             {error ? (
@@ -193,7 +193,7 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
                   <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">
                     {user?.name
                       ?.split(" ")
-                      .map((part) => part[0])
+                      .map((part: string) => part[0])
                       .join("")
                       .slice(0, 2) ?? "LN"}
                   </AvatarFallback>

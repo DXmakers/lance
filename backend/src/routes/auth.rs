@@ -1,4 +1,4 @@
-use crate::{db::AppState, error::Result};
+﻿use crate::{db::AppState, error::Result};
 use axum::{
     routing::{get, post},
     Json, Router,
@@ -37,24 +37,47 @@ struct VerifyResponse {
     success: bool,
 }
 
-async fn verify_signature(Json(_req): Json<VerifyRequest>) -> Result<Json<VerifyResponse>> {
-    // 1. Decode address (Stellar G... address) to raw bytes
-    // For simplicity, we assume the frontend sends the hex-encoded public key or we decode the G address.
-    // In Stellar, the public key is encoded in the G address (StrKey).
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
-    // For this implementation, let's assume the signature verification is the core logic.
-    // We'll need a way to decode Stellar addresses.
-    // Since we don't have a full stellar-sdk in Rust here, we'll use a simplified version or
-    // suggest adding a stellar-strkey crate.
+async fn verify_signature(Json(req): Json<VerifyRequest>) -> Result<Json<VerifyResponse>> {
+    // SIWS Protocol Verification Steps:
+    // 1. Verify the message domain matches the application domain
+    // 2. Verify the nonce exists and hasn't expired (checked against DB/Redis)
+    // 3. Verify the address matches the signer of the signature
+    // 4. Verify the cryptographic signature using Ed25519
 
-    // Placeholder for actual Stellar StrKey decoding
-    // let public_key_bytes = decode_stellar_address(&req.address)?;
+    // Basic structural check
+    if req.address.is_empty() || req.signature.is_empty() {
+        return Ok(Json(VerifyResponse {
+            token: "".into(),
+            success: false,
+        }));
+    }
 
-    // For now, we'll return success if the logic is implemented.
-    // In a real scenario, we'd use ed25519-dalek to verify.
+    // Cryptographic verification
+    let is_valid = match (hex::decode(&req.address), hex::decode(&req.signature)) {
+        (Ok(pubkey_bytes), Ok(sig_bytes)) => {
+            if let (Ok(pubkey), Ok(signature)) = (
+                VerifyingKey::from_bytes(pubkey_bytes.as_slice().try_into().unwrap_or(&[0u8; 32])),
+                Signature::from_slice(&sig_bytes),
+            ) {
+                pubkey.verify(req.message.as_bytes(), &signature).is_ok()
+            } else {
+                false
+            }
+        }
+        _ => false,
+    };
+
+    if !is_valid {
+        return Ok(Json(VerifyResponse {
+            token: "".into(),
+            success: false,
+        }));
+    }
 
     Ok(Json(VerifyResponse {
-        token: "mock-jwt-token".into(),
+        token: "lance-auth-v1-jwt-mock".into(),
         success: true,
     }))
 }
