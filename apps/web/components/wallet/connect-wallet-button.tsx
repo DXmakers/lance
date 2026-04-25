@@ -33,7 +33,6 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
     isConnecting,
     networkMismatch,
     error,
-    connectionStep,
     connect,
     disconnect,
   } = useWalletSession();
@@ -59,7 +58,7 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
           aria-live="polite"
         >
           <Shield className="h-3 w-3" aria-hidden="true" />
-          <span>{connectionStep || "Securing connection"}</span>
+          <span>Securing connection</span>
         </div>
       </div>
     );
@@ -156,7 +155,7 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
           aria-live="polite"
         >
           <Shield className="h-3 w-3 animate-pulse" aria-hidden="true" />
-          <span>{connectionStep || "Establishing secure connection"}</span>
+          <span>Establishing secure connection</span>
         </div>
       )}
     </div>

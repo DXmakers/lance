@@ -299,9 +299,6 @@ export default function JobDetailsPage() {
                       onChainJobId={BigInt(workspace.job?.on_chain_job_id ?? 0)}
                       disabled={busyAction !== null}
                       onSubmitted={workspace.refresh}
-                      resolveFreelancerAddress={async () =>
-                        (await getConnectedWalletAddress()) ?? "GD...FREELANCER"
-                      }
                     />
                   </SubmitBidErrorBoundary>
                 </div>
