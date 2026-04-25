@@ -43,6 +43,7 @@ export const useWalletStore = create<WalletState>()(
       setError: (error) => set({ error, status: error ? "error" : "disconnected" }),
 
       setNetwork: (network) => set({ network }),
+      setNetworkMismatch: (networkMismatch) => set({ networkMismatch }),
 
       disconnect: () =>
         set({ address: null, walletId: null, status: "disconnected", error: null }),
