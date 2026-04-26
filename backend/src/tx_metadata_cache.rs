@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Transaction metadata cache (#213).
 //!
 //! Soroban RPC's `getTransaction` is the canonical source of truth for

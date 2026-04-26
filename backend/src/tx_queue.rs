@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Durable transaction queue (#181).
 //!
 //! Sits between the API endpoints that want to broadcast a Soroban
