@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { JobCard } from "./job-card";
 import { useSavedJobsStore } from "@/lib/store/use-saved-jobs-store";
+import type { BoardJob } from "@/hooks/use-job-board";
 
 // Mock the store
 vi.mock("@/lib/store/use-saved-jobs-store", () => ({
@@ -14,7 +15,7 @@ vi.mock("@/components/stars", () => ({
   Stars: () => <div data-testid="stars-mock" />,
 }));
 
-const mockJob = {
+const mockJob: BoardJob = {
   id: "job-1",
   title: "Test Job",
   description: "Test Description",
@@ -38,12 +39,13 @@ const mockJob = {
 
 describe("JobCard", () => {
   it("renders job details correctly", () => {
-    (useSavedJobsStore as any).mockReturnValue({
+    const mockedUseSavedJobsStore = vi.mocked(useSavedJobsStore);
+    mockedUseSavedJobsStore.mockReturnValue({
       toggleSaveJob: vi.fn(),
       isSaved: vi.fn().mockReturnValue(false),
     });
 
-    render(<JobCard job={mockJob as any} />);
+    render(<JobCard job={mockJob} />);
 
     expect(screen.getByText("Test Job")).toBeDefined();
     expect(screen.getByText("1,000 USDC")).toBeDefined();
@@ -52,12 +54,13 @@ describe("JobCard", () => {
 
   it("calls toggleSaveJob when bookmark button is clicked", () => {
     const toggleSaveJob = vi.fn();
-    (useSavedJobsStore as any).mockReturnValue({
+    const mockedUseSavedJobsStore = vi.mocked(useSavedJobsStore);
+    mockedUseSavedJobsStore.mockReturnValue({
       toggleSaveJob,
       isSaved: vi.fn().mockReturnValue(false),
     });
 
-    render(<JobCard job={mockJob as any} />);
+    render(<JobCard job={mockJob} />);
 
     const bookmarkButton = screen.getByLabelText("Save job");
     fireEvent.click(bookmarkButton);

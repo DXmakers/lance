@@ -8,6 +8,7 @@ import { Stars } from "@/components/stars";
 import { EmptyState } from "@/components/ui/empty-state";
 import { JobCardSkeleton } from "@/components/ui/skeleton";
 import { useJobBoard } from "@/hooks/use-job-board";
+import { formatDate, formatUsdc, shortenAddress } from "@/lib/format";
 
 const sortOptions = [
   { id: "chronological", label: "Newest" },
