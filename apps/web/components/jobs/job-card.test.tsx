@@ -15,6 +15,8 @@ vi.mock("@/components/stars", () => ({
   Stars: () => <div data-testid="stars-mock" />,
 }));
 
+type SavedJobsStoreState = ReturnType<typeof useSavedJobsStore>;
+
 const mockJob: BoardJob = {
   id: "job-1",
   title: "Test Job",
@@ -41,9 +43,11 @@ describe("JobCard", () => {
   it("renders job details correctly", () => {
     const mockedUseSavedJobsStore = vi.mocked(useSavedJobsStore);
     mockedUseSavedJobsStore.mockReturnValue({
+      savedJobIds: [],
+      savedJobs: [],
       toggleSaveJob: vi.fn(),
       isSaved: vi.fn().mockReturnValue(false),
-    });
+    } satisfies SavedJobsStoreState);
 
     render(<JobCard job={mockJob} />);
 
@@ -56,9 +60,11 @@ describe("JobCard", () => {
     const toggleSaveJob = vi.fn();
     const mockedUseSavedJobsStore = vi.mocked(useSavedJobsStore);
     mockedUseSavedJobsStore.mockReturnValue({
+      savedJobIds: [],
+      savedJobs: [],
       toggleSaveJob,
       isSaved: vi.fn().mockReturnValue(false),
-    });
+    } satisfies SavedJobsStoreState);
 
     render(<JobCard job={mockJob} />);
 
