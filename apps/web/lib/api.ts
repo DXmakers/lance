@@ -50,11 +50,44 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    milestones: (id: string) => request<Milestone[]>(`/v1/jobs/${id}/milestones`),
+    milestones: (id: string) => request<MilestoneSummary[]>(`/v1/jobs/${id}/milestones`),
+    milestoneStats: (id: string) =>
+      request<MilestoneStats>(`/v1/jobs/${id}/milestones/stats`),
+    getMilestone: (jobId: string, milestoneId: string) =>
+      request<Milestone>(`/v1/jobs/${jobId}/milestones/${milestoneId}`),
+    updateMilestone: (jobId: string, milestoneId: string, body: UpdateMilestoneBody) =>
+      request<Milestone>(`/v1/jobs/${jobId}/milestones/${milestoneId}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    submitMilestone: (jobId: string, milestoneId: string, freelancerAddress: string) =>
+      request<Milestone>(`/v1/jobs/${jobId}/milestones/${milestoneId}/submit`, {
+        method: "POST",
+        body: JSON.stringify({ freelancer_address: freelancerAddress }),
+      }),
+    approveMilestone: (jobId: string, milestoneId: string, clientAddress: string) =>
+      request<Milestone>(`/v1/jobs/${jobId}/milestones/${milestoneId}/approve`, {
+        method: "POST",
+        body: JSON.stringify({ client_address: clientAddress }),
+      }),
     releaseMilestone: (id: string, milestoneId: string) =>
       request<Milestone>(`/v1/jobs/${id}/milestones/${milestoneId}/release`, {
         method: "POST",
       }),
+    reopenMilestone: (jobId: string, milestoneId: string, clientAddress: string) =>
+      request<Milestone>(`/v1/jobs/${jobId}/milestones/${milestoneId}/reopen`, {
+        method: "POST",
+        body: JSON.stringify({ client_address: clientAddress }),
+      }),
+    milestoneNotes: (jobId: string, milestoneId: string) =>
+      request<MilestoneNote[]>(`/v1/jobs/${jobId}/milestones/${milestoneId}/notes`),
+    addMilestoneNote: (jobId: string, milestoneId: string, body: AddMilestoneNoteBody) =>
+      request<MilestoneNote>(`/v1/jobs/${jobId}/milestones/${milestoneId}/notes`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    milestoneEvents: (jobId: string, milestoneId: string) =>
+      request<MilestoneEvent[]>(`/v1/jobs/${jobId}/milestones/${milestoneId}/events`),
     deliverables: {
       list: (jobId: string) => request<Deliverable[]>(`/v1/jobs/${jobId}/deliverables`),
       submit: (jobId: string, body: SubmitDeliverableBody) =>
@@ -178,10 +211,79 @@ export interface Milestone {
   job_id: string;
   index: number;
   title: string;
+  description: string;
   amount_usdc: number;
+  /** pending | submitted | approved | released | disputed */
   status: string;
   tx_hash?: string;
+  due_date?: string;
+  submitted_at?: string;
+  approved_at?: string;
   released_at?: string;
+  updated_at: string;
+}
+
+/** Lightweight summary returned by the list endpoint. */
+export interface MilestoneSummary {
+  id: string;
+  job_id: string;
+  index: number;
+  title: string;
+  amount_usdc: number;
+  status: string;
+  due_date?: string;
+  submitted_at?: string;
+  released_at?: string;
+  updated_at: string;
+}
+
+export interface MilestoneStats {
+  total: number;
+  pending: number;
+  submitted: number;
+  approved: number;
+  released: number;
+  disputed: number;
+  total_budget_usdc: number;
+  released_usdc: number;
+  pending_usdc: number;
+  /** 0–100 */
+  completion_pct: number;
+}
+
+export interface UpdateMilestoneBody {
+  title?: string;
+  description?: string;
+  /** ISO date string YYYY-MM-DD */
+  due_date?: string;
+}
+
+export interface MilestoneNote {
+  id: string;
+  milestone_id: string;
+  job_id: string;
+  author_address: string;
+  body: string;
+  created_at: string;
+}
+
+export interface AddMilestoneNoteBody {
+  author_address: string;
+  body: string;
+}
+
+export interface MilestoneEvent {
+  id: string;
+  milestone_id: string;
+  job_id: string;
+  actor_address: string;
+  /** submitted | approved | released | disputed | reopened */
+  event_type: string;
+  previous_status: string;
+  new_status: string;
+  tx_hash?: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface Deliverable {

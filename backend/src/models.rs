@@ -60,16 +60,114 @@ pub struct AcceptBidRequest {
 
 // ── Milestone ─────────────────────────────────────────────────────────────────
 
+/// Full milestone record — maps to the `milestones` table after migration 005.
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
 pub struct Milestone {
     pub id: Uuid,
     pub job_id: Uuid,
     pub index: i32,
     pub title: String,
+    pub description: String,
     pub amount_usdc: i64,
-    pub status: String, // pending | released
+    /// pending | submitted | approved | released | disputed
+    pub status: String,
     pub tx_hash: Option<String>,
+    /// ISO-8601 date string (YYYY-MM-DD) stored as TEXT in the DB.
+    pub due_date: Option<chrono::NaiveDate>,
+    pub submitted_at: Option<DateTime<Utc>>,
+    pub approved_at: Option<DateTime<Utc>>,
     pub released_at: Option<DateTime<Utc>>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Lightweight summary used in list responses and dashboard widgets.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MilestoneSummary {
+    pub id: Uuid,
+    pub job_id: Uuid,
+    pub index: i32,
+    pub title: String,
+    pub amount_usdc: i64,
+    pub status: String,
+    pub due_date: Option<chrono::NaiveDate>,
+    pub submitted_at: Option<DateTime<Utc>>,
+    pub released_at: Option<DateTime<Utc>>,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl From<Milestone> for MilestoneSummary {
+    fn from(m: Milestone) -> Self {
+        Self {
+            id: m.id,
+            job_id: m.job_id,
+            index: m.index,
+            title: m.title,
+            amount_usdc: m.amount_usdc,
+            status: m.status,
+            due_date: m.due_date,
+            submitted_at: m.submitted_at,
+            released_at: m.released_at,
+            updated_at: m.updated_at,
+        }
+    }
+}
+
+/// Aggregate stats for all milestones on a job.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MilestoneStats {
+    pub total: i64,
+    pub pending: i64,
+    pub submitted: i64,
+    pub approved: i64,
+    pub released: i64,
+    pub disputed: i64,
+    pub total_budget_usdc: i64,
+    pub released_usdc: i64,
+    pub pending_usdc: i64,
+    /// Completion percentage (0–100).
+    pub completion_pct: f64,
+}
+
+/// Request body for PATCH /jobs/:id/milestones/:mid
+#[derive(Debug, Deserialize)]
+pub struct UpdateMilestoneRequest {
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub due_date: Option<chrono::NaiveDate>,
+}
+
+/// A timestamped note attached to a milestone.
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct MilestoneNote {
+    pub id: Uuid,
+    pub milestone_id: Uuid,
+    pub job_id: Uuid,
+    pub author_address: String,
+    pub body: String,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Request body for POST /jobs/:id/milestones/:mid/notes
+#[derive(Debug, Deserialize)]
+pub struct AddMilestoneNoteRequest {
+    pub author_address: String,
+    pub body: String,
+}
+
+/// An immutable audit event for a milestone status transition.
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct MilestoneEvent {
+    pub id: Uuid,
+    pub milestone_id: Uuid,
+    pub job_id: Uuid,
+    pub actor_address: String,
+    /// submitted | approved | released | disputed | reopened
+    pub event_type: String,
+    pub previous_status: String,
+    pub new_status: String,
+    pub tx_hash: Option<String>,
+    pub metadata: serde_json::Value,
+    pub created_at: DateTime<Utc>,
 }
 
 // ── Deliverable ───────────────────────────────────────────────────────────────

@@ -40,11 +40,7 @@ pub fn router() -> Router<AppState> {
             get(crate::routes::disputes::get_job_dispute)
                 .post(crate::routes::disputes::open_dispute_for_job),
         )
-        .route("/:id/milestones", get(milestones::list_milestones))
-        .route(
-            "/:id/milestones/:mid/release",
-            post(milestones::release_milestone),
-        )
+        .nest("/:id/milestones", milestones::milestone_sub_router())
 }
 
 async fn list_jobs(State(state): State<AppState>) -> Result<Json<Vec<Job>>> {
@@ -178,18 +174,33 @@ async fn mark_job_funded(
     .fetch_one(&state.pool)
     .await?;
 
-    // Create milestone records in 'milestones' table
-    if job.milestones > 0 {
-        let amount_per = job.budget_usdc / (job.milestones as i64);
-        for i in 0..job.milestones {
+    // Milestones are created at job creation time; no need to recreate here.
+    // Just ensure they exist — if somehow missing (legacy data), create them.
+    let existing_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM milestones WHERE job_id = $1")
+            .bind(job_id)
+            .fetch_one(&state.pool)
+            .await?;
+
+    if existing_count == 0 && job.milestones > 0 {
+        let per_milestone = job.budget_usdc / i64::from(job.milestones);
+        let remainder = job.budget_usdc % i64::from(job.milestones);
+
+        for index in 0..job.milestones {
+            let amount_usdc = if index == job.milestones - 1 {
+                per_milestone + remainder
+            } else {
+                per_milestone
+            };
+
             sqlx::query(
                 r#"INSERT INTO milestones (job_id, index, title, amount_usdc, status)
                    VALUES ($1, $2, $3, $4, 'pending')"#,
             )
             .bind(job.id)
-            .bind(i)
-            .bind(format!("Milestone {}", i + 1))
-            .bind(amount_per)
+            .bind(index + 1)
+            .bind(format!("Milestone {}", index + 1))
+            .bind(amount_usdc)
             .execute(&state.pool)
             .await?;
         }
