@@ -189,7 +189,6 @@ export default function JobsPage() {
                       </p>
                     </div>
                   </div>
-                </Link>
 
                 <button
                   aria-label={isSaved(job.id) ? "Unsave job" : "Save job"}
