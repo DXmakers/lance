@@ -17,7 +17,7 @@ export function JobCard({ job }: JobCardProps) {
   const saved = isSaved(job.id);
 
   return (
-    <div className="group relative">
+    <div className="group relative" data-testid="job-card">
       <Link
         href={`/jobs/${job.id}`}
         className="block rounded-[1.75rem] border border-border/60 glass-surface p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.55)] transition hover:-translate-y-1 hover:border-amber-300 dark:hover:border-amber-500/50"

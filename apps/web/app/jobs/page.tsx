@@ -103,7 +103,7 @@ export default function JobsPage() {
         ) : (
           <div className="grid gap-5 lg:grid-cols-2">
             {jobs.map((job) => (
-              <div key={job.id} className="group relative">
+              <div key={job.id} className="group relative" data-testid="job-card">
                 <Link
                   href={`/jobs/${job.id}`}
                   className="block rounded-[1.75rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.55)] transition hover:-translate-y-1 hover:border-amber-300"

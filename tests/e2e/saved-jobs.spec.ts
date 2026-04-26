@@ -5,7 +5,7 @@ test("can save and unsave jobs from the marketplace", async ({ page }) => {
   await page.goto("/jobs");
   
   // 2. Find the first job card and its save button
-  const firstJobCard = page.locator(".group.relative").first();
+  const firstJobCard = page.getByTestId("job-card").first();
   const saveButton = firstJobCard.locator("button[aria-label='Save job']");
   
   // 3. Click save
@@ -30,7 +30,7 @@ test("can save and unsave jobs from the marketplace", async ({ page }) => {
 test("saved jobs persist across sessions", async ({ page }) => {
   // 1. Go to jobs page and save a job
   await page.goto("/jobs");
-  await page.locator("button[aria-label='Save job']").first().click();
+  await page.getByTestId("job-card").first().locator("button[aria-label='Save job']").click();
   
   // 2. Reload the page
   await page.reload();
@@ -40,5 +40,5 @@ test("saved jobs persist across sessions", async ({ page }) => {
   
   // 4. Go to saved jobs page
   await page.goto("/jobs/saved");
-  await expect(page.locator(".group.relative")).toHaveCount(1);
+  await expect(page.getByTestId("job-card")).toHaveCount(1);
 });
