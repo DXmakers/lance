@@ -70,6 +70,36 @@ pub struct Milestone {
     pub status: String, // pending | released
     pub tx_hash: Option<String>,
     pub released_at: Option<DateTime<Utc>>,
+    /// Optional human-readable description of what this milestone covers.
+    pub description: Option<String>,
+    /// Optional target completion date for this milestone.
+    pub due_date: Option<DateTime<Utc>>,
+    /// Timestamp when the milestone was marked completed (released or disputed-resolved).
+    pub completed_at: Option<DateTime<Utc>>,
+}
+
+// ── MilestoneEvent ────────────────────────────────────────────────────────────
+
+/// Immutable audit log entry for a milestone status transition.
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct MilestoneEvent {
+    pub id: Uuid,
+    pub milestone_id: Uuid,
+    pub job_id: Uuid,
+    /// One of: created | deliverable_submitted | released | disputed
+    pub event_type: String,
+    pub actor_address: Option<String>,
+    pub tx_hash: Option<String>,
+    pub note: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateMilestoneEventRequest {
+    pub event_type: String,
+    pub actor_address: Option<String>,
+    pub tx_hash: Option<String>,
+    pub note: Option<String>,
 }
 
 // ── Deliverable ───────────────────────────────────────────────────────────────

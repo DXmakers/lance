@@ -13,6 +13,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { BidList } from "@/components/jobs/bid-list";
+import { MilestoneTracker } from "@/components/jobs/milestone-tracker";
 import { ShareJobButton } from "@/components/jobs/share-job-button";
 import { SubmitBidErrorBoundary } from "@/components/jobs/submit-bid-error-boundary";
 import { SubmitBidModal } from "@/components/jobs/submit-bid-modal";
@@ -333,53 +334,43 @@ export default function JobDetailsPage() {
 
           {job.status !== "open" ? (
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-xl font-semibold text-slate-950">
-                      Milestone Ledger
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Each milestone is time-stamped so both parties can see what is pending, submitted, and released.
-                    </p>
-                  </div>
-                  {workspace.loading ? (
-                    <LoaderCircle className="h-5 w-5 animate-spin text-slate-400" />
-                  ) : null}
-                </div>
-
-                <div className="mt-5 space-y-3">
-                  {workspace.milestones.map((milestone) => (
-                    <div
-                      key={milestone.id}
-                      className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4"
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            Milestone {milestone.index}
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-slate-800">
-                            {milestone.title}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-slate-950">
-                            {formatUsdc(milestone.amount_usdc)}
-                          </p>
-                          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
-                            {milestone.status}
-                          </p>
-                        </div>
-                      </div>
-                      {milestone.released_at ? (
-                        <p className="mt-3 text-xs text-slate-500">
-                          Released {formatDateTime(milestone.released_at)}
-                        </p>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
+              <section>
+                <MilestoneTracker
+                  milestones={workspace.milestones}
+                  deliverables={workspace.deliverables}
+                  jobStatus={job.status}
+                  loading={workspace.loading}
+                  isClient={
+                    Boolean(viewerAddress) &&
+                    viewerAddress === job.client_address
+                  }
+                  workflowLocked={workflowLocked}
+                  busyMilestoneId={
+                    busyAction?.startsWith("release-")
+                      ? busyAction.replace("release-", "")
+                      : null
+                  }
+                  onRelease={async (milestoneId) => {
+                    if (!workspace.job) return;
+                    const milestone = workspace.milestones.find(
+                      (m) => m.id === milestoneId,
+                    );
+                    if (!milestone) return;
+                    setBusyAction(`release-${milestoneId}`);
+                    try {
+                      await releaseFunds(
+                        BigInt(workspace.job.on_chain_job_id ?? 0),
+                        Math.max(0, milestone.index - 1),
+                      );
+                      await api.jobs.releaseMilestone(id, milestoneId);
+                      await workspace.refresh();
+                    } catch {
+                      alert("Failed to release milestone");
+                    } finally {
+                      setBusyAction(null);
+                    }
+                  }}
+                />
               </section>
 
               <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
