@@ -6,7 +6,6 @@ import {
   Keypair,
   Networks,
   TransactionBuilder,
-  nativeToScVal,
   scValToNative,
 } from "@stellar/stellar-sdk";
 import { Server as SorobanServer } from "@stellar/stellar-sdk/rpc";
@@ -31,6 +30,26 @@ export interface ReputationMetrics {
   averageStars: number;
 }
 
+export interface ReputationViewMetrics {
+  client: ReputationMetrics;
+  freelancer: ReputationMetrics;
+}
+
+interface ContractReputationScore {
+  address: string;
+  role: string;
+  score: number | string | bigint;
+  total_jobs: number | string | bigint;
+  total_points: number | string | bigint;
+  reviews: number | string | bigint;
+}
+
+interface ContractReputationView {
+  address: string;
+  client: ContractReputationScore;
+  freelancer: ContractReputationScore;
+}
+
 function normalizeNumber(value: unknown): number {
   if (typeof value === "number") return value;
   if (typeof value === "bigint") return Number(value);
@@ -50,12 +69,33 @@ function fallbackMetrics(): ReputationMetrics {
   };
 }
 
-export async function getReputationMetrics(
-  address: string,
-  role: ReputationRole,
-): Promise<ReputationMetrics> {
+function fallbackView(): ReputationViewMetrics {
+  return {
+    client: fallbackMetrics(),
+    freelancer: fallbackMetrics(),
+  };
+}
+
+function metricsFromScore(score: ContractReputationScore): ReputationMetrics {
+  const scoreBps = normalizeNumber(score.score);
+  const totalJobs = normalizeNumber(score.total_jobs);
+  const totalPoints = normalizeNumber(score.total_points);
+  const reviews = normalizeNumber(score.reviews);
+  const averageStars = reviews > 0 ? totalPoints / reviews : toStarRating(scoreBps);
+
+  return {
+    scoreBps,
+    totalJobs,
+    totalPoints,
+    reviews,
+    starRating: toStarRating(scoreBps),
+    averageStars,
+  };
+}
+
+export async function getReputationView(address: string): Promise<ReputationViewMetrics> {
   if (!REPUTATION_CONTRACT_ID) {
-    return fallbackMetrics();
+    return fallbackView();
   }
 
   try {
@@ -69,9 +109,8 @@ export async function getReputationMetrics(
     })
       .addOperation(
         contract.call(
-          "get_public_metrics",
+          "query_reputation",
           Address.fromString(address).toScVal(),
-          nativeToScVal(role, { type: "symbol" }),
         ),
       )
       .setTimeout(30)
@@ -80,24 +119,26 @@ export async function getReputationMetrics(
     const simulation = await rpc.simulateTransaction(tx);
     const raw =
       "result" in simulation && simulation.result?.retval
-        ? (scValToNative(simulation.result.retval) as unknown[])
-        : [];
+        ? (scValToNative(simulation.result.retval) as ContractReputationView)
+        : null;
 
-    const scoreBps = normalizeNumber(raw[0]);
-    const totalJobs = normalizeNumber(raw[1]);
-    const totalPoints = normalizeNumber(raw[2]);
-    const reviews = normalizeNumber(raw[3]);
-    const averageStars = reviews > 0 ? totalPoints / reviews : toStarRating(scoreBps);
+    if (!raw) {
+      return fallbackView();
+    }
 
     return {
-      scoreBps,
-      totalJobs,
-      totalPoints,
-      reviews,
-      starRating: toStarRating(scoreBps),
-      averageStars,
+      client: metricsFromScore(raw.client),
+      freelancer: metricsFromScore(raw.freelancer),
     };
   } catch {
-    return fallbackMetrics();
+    return fallbackView();
   }
+}
+
+export async function getReputationMetrics(
+  address: string,
+  role: ReputationRole,
+): Promise<ReputationMetrics> {
+  const view = await getReputationView(address);
+  return role === "client" ? view.client : view.freelancer;
 }

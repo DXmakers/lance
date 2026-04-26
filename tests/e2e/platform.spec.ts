@@ -4,9 +4,9 @@ import { test, expect } from "@playwright/test";
 
 test("job board loads", async ({ page }) => {
   await page.goto("/jobs");
-  // The jobs page SiteShell uses eyebrow="Marketplace" and a long title —
-  // match the stable eyebrow label instead of a heading that doesn't exist.
-  await expect(page.getByText(/Marketplace/i)).toBeVisible();
+  // Target the eyebrow element specifically using first() to avoid
+  // strict mode violation when multiple elements match /Marketplace/i
+  await expect(page.getByText(/Marketplace/i).first()).toBeVisible();
 });
 
 test("post a job navigates to job board", async ({ page }) => {

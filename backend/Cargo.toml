@@ -1,5 +1,5 @@
 [package]
-name = "backend"
+name    = "backend"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,27 +8,31 @@ name = "backend"
 path = "src/main.rs"
 
 [dependencies]
-tokio        = { workspace = true }
-axum         = { workspace = true }
-serde        = { workspace = true }
-serde_json   = { workspace = true }
-sqlx         = { workspace = true }
-uuid         = { workspace = true }
-chrono       = { workspace = true }
-reqwest      = { workspace = true }
-tracing      = { workspace = true }
+tokio              = { workspace = true }
+axum               = { workspace = true }
+serde              = { workspace = true }
+serde_json         = { workspace = true }
+sqlx               = { workspace = true }
+uuid               = { workspace = true }
+chrono             = { workspace = true }
+reqwest            = { workspace = true }
+tracing            = { workspace = true }
 tracing-subscriber = { workspace = true }
-anyhow       = { workspace = true }
-thiserror    = { workspace = true }
-dotenvy      = { workspace = true }
-tower        = { workspace = true }
-tower-http   = { workspace = true }
-bytes        = { workspace = true }
-base64       = "0.22"
-sha2         = "0.10"
-ed25519-dalek = { version = "2", features = ["rand_core"] }
+anyhow             = { workspace = true }
+thiserror          = { workspace = true }
+dotenvy            = { workspace = true }
+tower              = { workspace = true }
+tower-http         = { workspace = true }
+bytes              = { workspace = true }
+base64             = "0.22"
+sha2               = "0.10"
+ed25519-dalek      = { version = "2", features = ["rand_core"] }
+
+# Rate limiting
+governor           = { version = "0.6", features = ["std"] }
+futures-util       = "0.3"
 
 [dev-dependencies]
-axum-test    = "16.0"
-mockito      = "1.5"
-wiremock     = "0.6"
+axum-test = "16.0"
+mockito   = "1.5"
+wiremock  = "0.6"
