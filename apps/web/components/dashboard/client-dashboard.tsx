@@ -2,7 +2,6 @@
 
 import { useJobBoard } from "@/hooks/use-job-board";
 import { formatUsdc } from "@/lib/format";
-import { Button } from "@/components/ui/button";
 import { 
   PlusCircle, 
   Users, 
@@ -150,3 +149,5 @@ export function ClientDashboard() {
     </div>
   );
 }
+
+import { Button } from "@/components/ui/button";

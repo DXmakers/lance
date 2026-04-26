@@ -1,21 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAuthStore, jwtMemory } from "@/lib/store/use-auth-store";
-
-const JWT_SESSION_KEY = "lance_jwt";
+import { useAuthStore } from "@/lib/store/use-auth-store";
 
 export function AuthBootstrap({ children }: { children: React.ReactNode }) {
-  const { setHydrated, setJwt } = useAuthStore();
+  const setHydrated = useAuthStore((state) => state.setHydrated);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem(JWT_SESSION_KEY);
-    if (stored) {
-      jwtMemory.set(stored);
-      setJwt(stored);
-    }
     setHydrated(true);
-  }, [setHydrated, setJwt]);
+  }, [setHydrated]);
 
   return <>{children}</>;
 }

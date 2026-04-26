@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render } from "@testing-library/react";
 import { useTheme } from "next-themes";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 
@@ -25,9 +26,9 @@ describe("ThemeToggle", () => {
       forcedTheme: undefined,
     });
 
-    render(<ThemeToggle />);
+    const { getByRole } = render(<ThemeToggle />);
 
-    fireEvent.click(screen.getByRole("button"));
+    getByRole("button").click();
 
     expect(setTheme).toHaveBeenCalledWith("light");
   });
@@ -44,9 +45,9 @@ describe("ThemeToggle", () => {
       forcedTheme: undefined,
     });
 
-    render(<ThemeToggle />);
+    const { getByRole } = render(<ThemeToggle />);
 
-    fireEvent.click(screen.getByRole("button"));
+    getByRole("button").click();
 
     expect(setTheme).toHaveBeenCalledWith("dark");
   });

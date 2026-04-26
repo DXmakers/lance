@@ -16,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="bg-background text-foreground antialiased font-sans">
+      <body className="bg-background text-foreground antialiased">
         <Providers>
           <ToastProvider>
             <DashboardLayout>{children}</DashboardLayout>

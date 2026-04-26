@@ -7,8 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run --coverage",
-    "clean": "rimraf node_modules .next"
+    "test": "vitest run --coverage"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.0.1",
@@ -40,7 +39,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "jsdom": "^26.1.0",

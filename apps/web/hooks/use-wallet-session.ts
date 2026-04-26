@@ -6,18 +6,15 @@ import {
   connectWallet,
   disconnectWallet,
   getConnectedWalletAddress,
-  getXlmBalance,
   getWalletNetwork,
   type StellarNetwork,
 } from "@/lib/stellar";
-import { SIWSService, SIWSResponse } from "@/lib/siws";
 
 const SESSION_STORAGE_KEY = "lance.wallet.session.v1";
 
 interface WalletSessionCache {
   address: string;
   updatedAt: number;
-  siwsResponse?: SIWSResponse;
 }
 
 function getStorage(): Storage | null {
@@ -32,7 +29,8 @@ function readCachedSession(): WalletSessionCache | null {
   try {
     const value = storage.getItem(SESSION_STORAGE_KEY);
     if (!value) return null;
-    return JSON.parse(value) as WalletSessionCache;
+    const parsed = JSON.parse(value) as WalletSessionCache;
+    return parsed.address ? parsed : null;
   } catch {
     return null;
   }
@@ -47,50 +45,54 @@ function persistSession(address: string | null): void {
     return;
   }
 
-  storage.setItem(
-    SESSION_STORAGE_KEY,
-    JSON.stringify({
-      address,
-      updatedAt: Date.now(),
-    }),
-  );
+  const payload: WalletSessionCache = { address, updatedAt: Date.now() };
+  storage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
 }
 
 export function useWalletSession() {
-  const [address, setAddress] = useState<string | null>(null);
+  const [address, setAddress] = useState<string | null>(() => readCachedSession()?.address || null);
   const [walletNetwork, setWalletNetwork] = useState<StellarNetwork | null>(null);
-  const [xlmBalance, setXlmBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [siwsResponse, setSiwsResponse] = useState<SIWSResponse | null>(null);
 
   const refreshWalletState = useCallback(async () => {
     try {
-      const connected = await getConnectedWalletAddress();
-      const network = getWalletNetwork();
-      const balance = connected ? await getXlmBalance(connected) : null;
-
+      const [connected, network] = await Promise.all([
+        getConnectedWalletAddress(),
+        getWalletNetwork(),
+      ]);
       setAddress(connected);
       setWalletNetwork(network);
-      setXlmBalance(balance);
       persistSession(connected);
-    } catch {
-      setError("Failed to restore wallet session.");
+    } catch (refreshError) {
+      setError(
+        refreshError instanceof Error
+          ? refreshError.message
+          : "Failed to restore wallet session.",
+      );
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const cached = readCachedSession();
+    const timeout = setTimeout(() => {
+      void refreshWalletState();
+    }, 0);
 
-    if (cached?.address) {
-      setAddress(cached.address);
-    }
+    const visibilityListener = () => {
+      if (!document.hidden) {
+        void refreshWalletState();
+      }
+    };
 
-    void refreshWalletState();
+    document.addEventListener("visibilitychange", visibilityListener);
+    return () => {
+      clearTimeout(timeout);
+      document.removeEventListener("visibilitychange", visibilityListener);
+    };
   }, [refreshWalletState]);
 
   const connect = useCallback(async () => {
@@ -99,47 +101,34 @@ export function useWalletSession() {
 
     try {
       const connectedAddress = await connectWallet();
-      const network = getWalletNetwork();
-      const balance = await getXlmBalance(connectedAddress);
-
+      const network = await getWalletNetwork();
       setAddress(connectedAddress);
       setWalletNetwork(network);
-      setXlmBalance(balance);
-
       persistSession(connectedAddress);
-
       return connectedAddress;
-    } catch {
-      setError("Wallet connection failed.");
+    } catch (connectError) {
+      const message =
+        connectError instanceof Error
+          ? connectError.message
+          : "Wallet connection failed.";
+      setError(message);
       return null;
     } finally {
       setIsConnecting(false);
     }
   }, []);
 
-  const authenticate = useCallback(async (walletAddress: string) => {
-    setIsAuthenticating(true);
+  const disconnect = useCallback(async () => {
+    setError(null);
 
     try {
-      const response = await SIWSService.signIn(walletAddress);
-      setSiwsResponse(response);
-      return response;
+      await disconnectWallet();
     } catch {
-      setError("Authentication failed");
-      return null;
-    } finally {
-      setIsAuthenticating(false);
+      // disconnect should be best-effort so local session still clears.
     }
-  }, []);
-
-  const disconnect = useCallback(() => {
-    disconnectWallet();
 
     setAddress(null);
     setWalletNetwork(null);
-    setXlmBalance(null);
-    setSiwsResponse(null);
-
     persistSession(null);
   }, []);
 
@@ -151,18 +140,14 @@ export function useWalletSession() {
   return {
     address,
     walletNetwork,
-    xlmBalance,
     appNetwork: APP_STELLAR_NETWORK,
     isConnected: Boolean(address),
-    isAuthenticated: Boolean(siwsResponse),
     isLoading,
     isConnecting,
-    isAuthenticating,
     networkMismatch,
     error,
     siwsResponse,
     connect,
-    authenticate,
     disconnect,
     refreshWalletState,
   };
