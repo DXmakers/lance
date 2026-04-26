@@ -463,3 +463,37 @@ export async function getWalletInfo(
     icon: "",
   };
 }
+export interface DecodedOperation {
+  type: string;
+  [key: string]: any;
+}
+
+export interface DecodedTransaction {
+  source: string;
+  fee: string;
+  sequence: string;
+  memo?: string;
+  operations: DecodedOperation[];
+  network: string;
+}
+
+/**
+ * Decodes a Stellar transaction XDR into a human-readable summary.
+ */
+export function decodeTransaction(xdrString: string): DecodedTransaction {
+  const tx = new Transaction(xdrString, getNetworkPassphrase());
+  
+  return {
+    source: tx.source,
+    fee: tx.fee,
+    sequence: tx.sequence,
+    memo: tx.memo.value?.toString(),
+    operations: tx.operations.map((op) => ({
+      type: op.type,
+      ...Object.fromEntries(
+        Object.entries(op).filter(([key]) => !["type", "line", "source"].includes(key))
+      ),
+    })),
+    network: APP_STELLAR_NETWORK === "public" ? "Mainnet" : "Testnet",
+  };
+}

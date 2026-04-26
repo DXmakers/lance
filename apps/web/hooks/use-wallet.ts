@@ -32,9 +32,12 @@ export function useWallet() {
     setError, 
     setNetwork: setStoreNetwork,
     disconnect: disconnectStore,
+    signingTx,
+    setSigningTx,
   } = useWalletStore();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const resolveRef = useRef<((value: string | null) => void) | null>(null);
   const isInitialized = useRef(false);
   const displayNetwork = toDisplayNetwork(network);
 
@@ -70,12 +73,40 @@ export function useWallet() {
   }, [setStoreNetwork]);
 
   const signTransaction = useCallback(async (xdr: string) => {
+    setSigningTx(xdr);
+    
+    // Create a promise that resolves when the user confirms in the modal
+    const confirmation = new Promise<string | null>((resolve) => {
+      resolveRef.current = resolve;
+    });
+
+    const resultXdr = await confirmation;
+    setSigningTx(null);
+    resolveRef.current = null;
+
+    if (!resultXdr) {
+      toast.info("Transaction signing cancelled");
+      return null;
+    }
+
     try {
-      return await signStellarTransaction(xdr);
+      return await signStellarTransaction(resultXdr);
     } catch (error) {
       console.error("Sign error:", error);
       toast.error("Transaction rejected by the wallet extension.");
       return null;
+    }
+  }, [setSigningTx]);
+
+  const confirmSigning = useCallback(() => {
+    if (resolveRef.current && signingTx) {
+      resolveRef.current(signingTx);
+    }
+  }, [signingTx]);
+
+  const cancelSigning = useCallback(() => {
+    if (resolveRef.current) {
+      resolveRef.current(null);
     }
   }, []);
 
@@ -124,9 +155,13 @@ export function useWallet() {
     disconnect: handleDisconnect,
     setNetwork,
     signTransaction,
+    confirmSigning,
+    cancelSigning,
     signAuthMessage,
     isConnected: status === "connected",
     isConnecting: status === "connecting",
+    isSigning: !!signingTx,
+    signingTx,
     isModalOpen,
     setIsModalOpen,
   };
