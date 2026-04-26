@@ -12,6 +12,8 @@ mod middleware;
 mod models;
 mod routes;
 mod services;
+mod tx_metadata_cache;
+mod tx_queue;
 mod worker;
 
 pub use db::AppState;
