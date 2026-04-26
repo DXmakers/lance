@@ -1,11 +1,11 @@
 use axum::Router;
-use dotenvy::dotenv;
 use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod db;
+mod env_config;
 mod error;
 mod indexer;
 mod middleware;
@@ -20,7 +20,7 @@ pub use db::AppState;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv().ok();
+    let env_bootstrap = env_config::load_backend_environment()?;
 
     tracing_subscriber::registry()
         .with(
@@ -29,6 +29,12 @@ async fn main() -> anyhow::Result<()> {
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
+
+    tracing::info!(
+        app_env = %env_bootstrap.app_env,
+        loaded_env_files = ?env_bootstrap.loaded_files,
+        "backend environment initialized",
+    );
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = PgPoolOptions::new()
