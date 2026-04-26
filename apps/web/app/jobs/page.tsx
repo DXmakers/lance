@@ -103,11 +103,11 @@ export default function JobsPage() {
         ) : (
           <div className="grid gap-5 lg:grid-cols-2">
             {jobs.map((job) => (
-              <div key={job.id} className="group relative">
-                <Link
-                  href={`/jobs/${job.id}`}
-                  className="block rounded-[1.75rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.55)] transition hover:-translate-y-1 hover:border-amber-300"
-                >
+              <Link
+                key={job.id}
+                href={`/jobs/${job.id}`}
+                className="group relative block rounded-[1.75rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.55)] transition hover:-translate-y-1 hover:border-amber-300"
+              >
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">
@@ -212,7 +212,7 @@ export default function JobsPage() {
                     ].join(" ")}
                   />
                 </button>
-              </div>
+              </Link>
             ))}
           </div>
         )}
