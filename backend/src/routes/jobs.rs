@@ -11,10 +11,11 @@ use uuid::Uuid;
 use crate::{
     db::AppState,
     error::{AppError, Result},
-    models::{CreateJobRequest, Job, MarkJobFundedRequest},
+    models::{CreateJobRequest, Job, JobFilterParams, MarkJobFundedRequest},
     routes::{bids, deliverables, milestones},
     services::metadata,
 };
+use axum::extract::Query;
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -51,15 +52,57 @@ pub fn router() -> Router<AppState> {
         )
 }
 
-async fn list_jobs(State(state): State<AppState>) -> Result<Json<Vec<Job>>> {
-    let jobs = sqlx::query_as::<_, Job>(
+async fn list_jobs(
+    State(state): State<AppState>,
+    Query(params): Query<JobFilterParams>,
+) -> Result<Json<Vec<Job>>> {
+    let mut query_builder = sqlx::QueryBuilder::<sqlx::Postgres>::new(
         r#"SELECT id, title, description, budget_usdc, milestones, client_address,
                   freelancer_address, status, metadata_hash, on_chain_job_id,
                   created_at, updated_at
-           FROM jobs ORDER BY created_at DESC"#,
-    )
-    .fetch_all(&state.pool)
-    .await?;
+           FROM jobs WHERE 1=1 "#,
+    );
+
+    if let Some(q) = params.query {
+        query_builder.push(" AND (title ILIKE ");
+        query_builder.push_bind(format!("%{}%", q));
+        query_builder.push(" OR description ILIKE ");
+        query_builder.push_bind(format!("%{}%", q));
+        query_builder.push(")");
+    }
+
+    if let Some(status) = params.status {
+        query_builder.push(" AND status = ");
+        query_builder.push_bind(status);
+    }
+
+    // Note: 'tag' filtering is not currently supported in the DB schema,
+    // but we could filter by title/description for now if a tag is provided.
+    if let Some(tag) = params.tag {
+        if tag != "all" {
+            query_builder.push(" AND (title ILIKE ");
+            query_builder.push_bind(format!("%{}%", tag));
+            query_builder.push(" OR description ILIKE ");
+            query_builder.push_bind(format!("%{}%", tag));
+            query_builder.push(")");
+        }
+    }
+
+    match params.sort.as_deref() {
+        Some("budget") => query_builder.push(" ORDER BY budget_usdc DESC"),
+        Some("reputation") => {
+            // Reputation sort requires joining with a reputation table or calculating score.
+            // For now, we'll just sort by created_at as a fallback.
+            query_builder.push(" ORDER BY created_at DESC");
+        }
+        _ => query_builder.push(" ORDER BY created_at DESC"),
+    }
+
+    let jobs = query_builder
+        .build_query_as::<Job>()
+        .fetch_all(&state.pool)
+        .await?;
+
     Ok(Json(jobs))
 }
 

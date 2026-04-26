@@ -122,9 +122,18 @@ export function useJobBoard() {
       setError(null);
 
       try {
-        const jobsFromApi = await api.jobs.list();
+        const jobsFromApi = await api.jobs.list({
+          query: deferredQuery,
+          tag: activeTag,
+          sort: sortBy,
+        });
+        
         const sourceJobs = jobsFromApi.length > 0 ? jobsFromApi : createMockJobs();
+        
+        // Even if we filter on backend, we might still need to hydreate with tags/reputation
+        // if the backend doesn't provide them yet.
         const hydrated = await buildBoardJobs(sourceJobs);
+        
         if (active) {
           setJobs(hydrated);
         }
@@ -150,11 +159,12 @@ export function useJobBoard() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [deferredQuery, activeTag, sortBy]);
 
   const availableTags = ["all", ...new Set(jobs.flatMap((job) => job.tags))];
   let visibleJobs = jobs.filter((job) => job.status === "open");
 
+  // Client-side filtering as a fallback or for tags not yet handled by backend perfectly
   if (activeTag !== "all") {
     visibleJobs = visibleJobs.filter((job) => job.tags.includes(activeTag));
   }
@@ -169,6 +179,8 @@ export function useJobBoard() {
     );
   }
 
+  // We still do sorting on client to ensure immediate UI feedback if possible,
+  // but backend also handles it.
   visibleJobs = [...visibleJobs].sort((left, right) => {
     if (sortBy === "budget") {
       return right.budget_usdc - left.budget_usdc;
