@@ -5,6 +5,8 @@ import { getReputationMetrics, type ReputationMetrics } from "@/lib/reputation";
 
 import { JobSchema, type BoardJob, BoardJobSchema } from "@/types/jobs";
 
+export type { BoardJob };
+
 export type JobSort = 'newest' | 'oldest' | 'budget-high' | 'budget-low';
 export const JOB_CATEGORIES = ["Development", "Design", "Marketing", "Legal", "Other"] as const;
 export type JobCategory = typeof JOB_CATEGORIES[number];
