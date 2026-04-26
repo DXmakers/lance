@@ -109,6 +109,8 @@ pub async fn sync_status(State(state): State<AppState>) -> (StatusCode, Json<Val
     let updated_at: DateTime<Utc> = row.get("updated_at");
     let metric_last_processed = metrics().last_processed_ledger.load(Ordering::Relaxed);
     let errors = metrics().total_errors.load(Ordering::Relaxed);
+    let total_events = metrics().total_events_processed.load(Ordering::Relaxed);
+    let last_duration = metrics().last_loop_duration_ms.load(Ordering::Relaxed);
 
     let source_last_processed = if metric_last_processed > 0 {
         std::cmp::max(metric_last_processed, db_last_processed)
@@ -139,6 +141,8 @@ pub async fn sync_status(State(state): State<AppState>) -> (StatusCode, Json<Val
         "last_processed_ledger": source_last_processed,
         "last_updated_at": updated_at.to_rfc3339(),
         "error_count": errors,
+        "total_events_processed": total_events,
+        "last_loop_duration_ms": last_duration,
         "rpc": {
             "url": rpc_url
         }
@@ -195,6 +199,7 @@ pub async fn prometheus_metrics() -> String {
     let last_ledger = metrics().last_processed_ledger.load(Ordering::Relaxed);
     let events = metrics().total_events_processed.load(Ordering::Relaxed);
     let errors = metrics().total_errors.load(Ordering::Relaxed);
+    let latency = metrics().last_loop_duration_ms.load(Ordering::Relaxed);
 
     format!(
         "# HELP indexer_last_processed_ledger The last ledger successfully indexed\n\
@@ -205,6 +210,9 @@ pub async fn prometheus_metrics() -> String {
          indexer_total_events_processed {events}\n\
          # HELP indexer_total_errors Total number of indexer errors\n\
          # TYPE indexer_total_errors counter\n\
-         indexer_total_errors {errors}\n"
+         indexer_total_errors {errors}\n\
+         # HELP indexer_last_loop_duration_ms Time taken for the last indexer loop in milliseconds\n\
+         # TYPE indexer_last_loop_duration_ms gauge\n\
+         indexer_last_loop_duration_ms {latency}\n"
     )
 }

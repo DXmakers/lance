@@ -229,6 +229,19 @@ pub struct ArbiterVote {
     pub created_at: DateTime<Utc>,
 }
 
+// ── Deposit ──────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct Deposit {
+    pub id: String,
+    pub ledger: i64,
+    pub contract_id: String,
+    pub sender: String,
+    pub amount: i64,
+    pub token: String,
+    pub created_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CastVoteRequest {
     pub arbiter_address: String,
