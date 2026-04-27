@@ -235,6 +235,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sqlx",
+ "stellar-xdr",
  "thiserror 1.0.69",
  "tokio",
  "tower 0.4.13",

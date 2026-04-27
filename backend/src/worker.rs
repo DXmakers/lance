@@ -68,14 +68,30 @@ async fn process_dispute(
 
     let verdict = judge.judge(pool, dispute_id).await?;
 
-    let job_id_str = job
-        .on_chain_job_id
-        .map(|id| id.to_string())
-        .unwrap_or_else(|| job_id.to_string());
+    let freelancer_share_bps = verdict.freelancer_share_bps.clamp(0, 10_000) as i128;
+
+    let remaining_amount_usdc: i64 = sqlx::query_scalar(
+        r#"SELECT COALESCE(SUM(amount_usdc), 0)
+           FROM milestones
+           WHERE job_id = $1 AND status = 'pending'"#,
+    )
+    .bind(job_id)
+    .fetch_one(pool)
+    .await?;
+
+    let remaining_i128 = i128::from(remaining_amount_usdc);
+    let freelancer_amount = (remaining_i128 * freelancer_share_bps) / 10_000;
+    let client_amount = remaining_i128 - freelancer_amount;
 
     let on_chain_tx: Option<String> = if let Some(s) = stellar {
+        let on_chain_job_id = job
+            .on_chain_job_id
+            .ok_or_else(|| anyhow::anyhow!("job {job_id} missing on_chain_job_id"))?;
+        let on_chain_job_id = u64::try_from(on_chain_job_id)
+            .map_err(|_| anyhow::anyhow!("job {job_id} has invalid negative on_chain_job_id"))?;
+
         Some(
-            s.resolve_dispute(&job_id_str, verdict.freelancer_share_bps as u32)
+            s.resolve_dispute(on_chain_job_id, freelancer_amount, client_amount)
                 .await?,
         )
     } else {

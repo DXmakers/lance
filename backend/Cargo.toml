@@ -27,6 +27,7 @@ bytes              = { workspace = true }
 base64             = "0.22"
 sha2               = "0.10"
 ed25519-dalek      = { version = "2", features = ["rand_core"] }
+stellar-xdr        = { workspace = true }
 
 # Rate limiting
 governor           = { version = "0.6", features = ["std"] }
