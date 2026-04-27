@@ -292,10 +292,18 @@ function StatsBar({ total, filtered }: { total: number; filtered: number }) {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function JobsPage() {
-  const { jobs, loading, error, query, activeTag, sortBy, availableTags, actions } =
-    useJobBoard();
+  const {
+    paginatedJobs,
+    loading,
+    error,
+    query,
+    activeTag,
+    sortBy,
+    availableTags,
+    actions,
+  } = useJobBoard();
 
-  const totalOpen = jobs.length;
+  const totalOpen = paginatedJobs.length;
 
   function resetFilters() {
     actions.setQuery("");
@@ -476,7 +484,7 @@ export default function JobsPage() {
       {/* ── Results header ───────────────────────────────────────────────── */}
       {!loading && (
         <div className="flex items-center justify-between gap-4">
-          <StatsBar total={totalOpen} filtered={jobs.length} />
+          <StatsBar total={totalOpen} filtered={paginatedJobs.length} />
           {(query || activeTag !== "all") && (
             <button
               type="button"
@@ -493,9 +501,9 @@ export default function JobsPage() {
       <main aria-label="Job listings">
         {loading ? (
           <SkeletonGrid />
-        ) : jobs.length > 0 ? (
+        ) : paginatedJobs.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {jobs.map((job) => (
+            {paginatedJobs.map((job) => (
               <JobCard key={job.id} job={job} />
             ))}
           </div>
@@ -523,7 +531,7 @@ export default function JobsPage() {
       </main>
 
       {/* ── Bottom CTA ───────────────────────────────────────────────────── */}
-      {!loading && jobs.length > 0 && (
+      {!loading && paginatedJobs.length > 0 && (
         <footer className="relative overflow-hidden rounded-3xl border border-zinc-800/80 bg-zinc-900/60 p-6 backdrop-blur-sm sm:p-8">
           <div
             className="pointer-events-none absolute inset-0"

@@ -146,11 +146,9 @@ function ProgressBar({
 function SummaryStats({
   milestones,
   releasedAmount,
-  totalAmount,
 }: {
   milestones: Milestone[];
   releasedAmount: number;
-  totalAmount: number;
 }) {
   const released = milestones.filter((m) => m.status === "released").length;
   const pending = milestones.filter((m) => m.status === "pending").length;
@@ -459,7 +457,6 @@ export function MilestoneTracker({
           <SummaryStats
             milestones={milestones}
             releasedAmount={releasedAmount}
-            totalAmount={totalAmount}
           />
         </div>
       )}

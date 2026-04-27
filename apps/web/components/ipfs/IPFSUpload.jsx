@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 
 const MOCK_GATEWAY = "https://ipfs.io/ipfs/";
 
@@ -501,7 +501,6 @@ export default function IPFSUpload() {
 
   const pendingCount = files.filter((f) => f.status === "queued" && !f.validationErrors?.length).length;
   const uploadingCount = files.filter((f) => f.status === "uploading").length;
-  const successCount = files.filter((f) => f.status === "success").length;
   const totalSize = files.reduce((a, f) => a + f.file.size, 0);
 
   return (
