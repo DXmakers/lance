@@ -197,6 +197,40 @@ export function BidList({
                   </button>
                 )}
 
+            {/* Accept action */}
+            {canAccept && !isAccepted && (
+              <div className="mt-4 flex justify-end">
+                <Button
+                  data-testid="accept-bid-button"
+                  size="sm"
+                  onClick={() => onAccept?.(bid.id)}
+                  disabled={isAccepting || Boolean(acceptingBidId)}
+                  aria-label={`Accept bid from ${shortenAddress(bid.freelancer_address)}`}
+                  aria-busy={isAccepting}
+                  className="rounded-full bg-emerald-600 text-xs font-medium text-white shadow-sm shadow-emerald-500/20 transition-all duration-150 hover:bg-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 disabled:opacity-60"
+                >
+                  {isAccepting ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                      Accepting…
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                      Accept Bid
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {isAccepted && (
+              <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-400">
+                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                Bid accepted — work in progress
+              </p>
+            )}
+
                 {/* Accept action */}
                 {canAccept && !isAccepted && (
                   <div className="mt-4 flex justify-end">

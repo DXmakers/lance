@@ -158,13 +158,11 @@ test.skip("full gig lifecycle: post, bid, accept, fund, deliver, release", async
 
   await expect(page.getByText("Bids (1)")).toBeVisible();
   await expect(
-    page
-      .getByRole("paragraph")
-      .filter({ hasText: "I have extensive experience with Soroban and Rust" }),
+    page.getByText(/I have extensive experience with Soroban and Rust/),
   ).toBeVisible();
 
   // 3. Client accepts the bid
-  await page.click("button:has-text('Accept Bid')");
+  await page.getByTestId("accept-bid-button").click();
 
   await expect(page).toHaveURL(`/jobs/${mockJobId}/fund`);
   await expect(
