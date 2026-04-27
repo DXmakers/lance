@@ -6,12 +6,14 @@
  *  - Raw XDR in dev and simulation diagnostics in all environments
  *  - A typed execute() function that accepts any contract invocation
  *  - Automatic UI state refresh callback on success
+ *  - Automatic query invalidation on successful confirmation for immediate UI updates
  *  - Error state with human-readable messages
  */
 
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   invokeContract,
   type InvokeContractParams,
@@ -84,6 +86,7 @@ const INITIAL_STATE: SorobanTransactionState = {
 
 export function useSorobanTransaction(): UseSorobanTransactionReturn {
   const [state, setState] = useState<SorobanTransactionState>(INITIAL_STATE);
+  const queryClient = useQueryClient();
 
   // Guard against state updates after unmount
   const mountedRef = useRef(true);
@@ -142,6 +145,14 @@ export function useSorobanTransaction(): UseSorobanTransactionReturn {
           message: "Transaction confirmed on-chain.",
         }));
 
+        await queryClient.invalidateQueries({ queryKey: ["jobs"] });
+        await queryClient.invalidateQueries({ queryKey: ["job"] });
+        await queryClient.invalidateQueries({ queryKey: ["milestones"] });
+        await queryClient.invalidateQueries({ queryKey: ["bids"] });
+        await queryClient.invalidateQueries({ queryKey: ["deliverables"] });
+        await queryClient.invalidateQueries({ queryKey: ["profile"] });
+        await queryClient.invalidateQueries({ queryKey: ["reputation"] });
+
         await options?.onSuccess?.(result);
         return result;
       } catch (err) {
@@ -163,7 +174,8 @@ export function useSorobanTransaction(): UseSorobanTransactionReturn {
         return null;
       }
     },
-    [setStateSafe],
+    },
+    [setStateSafe, queryClient],
   );
 
   return { ...state, execute, reset };
