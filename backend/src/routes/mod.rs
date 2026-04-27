@@ -11,14 +11,14 @@ pub mod uploads;
 pub mod users;
 pub mod verdicts;
 
-use crate::db::AppState;
+use crate::AppState;
 use axum::{routing::get, Router};
 
 pub fn api_router() -> Router<AppState> {
     Router::new()
-        // health check — outside versioned prefix so load balancers can reach it
         .route("/health", get(health::health))
-        // v1 API routes
+        .route("/health/sync", get(health::sync_status))
+        .route("/indexer/rescan", get(health::indexer::rescan))
         .nest(
             "/v1",
             Router::new()

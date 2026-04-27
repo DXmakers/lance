@@ -26,6 +26,9 @@ thiserror         = "1"
 dotenvy           = "0.15"
 tower             = "0.4"
 tower-http        = { version = "0.5", features = ["cors", "trace"] }
+prometheus        = "0.13"
+backoff           = "0.4"
+async-trait       = "0.1"
 
 [profile.release]
 opt-level = "z"
