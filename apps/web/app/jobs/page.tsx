@@ -21,7 +21,6 @@ import { ShareJobButton } from "@/components/jobs/share-job-button";
 import { Stars } from "@/components/stars";
 import { EmptyState } from "@/components/ui/empty-state";
 import { JobCardSkeleton } from "@/components/ui/skeleton";
-import { Pagination } from "@/components/ui/pagination";
 import { useJobBoard } from "@/hooks/use-job-board";
 import { formatDate, formatUsdc, shortenAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -301,7 +300,6 @@ export default function JobsPage() {
     activeTag,
     sortBy,
     availableTags,
-    pagination,
     actions,
   } = useJobBoard();
 
