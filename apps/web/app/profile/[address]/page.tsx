@@ -154,26 +154,10 @@ function PublicProfileWorkspace({ address }: { address: string }) {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isOwner) return;
-    setSaving(true);
 
-    try {
-      const updated = await api.users.updateProfile(address, {
-        display_name: displayName || undefined,
-        headline,
-        bio,
-        portfolio_links: portfolioLinks
-          .split("\n")
-          .map((link) => link.trim())
-          .filter(Boolean),
-      });
-      setProfile(updated);
-      setEditing(false);
-    } catch {
-      alert("Failed to update profile");
-    } finally {
-      setSaving(false);
-    }
-
+    const result = validateProfileForm(formValues);
+    setFormErrors(result.errors);
+    if (!result.data) return;
     saveProfileMutation.mutate(result.data);
   }
 
