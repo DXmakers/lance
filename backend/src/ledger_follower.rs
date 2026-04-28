@@ -266,11 +266,15 @@ impl LedgerFollower {
     }
 }
 
-#[tracing::instrument(skip(tx, event), fields(event_id = event.get("id").and_then(Value::as_str).unwrap_or("")))]
+#[tracing::instrument(skip(tx, event), fields(event_id = tracing::field::Empty))]
 async fn process_event_side_effects(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     event: &Value,
 ) -> Result<()> {
+    if let Some(id) = event.get("id").and_then(Value::as_str) {
+        tracing::Span::current().record("event_id", id);
+    }
+
     let topics = event.get("topic").and_then(Value::as_array);
     let first_topic = topics
         .and_then(|items| items.first())
