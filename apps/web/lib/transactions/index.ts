@@ -102,3 +102,15 @@ export {
 export type {
   HorizonSubmissionResult,
 } from "./horizon-fallback";
+
+export {
+  createTransactionLifecycle,
+  transactionEventBus,
+} from "./lifecycle";
+
+export type {
+  TransactionState,
+  TransactionMetadata,
+  TransactionEvent,
+  TransactionEventListener,
+} from "./lifecycle";
