@@ -12,6 +12,7 @@ mod indexer_metrics;
 mod ledger_follower;
 mod middleware;
 mod models;
+mod recovery_tests;
 mod routes;
 mod services;
 mod soroban_rpc;
