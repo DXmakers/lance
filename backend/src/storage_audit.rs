@@ -2,11 +2,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
-use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use anyhow::Result;
+use chrono::{DateTime, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 /// Metrics for storage auditing operations
 #[derive(Default)]
@@ -245,7 +245,7 @@ impl StorageAuditor {
     async fn detect_anomalies(
         &self,
         footprints: &[TableFootprint],
-        total_bytes: i64,
+        _total_bytes: i64,
     ) -> Result<Vec<StorageAnomaly>> {
         let mut anomalies = Vec::new();
         let now = Utc::now();
