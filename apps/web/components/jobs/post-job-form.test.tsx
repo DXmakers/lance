@@ -3,8 +3,6 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { PostJobForm, postJobSchema } from "./post-job-form";
 
-// ── Mock store builder ─────────────────────────────────────────────────────────
-
 function buildMockTxStore(overrides = {}) {
   return {
     step: "idle",
@@ -23,8 +21,6 @@ function buildMockTxStore(overrides = {}) {
   };
 }
 
-// ── Mock hooks ─────────────────────────────────────────────────────────────────
-
 const usePostJobMock = vi.fn();
 
 vi.mock("@/hooks/use-post-job", () => ({
@@ -33,7 +29,7 @@ vi.mock("@/hooks/use-post-job", () => ({
 
 vi.mock("@/lib/store/use-tx-status-store", () => {
   return {
-    useTxStatusStore: (selector?: (state: ReturnType<typeof buildMockTxStore>) => any) => {
+    useTxStatusStore: (selector?: (state: ReturnType<typeof buildMockTxStore>) => unknown) => {
       const store = buildMockTxStore();
       if (typeof selector === "function") {
         return selector(store);
@@ -42,8 +38,6 @@ vi.mock("@/lib/store/use-tx-status-store", () => {
     },
   };
 });
-
-// ── Render helper ───────────────────────────────────────────────────────────────
 
 function renderForm(overrides = {}) {
   const onSuccess = vi.fn();
@@ -60,8 +54,6 @@ function renderForm(overrides = {}) {
   return { onSuccess, onError, mockUsePostJob: usePostJobMock };
 }
 
-// ── Zod schema validation tests ────────────────────────────────────────────────
-
 describe("postJobSchema", () => {
   const baseValid = {
     title: "Build a Soroban Smart Contract",
@@ -74,103 +66,70 @@ describe("postJobSchema", () => {
 
   describe("title", () => {
     it("rejects titles shorter than 5 characters", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        title: "Hi",
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, title: "Hi" });
       expect(result.success).toBe(false);
       expect(result.error.issues.some((i) => i.message.includes("at least 5 characters"))).toBe(true);
     });
 
     it("rejects titles longer than 100 characters", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        title: "a".repeat(101),
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, title: "a".repeat(101) });
       expect(result.success).toBe(false);
       expect(result.error.issues.some((i) => i.message.includes("100 characters"))).toBe(true);
     });
 
     it("accepts a valid title", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        title: "Build a Soroban Smart Contract",
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, title: "Build a Soroban Smart Contract" });
       expect(result.success).toBe(true);
     });
   });
 
   describe("description", () => {
     it("rejects descriptions shorter than 50 characters", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        description: "Too short",
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, description: "Too short" });
       expect(result.success).toBe(false);
       expect(result.error.issues.some((i) => i.message.includes("at least 50"))).toBe(true);
     });
 
     it("rejects descriptions longer than 5000 characters", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        description: "a".repeat(5001),
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, description: "a".repeat(5001) });
       expect(result.success).toBe(false);
       expect(result.error.issues.some((i) => i.message.includes("5,000"))).toBe(true);
     });
 
     it("accepts a valid description", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        description: "A".repeat(50),
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, description: "A".repeat(50) });
       expect(result.success).toBe(true);
     });
   });
 
   describe("skills", () => {
     it("requires at least one skill", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        skills: [],
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, skills: [] });
       expect(result.success).toBe(false);
       expect(result.error.issues.some((i) => i.message.includes("at least one required skill"))).toBe(true);
     });
 
     it("rejects empty skill strings after trim", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        skills: ["   "],
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, skills: ["   "] });
       expect(result.success).toBe(false);
       expect(result.error.issues.some((i) => i.message.includes("at least 1 character"))).toBe(true);
     });
 
     it("accepts an array with a valid skill", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        skills: ["React"],
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, skills: ["React"] });
       expect(result.success).toBe(true);
     });
   });
 
   describe("budgetUsdc", () => {
     it("rejects budgets below 100", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        budgetUsdc: 50,
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, budgetUsdc: 50 });
       expect(result.success).toBe(false);
       expect(result.error.issues.some((i) => i.message.includes("Minimum budget"))).toBe(true);
     });
 
     it("rejects budgets above 1,000,000", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        budgetUsdc: 2_000_000,
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, budgetUsdc: 2_000_000 });
       expect(result.success).toBe(false);
       expect(result.error.issues.some((i) => i.message.includes("Maximum budget"))).toBe(true);
     });
@@ -183,10 +142,7 @@ describe("postJobSchema", () => {
 
   describe("deadline", () => {
     it("rejects past dates", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        deadline: "2020-01-01",
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, deadline: "2020-01-01" });
       expect(result.success).toBe(false);
       expect(result.error.issues.some((i) => i.message.includes("in the future"))).toBe(true);
     });
@@ -194,45 +150,29 @@ describe("postJobSchema", () => {
     it("accepts future dates", () => {
       const future = new Date();
       future.setFullYear(future.getFullYear() + 1);
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        deadline: future.toISOString().slice(0, 10),
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, deadline: future.toISOString().slice(0, 10) });
       expect(result.success).toBe(true);
     });
   });
 
   describe("paymentType + milestones", () => {
     it("requires milestones when paymentType is milestone", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        paymentType: "milestone",
-        milestones: undefined,
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, paymentType: "milestone", milestones: undefined });
       expect(result.success).toBe(false);
       expect(result.error.issues.some((i) => i.message.includes("Milestones are required"))).toBe(true);
     });
 
     it("accepts fixed payment without milestones field", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        paymentType: "fixed",
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, paymentType: "fixed" });
       expect(result.success).toBe(true);
     });
 
     it("accepts milestone payment with valid milestones count", () => {
-      const result = postJobSchema.safeParse({
-        ...baseValid,
-        paymentType: "milestone",
-        milestones: 3,
-      });
+      const result = postJobSchema.safeParse({ ...baseValid, paymentType: "milestone", milestones: 3 });
       expect(result.success).toBe(true);
     });
   });
 });
-
-// ── Component tests ────────────────────────────────────────────────────────────
 
 describe("PostJobForm", () => {
   beforeEach(() => {
@@ -266,7 +206,6 @@ describe("PostJobForm", () => {
     fireEvent.change(skillInput, { target: { value: "React" } });
     expect(skillInput).toHaveValue("React");
 
-    // Wait for button to become enabled
     await waitFor(() => {
       const addBtn = screen.getByTestId("add-skill-btn");
       expect(addBtn).not.toBeDisabled();
@@ -309,27 +248,15 @@ describe("PostJobForm", () => {
   it("calls submit with correct data on valid form", async () => {
     const { mockUsePostJob } = renderForm();
 
-    fireEvent.change(screen.getByTestId("job-title-input"), {
-      target: { value: "Build a Smart Contract" },
-    });
+    fireEvent.change(screen.getByTestId("job-title-input"), { target: { value: "Build a Smart Contract" } });
+    fireEvent.change(screen.getByTestId("job-description-textarea"), { target: { value: "A".repeat(60) } });
 
-    // Fill a valid description (>50 chars)
-    fireEvent.change(screen.getByTestId("job-description-textarea"), {
-      target: { value: "A".repeat(60) },
-    });
-
-    // Add skill
     const skillInput = screen.getByTestId("skill-input");
     fireEvent.change(skillInput, { target: { value: "Soroban" } });
     const addBtn = screen.getByTestId("add-skill-btn");
     fireEvent.click(addBtn);
 
-    // Set budget
     fireEvent.change(screen.getByTestId("budget-input"), { target: { value: "5000" } });
-
-    // Ensure date is future (default is already valid)
-
-    // Submit
     fireEvent.click(screen.getByTestId("submit-job-btn"));
 
     await waitFor(() => {
@@ -360,8 +287,6 @@ describe("PostJobForm", () => {
   });
 });
 
-// ── Edge case tests ────────────────────────────────────────────────────────────
-
 describe("PostJobForm edge cases", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -373,8 +298,7 @@ describe("PostJobForm edge cases", () => {
 
     for (let i = 0; i < 10; i++) {
       fireEvent.change(skillInput, { target: { value: `skill${i}` } });
-      let addBtn = screen.getByTestId("add-skill-btn");
-      // Ensure button enabled before clicking? It should be enabled after input has value.
+      const addBtn = screen.getByTestId("add-skill-btn");
       await waitFor(() => {
         expect(addBtn).not.toBeDisabled();
       });
@@ -391,7 +315,7 @@ describe("PostJobForm edge cases", () => {
     const skillInput = screen.getByTestId("skill-input");
 
     fireEvent.change(skillInput, { target: { value: "React" } });
-    let addBtn = screen.getByTestId("add-skill-btn");
+    const addBtn = screen.getByTestId("add-skill-btn");
     await waitFor(() => expect(addBtn).not.toBeDisabled());
     fireEvent.click(addBtn);
 
@@ -400,9 +324,9 @@ describe("PostJobForm edge cases", () => {
     });
 
     fireEvent.change(skillInput, { target: { value: "React" } });
-    addBtn = screen.getByTestId("add-skill-btn");
-    await waitFor(() => expect(addBtn).not.toBeDisabled());
-    fireEvent.click(addBtn);
+    const addBtn2 = screen.getByTestId("add-skill-btn");
+    await waitFor(() => expect(addBtn2).not.toBeDisabled());
+    fireEvent.click(addBtn2);
 
     await waitFor(() => {
       const tags = screen.getAllByTestId(/^skill-tag-/i);

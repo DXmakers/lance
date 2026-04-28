@@ -1,21 +1,13 @@
 "use client";
 
 import { useCallback, useId, useMemo, useState } from "react";
-import { LoaderCircle, AlertCircle, Plus, X, Calendar } from "lucide-react";
-import { z } from "zod";
+import { LoaderCircle, Plus, X, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePostJob } from "@/hooks/use-post-job";
 import { useTxStatusStore } from "@/lib/store/use-tx-status-store";
 import RichTextEditor from "@/components/ui/rich-text-editor";
-import { Button } from "@/components/ui/button";
 import { TransactionTracker } from "@/components/transaction/transaction-tracker";
 import { postJobSchema, type PostJobFormData } from "@/lib/validations/post-job-schema";
-
-const INPUT_FIELDS = [
-  { name: "title", label: "Job Title", placeholder: "Build a Soroban Smart Contract", type: "text" },
-  { name: "budgetUsdc", label: "Budget (USDC)", placeholder: "5000", type: "number" },
-  { name: "milestones", label: "Number of Milestones", placeholder: "1", type: "number" },
-] as const;
 
 export interface PostJobFormProps {
   onSuccess?: () => void;
@@ -131,12 +123,8 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
       data-testid="post-job-form"
     >
       <div className="grid gap-6">
-        {/* Job Title */}
         <div>
-          <label
-            htmlFor={`${formId}-title`}
-            className="mb-2 block text-sm font-semibold text-slate-700"
-          >
+          <label htmlFor={`${formId}-title`} className="mb-2 block text-sm font-semibold text-slate-700">
             Job Title
           </label>
           <input
@@ -146,9 +134,7 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
             onChange={(e) => setTitle(e.target.value)}
             className={cn(
               "w-full rounded-2xl border bg-slate-50 px-4 py-3 text-slate-950 outline-none transition",
-              errors.title
-                ? "border-rose-500 focus:border-rose-400"
-                : "border-slate-200 focus:border-amber-400",
+              errors.title ? "border-rose-500 focus:border-rose-400" : "border-slate-200 focus:border-amber-400",
             )}
             placeholder="Build a Soroban Smart Contract"
             required
@@ -158,22 +144,14 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
             data-testid="job-title-input"
           />
           {errors.title && (
-            <p
-              id={`${formId}-title-error`}
-              className="mt-1.5 text-xs text-rose-500"
-              role="alert"
-            >
+            <p id={`${formId}-title-error`} className="mt-1.5 text-xs text-rose-500" role="alert">
               {errors.title}
             </p>
           )}
         </div>
 
-        {/* Description */}
         <div>
-          <label
-            htmlFor={`${formId}-description`}
-            className="mb-2 block text-sm font-semibold text-slate-700"
-          >
+          <label htmlFor={`${formId}-description`} className="mb-2 block text-sm font-semibold text-slate-700">
             Scope
           </label>
           <RichTextEditor
@@ -188,12 +166,8 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
           />
         </div>
 
-        {/* Skills */}
         <div>
-          <label
-            htmlFor={`${formId}-skills-input`}
-            className="mb-2 block text-sm font-semibold text-slate-700"
-          >
+          <label htmlFor={`${formId}-skills-input`} className="mb-2 block text-sm font-semibold text-slate-700">
             Required Skills
           </label>
           <div className="flex flex-wrap gap-2">
@@ -226,9 +200,7 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
               onKeyDown={handleKeyDown}
               className={cn(
                 "flex-1 rounded-2xl border bg-slate-50 px-4 py-3 text-slate-950 outline-none transition",
-                errors.skills && skills.length === 0
-                  ? "border-rose-500 focus:border-rose-400"
-                  : "border-slate-200 focus:border-amber-400",
+                errors.skills && skills.length === 0 ? "border-rose-500 focus:border-rose-400" : "border-slate-200 focus:border-amber-400",
               )}
               placeholder="Add a skill (press Enter)"
               disabled={isSubmitting || isTxInProgress || skills.length >= 10}
@@ -248,26 +220,16 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
             </button>
           </div>
           {errors.skills && (
-            <p
-              id={`${formId}-skills-error`}
-              className="mt-1.5 text-xs text-rose-500"
-              role="alert"
-            >
+            <p id={`${formId}-skills-error`} className="mt-1.5 text-xs text-rose-500" role="alert">
               {errors.skills}
             </p>
           )}
-          <p className="mt-1.5 text-xs text-slate-500">
-            {skills.length}/10 skills added
-          </p>
+          <p className="mt-1.5 text-xs text-slate-500">{skills.length}/10 skills added</p>
         </div>
 
-        {/* Budget & Milestones Grid */}
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
-            <label
-              htmlFor={`${formId}-budget`}
-              className="mb-2 block text-sm font-semibold text-slate-700"
-            >
+            <label htmlFor={`${formId}-budget`} className="mb-2 block text-sm font-semibold text-slate-700">
               Budget (USDC)
             </label>
             <input
@@ -277,9 +239,7 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
               onChange={(e) => setBudgetUsdc(Number(e.target.value))}
               className={cn(
                 "w-full rounded-2xl border bg-slate-50 px-4 py-3 text-slate-950 outline-none transition",
-                errors.budgetUsdc
-                  ? "border-rose-500 focus:border-rose-400"
-                  : "border-slate-200 focus:border-amber-400",
+                errors.budgetUsdc ? "border-rose-500 focus:border-rose-400" : "border-slate-200 focus:border-amber-400",
               )}
               required
               min={100}
@@ -289,21 +249,14 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
               data-testid="budget-input"
             />
             {errors.budgetUsdc && (
-              <p
-                id={`${formId}-budget-error`}
-                className="mt-1.5 text-xs text-rose-500"
-                role="alert"
-              >
+              <p id={`${formId}-budget-error`} className="mt-1.5 text-xs text-rose-500" role="alert">
                 {errors.budgetUsdc}
               </p>
             )}
           </div>
 
           <div>
-            <label
-              htmlFor={`${formId}-payment-type`}
-              className="mb-2 block text-sm font-semibold text-slate-700"
-            >
+            <label htmlFor={`${formId}-payment-type`} className="mb-2 block text-sm font-semibold text-slate-700">
               Payment Type
             </label>
             <select
@@ -312,9 +265,7 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
               onChange={(e) => setPaymentType(e.target.value as "fixed" | "milestone")}
               className={cn(
                 "w-full rounded-2xl border bg-slate-50 px-4 py-3 text-slate-950 outline-none transition",
-                errors.paymentType
-                  ? "border-rose-500 focus:border-rose-400"
-                  : "border-slate-200 focus:border-amber-400",
+                errors.paymentType ? "border-rose-500 focus:border-rose-400" : "border-slate-200 focus:border-amber-400",
               )}
               required
               aria-invalid={errors.paymentType ? "true" : "false"}
@@ -326,24 +277,16 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
               <option value="milestone">Milestone-based</option>
             </select>
             {errors.paymentType && (
-              <p
-                id={`${formId}-payment-type-error`}
-                className="mt-1.5 text-xs text-rose-500"
-                role="alert"
-              >
+              <p id={`${formId}-payment-type-error`} className="mt-1.5 text-xs text-rose-500" role="alert">
                 {errors.paymentType}
               </p>
             )}
           </div>
         </div>
 
-        {/* Milestones (conditional) */}
         {paymentType === "milestone" && (
           <div>
-            <label
-              htmlFor={`${formId}-milestones`}
-              className="mb-2 block text-sm font-semibold text-slate-700"
-            >
+            <label htmlFor={`${formId}-milestones`} className="mb-2 block text-sm font-semibold text-slate-700">
               Number of Milestones
             </label>
             <input
@@ -353,9 +296,7 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
               onChange={(e) => setMilestones(Number(e.target.value))}
               className={cn(
                 "w-full rounded-2xl border bg-slate-50 px-4 py-3 text-slate-950 outline-none transition",
-                errors.milestones
-                  ? "border-rose-500 focus:border-rose-400"
-                  : "border-slate-200 focus:border-amber-400",
+                errors.milestones ? "border-rose-500 focus:border-rose-400" : "border-slate-200 focus:border-amber-400",
               )}
               min={1}
               max={20}
@@ -365,23 +306,15 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
               data-testid="milestones-input"
             />
             {errors.milestones && (
-              <p
-                id={`${formId}-milestones-error`}
-                className="mt-1.5 text-xs text-rose-500"
-                role="alert"
-              >
+              <p id={`${formId}-milestones-error`} className="mt-1.5 text-xs text-rose-500" role="alert">
                 {errors.milestones}
               </p>
             )}
           </div>
         )}
 
-        {/* Deadline */}
         <div>
-          <label
-            htmlFor={`${formId}-deadline`}
-            className="mb-2 block text-sm font-semibold text-slate-700"
-          >
+          <label htmlFor={`${formId}-deadline`} className="mb-2 block text-sm font-semibold text-slate-700">
             Deadline
           </label>
           <div className="relative">
@@ -393,9 +326,7 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
               onChange={(e) => setDeadline(e.target.value)}
               className={cn(
                 "w-full rounded-2xl border bg-slate-50 px-4 py-3 pl-10 pr-4 text-slate-950 outline-none transition",
-                errors.deadline
-                  ? "border-rose-500 focus:border-rose-400"
-                  : "border-slate-200 focus:border-amber-400",
+                errors.deadline ? "border-rose-500 focus:border-rose-400" : "border-slate-200 focus:border-amber-400",
               )}
               min={today}
               aria-invalid={errors.deadline ? "true" : "false"}
@@ -405,25 +336,18 @@ export function PostJobForm({ onSuccess, onError }: PostJobFormProps) {
             />
           </div>
           {errors.deadline ? (
-            <p
-              id={`${formId}-deadline-error`}
-              className="mt-1.5 text-xs text-rose-500"
-              role="alert"
-            >
+            <p id={`${formId}-deadline-error`} className="mt-1.5 text-xs text-rose-500" role="alert">
               {errors.deadline}
             </p>
           ) : (
             <p className="mt-2 text-xs text-slate-500">
-              This projected date is attached to the brief so freelancers can plan
-              around your expected delivery window.
+              This projected date is attached to the brief so freelancers can plan around your expected delivery window.
             </p>
           )}
         </div>
 
-        {/* Transaction Tracker */}
         <TransactionTracker />
 
-        {/* Submit Button */}
         <button
           type="submit"
           disabled={!canSubmit}
