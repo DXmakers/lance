@@ -2,7 +2,7 @@ pub use crate::indexer_metrics::metrics;
 
 use reqwest::Client;
 use sqlx::PgPool;
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::ledger_follower::{LedgerFollower, LedgerFollowerConfig};
 use crate::soroban_rpc::{RpcClientConfig, SorobanRpcClient};

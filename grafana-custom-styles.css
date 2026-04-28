@@ -1,0 +1,422 @@
+/* Grafana Custom Styles - Monochrome Aesthetic */
+
+/* Global monochrome theme overrides */
+:root {
+  --color-success: #00ff00;
+  --color-error: #ff0000;
+  --color-warning: #ffff00;
+  --color-text: #e0e0e0;
+  --color-bg: #1a1a1a;
+  --color-border: #333333;
+  --font-mono: 'Courier New', 'Monaco', 'Menlo', monospace;
+}
+
+/* Monospace font for ledger numbers */
+[data-testid="data-testid Panel header Ledger Status"] table td,
+[data-testid="data-testid Panel header Ledger Lag"] .stat-panel-value,
+.table-panel table td[data-column="Last Processed"],
+.table-panel table td[data-column="Network Height"],
+.stat-panel-value {
+  font-family: var(--font-mono) !important;
+  letter-spacing: 0.05em;
+}
+
+/* Status indicators - green/red only */
+.stat-panel-value-container[data-color="green"] {
+  background-color: rgba(0, 255, 0, 0.1) !important;
+  color: var(--color-success) !important;
+  border: 1px solid var(--color-success);
+}
+
+.stat-panel-value-container[data-color="red"] {
+  background-color: rgba(255, 0, 0, 0.1) !important;
+  color: var(--color-error) !important;
+  border: 1px solid var(--color-error);
+}
+
+/* Compact table styling */
+.table-panel table {
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+}
+
+.table-panel table th {
+  padding: 4px 8px !important;
+  background-color: var(--color-bg) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.table-panel table td {
+  padding: 4px 8px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Event log table - compact and monospace */
+[data-testid="data-testid Panel header Recent Indexer Events"] table {
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+}
+
+[data-testid="data-testid Panel header Recent Indexer Events"] table td {
+  padding: 2px 6px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+/* Monochrome chart colors */
+.graph-panel .graph-legend-series {
+  color: var(--color-text) !important;
+}
+
+.graph-panel .graph-legend-value {
+  font-family: var(--font-mono) !important;
+}
+
+/* Time series charts - monochrome lines */
+.uplot-series path {
+  stroke: #00ff00 !important;
+  stroke-width: 2px;
+}
+
+.uplot-series:nth-child(2) path {
+  stroke: #00cc00 !important;
+}
+
+.uplot-series:nth-child(3) path {
+  stroke: #009900 !important;
+}
+
+/* Error charts - red */
+[data-testid="data-testid Panel header Error Rate"] .uplot-series path {
+  stroke: var(--color-error) !important;
+}
+
+/* Threshold lines */
+.uplot-threshold {
+  stroke: var(--color-error) !important;
+  stroke-width: 1px;
+  stroke-dasharray: 5, 5;
+}
+
+/* Panel backgrounds - dark monochrome */
+.panel-container {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.panel-title {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text) !important;
+}
+
+/* Stat panel values - large monospace */
+.stat-panel-value {
+  font-family: var(--font-mono) !important;
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em;
+}
+
+.stat-panel-name {
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  opacity: 0.7;
+}
+
+/* Legend styling - compact */
+.graph-legend {
+  font-size: 11px !important;
+}
+
+.graph-legend-table {
+  border-collapse: collapse;
+}
+
+.graph-legend-table td {
+  padding: 2px 8px !important;
+}
+
+/* Tooltip styling */
+.uplot-tooltip {
+  background-color: rgba(0, 0, 0, 0.9) !important;
+  border: 1px solid var(--color-border) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  padding: 8px !important;
+}
+
+/* Dashboard title */
+.dashboard-title {
+  font-family: var(--font-mono) !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Time picker - monochrome */
+.time-picker-button {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+/* Refresh button */
+.refresh-picker-button {
+  background-color: rgba(0, 255, 0, 0.1) !important;
+  border: 1px solid var(--color-success) !important;
+  color: var(--color-success) !important;
+}
+
+/* Variables dropdown */
+.variable-value-dropdown {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid var(--color-border) !important;
+  font-family: var(--font-mono) !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Alert state colors */
+.alert-state-ok {
+  color: var(--color-success) !important;
+}
+
+.alert-state-alerting {
+  color: var(--color-error) !important;
+}
+
+.alert-state-pending {
+  color: var(--color-warning) !important;
+}
+
+/* Graph hover crosshair */
+.uplot-cursor-x,
+.uplot-cursor-y {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Panel loading state */
+.panel-loading {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* No data state */
+.panel-empty {
+  color: rgba(255, 255, 255, 0.5) !important;
+  font-family: var(--font-mono) !important;
+}
+
+/* Annotations */
+.annotation-marker {
+  background-color: var(--color-warning) !important;
+  border-color: var(--color-warning) !important;
+}
+
+/* Grid lines - subtle */
+.uplot-grid line {
+  stroke: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Axis labels */
+.uplot-axis text {
+  fill: var(--color-text) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 10px !important;
+}
+
+/* Value mappings - status colors */
+.value-mapping-ok {
+  color: var(--color-success) !important;
+}
+
+.value-mapping-error {
+  color: var(--color-error) !important;
+}
+
+/* Table cell highlighting */
+.table-panel table tr:hover {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Compact spacing for dashboard */
+.react-grid-item {
+  padding: 4px !important;
+}
+
+.panel-content {
+  padding: 8px !important;
+}
+
+/* Status badge styling */
+.badge-success {
+  background-color: rgba(0, 255, 0, 0.2) !important;
+  color: var(--color-success) !important;
+  border: 1px solid var(--color-success);
+  font-family: var(--font-mono) !important;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.badge-error {
+  background-color: rgba(255, 0, 0, 0.2) !important;
+  color: var(--color-error) !important;
+  border: 1px solid var(--color-error);
+  font-family: var(--font-mono) !important;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+/* Histogram bars - monochrome gradient */
+.histogram-bar {
+  fill: rgba(0, 255, 0, 0.6) !important;
+  stroke: var(--color-success) !important;
+  stroke-width: 1px;
+}
+
+/* Gauge panel - monochrome */
+.gauge-panel .gauge-value {
+  font-family: var(--font-mono) !important;
+  font-size: 28px !important;
+  font-weight: 700 !important;
+}
+
+/* Heatmap - monochrome gradient */
+.heatmap-panel .heatmap-cell {
+  stroke: rgba(0, 0, 0, 0.5) !important;
+  stroke-width: 1px;
+}
+
+/* Button styling for actions */
+.btn-primary {
+  background-color: rgba(0, 255, 0, 0.1) !important;
+  border: 1px solid var(--color-success) !important;
+  color: var(--color-success) !important;
+  font-family: var(--font-mono) !important;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+
+.btn-primary:hover {
+  background-color: rgba(0, 255, 0, 0.2) !important;
+}
+
+.btn-danger {
+  background-color: rgba(255, 0, 0, 0.1) !important;
+  border: 1px solid var(--color-error) !important;
+  color: var(--color-error) !important;
+  font-family: var(--font-mono) !important;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+
+.btn-danger:hover {
+  background-color: rgba(255, 0, 0, 0.2) !important;
+}
+
+/* Modal dialogs - confirmation */
+.modal-content {
+  background-color: #1a1a1a !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--color-border) !important;
+  font-family: var(--font-mono) !important;
+}
+
+.modal-body {
+  font-family: var(--font-mono) !important;
+  font-size: 12px;
+}
+
+/* Form inputs */
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text) !important;
+  font-family: var(--font-mono) !important;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-success) !important;
+  box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.1) !important;
+}
+
+/* Checkbox and radio - monochrome */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-success) !important;
+}
+
+/* Links */
+a {
+  color: var(--color-success) !important;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Code blocks */
+code,
+pre {
+  font-family: var(--font-mono) !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid var(--color-border) !important;
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .stat-panel-value {
+    font-size: 24px !important;
+  }
+  
+  .table-panel table {
+    font-size: 10px !important;
+  }
+  
+  .panel-title {
+    font-size: 10px !important;
+  }
+}
