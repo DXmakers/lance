@@ -40,7 +40,9 @@ lazy_static! {
             "indexer_processing_latency_seconds",
             "Time taken to process each indexer cycle"
         )
-        .buckets(vec![0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0])
+        .buckets(vec![
+            0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0
+        ])
     )
     .expect("metric can be created");
     pub static ref LAST_PROCESSED_LEDGER_GAUGE: IntGauge = IntGauge::new(

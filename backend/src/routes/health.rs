@@ -206,8 +206,8 @@ async fn fetch_latest_network_ledger(rpc_url: &str) -> Result<i64, String> {
 }
 
 pub async fn prometheus_metrics() -> String {
-    use prometheus::Encoder;
     use crate::indexer_metrics::PROMETHEUS_REGISTRY;
+    use prometheus::Encoder;
 
     let encoder = prometheus::TextEncoder::new();
     let metric_families = PROMETHEUS_REGISTRY.gather();

@@ -107,19 +107,13 @@ impl SorobanRpcClient {
             .last_network_ledger
             .store(sequence, Ordering::Relaxed);
 
-        debug!(
-            sequence,
-            "received latest ledger from RPC"
-        );
+        debug!(sequence, "received latest ledger from RPC");
 
         Ok(sequence)
     }
 
     pub async fn get_events(&mut self, start_ledger: i64) -> Result<EventsResponse> {
-        debug!(
-            start_ledger,
-            "fetching events from RPC"
-        );
+        debug!(start_ledger, "fetching events from RPC");
 
         let result = self
             .rpc_request(
@@ -236,12 +230,7 @@ impl SorobanRpcClient {
                         return Err(anyhow!("RPC {method} error: {message}"));
                     }
 
-                    debug!(
-                        method,
-                        attempt,
-                        latency_ms,
-                        "RPC request successful"
-                    );
+                    debug!(method, attempt, latency_ms, "RPC request successful");
 
                     return payload
                         .get("result")
@@ -259,8 +248,7 @@ impl SorobanRpcClient {
                     );
 
                     if attempt + 1 < self.config.retry_policy.max_attempts {
-                        self.sleep_before_retry(method, attempt, &message)
-                            .await;
+                        self.sleep_before_retry(method, attempt, &message).await;
                         continue;
                     }
                     return Err(anyhow!(err).context(format!("RPC request failed for {method}")));

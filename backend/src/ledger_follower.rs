@@ -70,10 +70,7 @@ impl LedgerFollower {
         loop {
             let loop_started_at = Instant::now();
 
-            trace!(
-                worker_retry_attempt,
-                "starting indexer cycle"
-            );
+            trace!(worker_retry_attempt, "starting indexer cycle");
 
             match self.next_cycle().await {
                 Ok(cycle) => {
@@ -97,7 +94,9 @@ impl LedgerFollower {
                         .last_batch_rate_per_second
                         .store(rate_per_second, Ordering::Relaxed);
 
-                    use crate::indexer_metrics::{PROCESSING_LATENCY_HISTOGRAM, LAST_PROCESSED_LEDGER_GAUGE, LEDGER_LAG_GAUGE};
+                    use crate::indexer_metrics::{
+                        LAST_PROCESSED_LEDGER_GAUGE, LEDGER_LAG_GAUGE, PROCESSING_LATENCY_HISTOGRAM,
+                    };
                     PROCESSING_LATENCY_HISTOGRAM.observe(elapsed_seconds);
                     LAST_PROCESSED_LEDGER_GAUGE.set(cycle.checkpoint);
                     let lag = cycle.latest_network_ledger.saturating_sub(cycle.checkpoint);
@@ -158,10 +157,7 @@ impl LedgerFollower {
                 .await?
                 .unwrap_or(0);
 
-        debug!(
-            last_processed_ledger,
-            "checkpoint read from database"
-        );
+        debug!(last_processed_ledger, "checkpoint read from database");
 
         if last_processed_ledger == 0 {
             info!("no checkpoint found; initializing from latest network ledger");
@@ -201,8 +197,7 @@ impl LedgerFollower {
         let start_ledger = last_processed_ledger + 1;
         debug!(
             start_ledger,
-            last_processed_ledger,
-            "fetching events from RPC"
+            last_processed_ledger, "fetching events from RPC"
         );
 
         let events_response = self.rpc.get_events(start_ledger).await?;
@@ -217,8 +212,7 @@ impl LedgerFollower {
         if events_response.latest_network_ledger < start_ledger {
             debug!(
                 latest_network_ledger = events_response.latest_network_ledger,
-                start_ledger,
-                "network ledger behind start ledger; no events to process"
+                start_ledger, "network ledger behind start ledger; no events to process"
             );
 
             metrics()
@@ -297,11 +291,7 @@ impl LedgerFollower {
             use crate::indexer_metrics::EVENT_PROCESSING_COUNTER;
             EVENT_PROCESSING_COUNTER.inc();
 
-            trace!(
-                event_id,
-                ledger,
-                "processing side effects for event"
-            );
+            trace!(event_id, ledger, "processing side effects for event");
 
             process_event_side_effects(&mut transaction, event)
                 .await
@@ -330,11 +320,7 @@ impl LedgerFollower {
         .execute(&mut *transaction)
         .await?;
 
-        debug!(
-            inserted_events,
-            next_checkpoint,
-            "committing transaction"
-        );
+        debug!(inserted_events, next_checkpoint, "committing transaction");
         transaction.commit().await?;
 
         last_processed_ledger = next_checkpoint;
@@ -367,10 +353,7 @@ async fn process_event_side_effects(
         .and_then(Value::as_str)
         .unwrap_or("");
 
-    trace!(
-        event_type = first_topic,
-        "processing event side effects"
-    );
+    trace!(event_type = first_topic, "processing event side effects");
 
     match first_topic {
         "jobpost" | "jobauto" => {
@@ -381,7 +364,11 @@ async fn process_event_side_effects(
                 .parse::<i64>()
                 .unwrap_or(0);
 
-            info!(job_id, event_type = first_topic, "indexed job creation event");
+            info!(
+                job_id,
+                event_type = first_topic,
+                "indexed job creation event"
+            );
         }
         "bid" => {
             info!(event_type = "bid", "indexed bid submission event");
@@ -413,12 +400,7 @@ async fn process_event_side_effects(
 
             debug!(
                 event_id,
-                ledger,
-                contract_id,
-                sender,
-                token,
-                amount,
-                "inserting deposit record"
+                ledger, contract_id, sender, token, amount, "inserting deposit record"
             );
 
             sqlx::query(
@@ -462,11 +444,7 @@ async fn process_event_side_effects(
 
             debug!(
                 event_id,
-                ledger,
-                contract_id,
-                job_id,
-                opened_by,
-                "inserting dispute record"
+                ledger, contract_id, job_id, opened_by, "inserting dispute record"
             );
 
             sqlx::query(
@@ -490,10 +468,7 @@ async fn process_event_side_effects(
             );
         }
         _ => {
-            trace!(
-                event_type = first_topic,
-                "no side effects for event type"
-            );
+            trace!(event_type = first_topic, "no side effects for event type");
         }
     }
 
@@ -737,7 +712,10 @@ mod tests {
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        assert_eq!(checkpoint_after_first_failure, 100, "Checkpoint should not advance on failure");
+        assert_eq!(
+            checkpoint_after_first_failure, 100,
+            "Checkpoint should not advance on failure"
+        );
 
         // Second attempt: RPC returns 429 rate limit
         {
@@ -759,7 +737,10 @@ mod tests {
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        assert_eq!(checkpoint_after_second_failure, 100, "Checkpoint should remain unchanged");
+        assert_eq!(
+            checkpoint_after_second_failure, 100,
+            "Checkpoint should remain unchanged"
+        );
 
         // Third attempt: RPC succeeds
         Mock::given(method("POST"))
@@ -796,13 +777,17 @@ mod tests {
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        assert_eq!(checkpoint_after_recovery, 101, "Checkpoint should advance to 101");
+        assert_eq!(
+            checkpoint_after_recovery, 101,
+            "Checkpoint should advance to 101"
+        );
 
         // Verify event was indexed
-        let event_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM indexed_events WHERE id = 'evt-101'")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let event_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM indexed_events WHERE id = 'evt-101'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(event_count, 1, "Event should be indexed");
     }
 
@@ -858,27 +843,34 @@ mod tests {
         let rpc = SorobanRpcClient::new(Client::new(), test_rpc_config(mock_server.uri()));
         let mut follower = LedgerFollower::new(pool.clone(), rpc, test_follower_config());
         let cycle1 = follower.next_cycle().await.unwrap();
-        assert_eq!(cycle1.inserted_events, 3, "Should insert 3 events on first pass");
+        assert_eq!(
+            cycle1.inserted_events, 3,
+            "Should insert 3 events on first pass"
+        );
 
         // Verify all events were indexed
-        let indexed_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM indexed_events WHERE ledger_amount = 200")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let indexed_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM indexed_events WHERE ledger_amount = 200")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(indexed_count, 3, "All 3 events should be in indexed_events");
 
         // Verify deposit side effect
-        let deposit_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM deposits WHERE id = 'evt-deposit-200'")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let deposit_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM deposits WHERE id = 'evt-deposit-200'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(deposit_count, 1, "Deposit should be recorded");
 
         // Verify dispute side effect
-        let dispute_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM indexed_disputes WHERE id = 'evt-dispute-200'")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let dispute_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM indexed_disputes WHERE id = 'evt-dispute-200'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
         assert_eq!(dispute_count, 1, "Dispute should be recorded");
 
         // Reset checkpoint to re-process same ledger
@@ -898,28 +890,41 @@ mod tests {
         let rpc2 = SorobanRpcClient::new(Client::new(), test_rpc_config(mock_server.uri()));
         follower = LedgerFollower::new(pool.clone(), rpc2, test_follower_config());
         let cycle2 = follower.next_cycle().await.unwrap();
-        assert_eq!(cycle2.inserted_events, 0, "Should insert 0 events on re-processing");
+        assert_eq!(
+            cycle2.inserted_events, 0,
+            "Should insert 0 events on re-processing"
+        );
 
         // Verify no duplicate events
-        let indexed_count_after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM indexed_events WHERE ledger_amount = 200")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let indexed_count_after: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM indexed_events WHERE ledger_amount = 200")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(indexed_count_after, 3, "Should still have exactly 3 events");
 
         // Verify no duplicate deposits
-        let deposit_count_after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM deposits WHERE id = 'evt-deposit-200'")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-        assert_eq!(deposit_count_after, 1, "Should still have exactly 1 deposit");
+        let deposit_count_after: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM deposits WHERE id = 'evt-deposit-200'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            deposit_count_after, 1,
+            "Should still have exactly 1 deposit"
+        );
 
         // Verify no duplicate disputes
-        let dispute_count_after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM indexed_disputes WHERE id = 'evt-dispute-200'")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-        assert_eq!(dispute_count_after, 1, "Should still have exactly 1 dispute");
+        let dispute_count_after: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM indexed_disputes WHERE id = 'evt-dispute-200'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            dispute_count_after, 1,
+            "Should still have exactly 1 dispute"
+        );
     }
 
     #[sqlx::test(migrations = "./migrations")]
@@ -972,7 +977,7 @@ mod tests {
         let manual_insert_result = sqlx::query(
             "INSERT INTO indexed_events (id, ledger_amount, contract_id, topic_hash)
              VALUES ($1, $2, $3, $4)
-             ON CONFLICT (id) DO NOTHING"
+             ON CONFLICT (id) DO NOTHING",
         )
         .bind("evt-300-1")
         .bind(300_i64)
@@ -981,7 +986,11 @@ mod tests {
         .execute(&pool)
         .await
         .unwrap();
-        assert_eq!(manual_insert_result.rows_affected(), 0, "Should not insert duplicate");
+        assert_eq!(
+            manual_insert_result.rows_affected(),
+            0,
+            "Should not insert duplicate"
+        );
 
         // Reset checkpoint and re-process
         sqlx::query("UPDATE indexer_state SET last_processed_ledger = $1 WHERE id = 1")
@@ -999,13 +1008,17 @@ mod tests {
         let rpc2 = SorobanRpcClient::new(Client::new(), test_rpc_config(mock_server.uri()));
         follower = LedgerFollower::new(pool.clone(), rpc2, test_follower_config());
         let cycle2 = follower.next_cycle().await.unwrap();
-        assert_eq!(cycle2.inserted_events, 0, "Should skip all duplicate events");
+        assert_eq!(
+            cycle2.inserted_events, 0,
+            "Should skip all duplicate events"
+        );
 
         // Verify exactly 2 events exist
-        let total_events: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM indexed_events WHERE ledger_amount = 300")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let total_events: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM indexed_events WHERE ledger_amount = 300")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(total_events, 2, "Should have exactly 2 events");
     }
 
@@ -1076,15 +1089,13 @@ mod tests {
 
         let last_processed = metrics().last_processed_ledger.load(Ordering::Relaxed);
         assert_eq!(
-            last_processed,
-            500,
+            last_processed, 500,
             "last_processed_ledger should be updated to 500"
         );
 
         let last_network = metrics().last_network_ledger.load(Ordering::Relaxed);
         assert_eq!(
-            last_network,
-            502,
+            last_network, 502,
             "last_network_ledger should be updated to 502"
         );
     }
@@ -1149,20 +1160,21 @@ mod tests {
         let rpc2 = SorobanRpcClient::new(Client::new(), test_rpc_config(mock_server.uri()));
         follower = LedgerFollower::new(pool.clone(), rpc2, test_follower_config());
         let cycle2 = follower.next_cycle().await.unwrap();
-        assert_eq!(cycle2.inserted_events, 0, "Should not insert duplicate events");
+        assert_eq!(
+            cycle2.inserted_events, 0,
+            "Should not insert duplicate events"
+        );
 
         let events_after_second = metrics().total_events_processed.load(Ordering::Relaxed);
         assert_eq!(
-            events_after_second,
-            events_after_first,
+            events_after_second, events_after_first,
             "total_events_processed should not increase when re-processing duplicates"
         );
 
         // Verify checkpoint still advances even with no new events
         let checkpoint = metrics().last_processed_ledger.load(Ordering::Relaxed);
         assert_eq!(
-            checkpoint,
-            700,
+            checkpoint, 700,
             "checkpoint should advance even when skipping duplicates"
         );
     }
@@ -1195,7 +1207,10 @@ mod tests {
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        assert_eq!(checkpoint1, 799, "Checkpoint should not change on RPC failure");
+        assert_eq!(
+            checkpoint1, 799,
+            "Checkpoint should not change on RPC failure"
+        );
 
         // Attempt 2: Succeed
         Mock::given(method("POST"))
@@ -1230,13 +1245,17 @@ mod tests {
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        assert_eq!(checkpoint2, 800, "Checkpoint should advance to 800 after success");
+        assert_eq!(
+            checkpoint2, 800,
+            "Checkpoint should advance to 800 after success"
+        );
 
         // Verify event was indexed
-        let event_exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM indexed_events WHERE id = 'evt-800')")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let event_exists: bool =
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM indexed_events WHERE id = 'evt-800')")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert!(event_exists, "Event should be indexed");
 
         // Attempt 3: Process next ledger
@@ -1271,17 +1290,24 @@ mod tests {
                 .fetch_one(&pool)
                 .await
                 .unwrap();
-        assert_eq!(checkpoint3, 801, "Checkpoint should continue advancing sequentially");
+        assert_eq!(
+            checkpoint3, 801,
+            "Checkpoint should continue advancing sequentially"
+        );
 
         // Verify no ledgers were skipped
-        let ledger_800_exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM indexed_events WHERE ledger_amount = 800)")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-        let ledger_801_exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM indexed_events WHERE ledger_amount = 801)")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let ledger_800_exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM indexed_events WHERE ledger_amount = 800)",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        let ledger_801_exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM indexed_events WHERE ledger_amount = 801)",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
         assert!(ledger_800_exists, "Ledger 800 should be indexed");
         assert!(ledger_801_exists, "Ledger 801 should be indexed");
     }
