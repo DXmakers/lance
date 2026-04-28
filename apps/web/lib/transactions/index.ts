@@ -73,3 +73,32 @@ export type {
   ResourceLimits,
   AdjustedTransaction,
 } from "./fee-estimator";
+
+export {
+  submitTransaction,
+  submitAndWait,
+} from "./submitter";
+
+export type {
+  SubmissionConfig,
+  SubmissionResult,
+} from "./submitter";
+
+export {
+  pollTransactionStatus,
+  waitForTransactionSuccess,
+} from "./poller";
+
+export type {
+  PollingConfig,
+  PollingResult,
+} from "./poller";
+
+export {
+  submitToHorizon,
+  getHorizonTransactionStatus,
+} from "./horizon-fallback";
+
+export type {
+  HorizonSubmissionResult,
+} from "./horizon-fallback";
