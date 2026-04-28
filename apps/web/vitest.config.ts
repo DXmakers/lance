@@ -10,6 +10,9 @@ export default defineConfig({
       reporter: ["text", "html"],
       include: [
         "components/theme/theme-toggle.tsx",
+        "components/jobs/post-job-form.tsx",
+        "components/jobs/post-job-error-boundary.tsx",
+        "lib/validations/post-job-schema.ts",
         "lib/notifications.ts",
         "lib/profile.ts",
       ],
