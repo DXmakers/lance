@@ -104,7 +104,35 @@ export function useTransaction(options: UseTransactionOptions): UseTransactionRe
   const store = useTransactionStore();
 
   // ============================================================
-  // ✅ MOVED: handleTransactionEvent declared FIRST (was at line 129)
+  // ✅ DECLARED FIRST: triggerSuccessUpdates (so it exists when handleTransactionEvent calls it)
+  // ============================================================
+
+  /**
+   * Triggers UI updates on successful transaction confirmation.
+   */
+  const triggerSuccessUpdates = useCallback(async () => {
+    try {
+      // Refresh balances
+      if (onRefreshBalance) {
+        await onRefreshBalance();
+      }
+
+      // Update escrow status
+      if (onUpdateEscrow) {
+        await onUpdateEscrow();
+      }
+
+      // Update milestones
+      if (onUpdateMilestones) {
+        await onUpdateMilestones();
+      }
+    } catch (err) {
+      console.error("[useTransaction] Error triggering success updates:", err);
+    }
+  }, [onRefreshBalance, onUpdateEscrow, onUpdateMilestones]);
+
+  // ============================================================
+  // ✅ DECLARED SECOND: handleTransactionEvent (now can safely call triggerSuccessUpdates)
   // ============================================================
 
   /**
@@ -153,7 +181,7 @@ export function useTransaction(options: UseTransactionOptions): UseTransactionRe
 
         case "SUCCESS":
           setIsProcessing(false);
-          // Trigger UI updates
+          // ✅ NOW SAFE: triggerSuccessUpdates is already declared
           await triggerSuccessUpdates();
           onSuccess?.(event.polling!);
           break;
@@ -189,39 +217,11 @@ export function useTransaction(options: UseTransactionOptions): UseTransactionRe
         store.addToHistory(stored);
       }
     },
-    [store, onStateChange, onSuccess, onError],
+    [store, onStateChange, onSuccess, onError, triggerSuccessUpdates],
   );
 
   // ============================================================
-  // ✅ MOVED: triggerSuccessUpdates declared SECOND (was at line 214)
-  // ============================================================
-
-  /**
-   * Triggers UI updates on successful transaction confirmation.
-   */
-  const triggerSuccessUpdates = useCallback(async () => {
-    try {
-      // Refresh balances
-      if (onRefreshBalance) {
-        await onRefreshBalance();
-      }
-
-      // Update escrow status
-      if (onUpdateEscrow) {
-        await onUpdateEscrow();
-      }
-
-      // Update milestones
-      if (onUpdateMilestones) {
-        await onUpdateMilestones();
-      }
-    } catch (err) {
-      console.error("[useTransaction] Error triggering success updates:", err);
-    }
-  }, [onRefreshBalance, onUpdateEscrow, onUpdateMilestones]);
-
-  // ============================================================
-  // ✅ NOW subscribe to events (was using handleTransactionEvent before declaration)
+  // ✅ initializeLifecycle (now safe to call handleTransactionEvent)
   // ============================================================
 
   /**
@@ -245,7 +245,7 @@ export function useTransaction(options: UseTransactionOptions): UseTransactionRe
   }, [sourceAddress, contractId, method, handleTransactionEvent]);
 
   // ============================================================
-  // All other functions remain the same (no changes needed)
+  // All other functions remain the same
   // ============================================================
 
   /**
