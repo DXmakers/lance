@@ -13,7 +13,7 @@ pub async fn run_judge_worker(pool: PgPool) {
 
     loop {
         if let Err(e) = process_open_disputes(&pool, &judge, stellar.as_ref()).await {
-            tracing::error!("judge worker error: {e}");
+            tracing::error!(error = %e, "judge worker cycle failed");
         }
         tokio::time::sleep(Duration::from_secs(30)).await;
     }
@@ -31,19 +31,29 @@ async fn process_open_disputes(
 
     for (dispute_id, job_id) in disputes {
         if let Err(e) = process_dispute(pool, judge, stellar, dispute_id, job_id).await {
-            tracing::error!("dispute {dispute_id} failed: {e}");
+            tracing::error!(
+                %dispute_id,
+                %job_id,
+                error = %e,
+                "dispute processing failed",
+            );
             if let Err(e2) = sqlx::query("UPDATE disputes SET status = 'open' WHERE id = $1")
                 .bind(dispute_id)
                 .execute(pool)
                 .await
             {
-                tracing::error!("dispute {dispute_id} status reset failed: {e2}");
+                tracing::error!(
+                    %dispute_id,
+                    error = %e2,
+                    "dispute status reset failed",
+                );
             }
         }
     }
     Ok(())
 }
 
+#[tracing::instrument(skip(pool, judge, stellar), fields(%dispute_id, %job_id))]
 async fn process_dispute(
     pool: &PgPool,
     judge: &JudgeService,
@@ -116,9 +126,10 @@ async fn process_dispute(
         .await?;
 
     tracing::info!(
-        "dispute {dispute_id} resolved: winner={} tx={:?}",
-        verdict.winner,
-        on_chain_tx
+        %dispute_id,
+        winner = %verdict.winner,
+        on_chain_tx = ?on_chain_tx,
+        "dispute resolved",
     );
     Ok(())
 }

@@ -111,8 +111,8 @@ export interface AcceptBidParams {
   jobId: bigint;
   /** Client Stellar address - must match connected wallet. */
   clientAddress: string;
-  /** Selected bid id (u64) - the bid to accept. */
-  bidId: bigint;
+  /** Freelancer Stellar address of the submitted bid to accept. */
+  freelancerAddress: string;
 }
 
 export interface AcceptBidResult {
@@ -316,24 +316,24 @@ export async function acceptBid(
     throw new Error("NEXT_PUBLIC_JOB_REGISTRY_CONTRACT_ID is not configured.");
   }
 
-  const { jobId, clientAddress, bidId } = params;
+  const { jobId, clientAddress, freelancerAddress } = params;
 
-  // ── Parameter validation ────────────────────────────────────────────────
+  // ── Parameter validation ────────────────────────────────────────────────────
   if (!clientAddress) {
     throw new Error("clientAddress is required.");
   }
   if (jobId <= 0n) {
     throw new Error("jobId must be greater than zero.");
   }
-  if (bidId <= 0n) {
-    throw new Error("bidId must be greater than zero.");
+  if (!freelancerAddress) {
+    throw new Error("freelancerAddress is required.");
   }
 
-  // Build ScVal arguments for accept_bid(job_id, bid_id, client)
+  // Build ScVal arguments for accept_bid(job_id, client, freelancer)
   const args: xdr.ScVal[] = [
     nativeToScVal(jobId, { type: "u64" }),
-    nativeToScVal(bidId, { type: "u64" }),
     Address.fromString(clientAddress).toScVal(),
+    Address.fromString(freelancerAddress).toScVal(),
   ];
 
   return invokeJobRegistry(clientAddress, "accept_bid", args, onStep);

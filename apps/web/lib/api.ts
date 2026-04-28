@@ -1,4 +1,5 @@
 import { jwtMemory } from "@/lib/store/use-auth-store";
+import type { ReputationMetrics } from "@/lib/reputation";
 
 const API =
   process.env.NEXT_PUBLIC_API_URL ??
@@ -45,6 +46,11 @@ export const api = {
     get: (id: string) => request<Job>(`/v1/jobs/${id}`),
     create: (body: CreateJobBody) =>
       request<Job>("/v1/jobs", { method: "POST", body: JSON.stringify(body) }),
+    storeMetadata: (jobId: string, body: JobMetadata) =>
+      request<MetadataUploadResponse>(`/v1/jobs/${jobId}/metadata`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     markFunded: (id: string, body: MarkFundedBody) =>
       request<Job>(`/v1/jobs/${id}/fund`, {
         method: "POST",
@@ -153,6 +159,24 @@ export interface CreateJobBody {
   memo?: string;
 }
 
+export interface JobMetadata {
+  job_id: string;
+  title: string;
+  description: string;
+  budget_usdc: number;
+  milestones: number;
+  client_address: string;
+  tags: string[];
+  skills_required: string[];
+  estimated_duration_days?: number | null;
+}
+
+export interface MetadataUploadResponse {
+  cid: string;
+  metadata_hash: string;
+  job_id: string;
+}
+
 export interface MarkFundedBody {
   client_address: string;
 }
@@ -164,6 +188,7 @@ export interface Bid {
   proposal: string;
   status: string;
   created_at: string;
+  freelancerReputation?: ReputationMetrics;
 }
 
 export interface CreateBidBody {
