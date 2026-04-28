@@ -20,9 +20,7 @@ export const postJobSchema = z.object({
     { message: "Deadline must be in the future." },
   ),
   paymentType: z.enum(["fixed", "milestone"], {
-    errorMap: (issue, ctx) => ({
-      message: "Select a payment type.",
-    }),
+    error: "Select a payment type.",
   }),
   milestones: z.number().min(1, "At least 1 milestone required.").max(20, "Maximum 20 milestones.").optional(),
 }).refine(
