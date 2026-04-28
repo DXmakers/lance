@@ -16,7 +16,7 @@
  */
 
 import { useCallback, useState } from "react";
-import { useWalletKit } from "@/hooks/useWalletKit"; // adjust path to your kit hook
+import { useWalletKit } from "@/hooks/useWalletKit";
 import {
   BumpFeeParams,
   BumpFeeResult,

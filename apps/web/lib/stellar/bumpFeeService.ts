@@ -18,7 +18,7 @@
 import {
   Contract,
   Networks,
-  SorobanRpc,
+  rpc as SorobanRpc,
   Transaction,
   TransactionBuilder,
   xdr,
@@ -110,7 +110,7 @@ function toScVal(value: unknown): xdr.ScVal {
     return nativeToScVal(value, { type: "i128" });
   }
   if (value instanceof Uint8Array) {
-    return xdr.ScVal.scvBytes(value);
+    return xdr.ScVal.scvBytes(Buffer.from(value));
   }
   return nativeToScVal(value);
 }
@@ -250,15 +250,10 @@ export class BumpFeeService {
   /**
    * Load the source account, retrying once on sequence-number mismatch.
    */
-  private async _loadAccount(
-    publicKey: string,
-    retryCount = 0,
-  ): Promise<SorobanRpc.Api.GetAccountResponse & { sequence: string }> {
+  private async _loadAccount(publicKey: string, retryCount = 0): Promise<any> {
     try {
       const account = await this.server.getAccount(publicKey);
-      return account as SorobanRpc.Api.GetAccountResponse & {
-        sequence: string;
-      };
+      return account;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       if (retryCount === 0 && message.includes("sequence")) {
