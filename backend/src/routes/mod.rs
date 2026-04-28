@@ -21,6 +21,7 @@ pub fn api_router() -> Router<AppState> {
         .route("/health/live", get(health::liveness))
         .route("/health/ready", get(health::readiness))
         .route("/health", get(health::health))
+        .route("/health/sync", get(health::sync_health))
         .route("/sync-status", get(health::sync_status))
         .route("/metrics", get(health::prometheus_metrics))
         // v1 API routes
