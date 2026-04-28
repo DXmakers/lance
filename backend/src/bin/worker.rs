@@ -30,6 +30,9 @@ async fn main() -> anyhow::Result<()> {
         _ = backend::worker::run_judge_worker(pool.clone()) => {
             tracing::warn!("judge worker exited");
         }
+        _ = backend::storage_audit::run_storage_audit_worker(pool.clone()) => {
+            tracing::warn!("storage audit worker exited");
+        }
         _ = tokio::signal::ctrl_c() => {
             tracing::info!("received shutdown signal");
         }

@@ -219,6 +219,14 @@ pub async fn prometheus_metrics() -> String {
     let rpc_latency = metrics().last_rpc_latency_ms.load(Ordering::Relaxed);
     let ledger_lag = std::cmp::max(latest_network_ledger - last_ledger, 0);
 
+    // Storage audit metrics
+    let storage_metrics = crate::storage_audit::metrics();
+    let total_audits = storage_metrics.total_audits_run.load(Ordering::Relaxed);
+    let total_anomalies = storage_metrics.total_anomalies_detected.load(Ordering::Relaxed);
+    let last_audit_duration = storage_metrics.last_audit_duration_ms.load(Ordering::Relaxed);
+    let last_audit_timestamp = storage_metrics.last_audit_timestamp.load(Ordering::Relaxed);
+    let total_storage_bytes = storage_metrics.total_storage_bytes.load(Ordering::Relaxed);
+
     format!(
         "# HELP indexer_last_processed_ledger The last ledger successfully indexed\n\
          # TYPE indexer_last_processed_ledger gauge\n\
@@ -249,6 +257,21 @@ pub async fn prometheus_metrics() -> String {
          indexer_last_loop_duration_ms {latency}\n\
          # HELP indexer_last_rpc_latency_ms Latency of the last RPC request in milliseconds\n\
          # TYPE indexer_last_rpc_latency_ms gauge\n\
-         indexer_last_rpc_latency_ms {rpc_latency}\n"
+         indexer_last_rpc_latency_ms {rpc_latency}\n\
+         # HELP storage_audit_total_audits Total number of storage audits performed\n\
+         # TYPE storage_audit_total_audits counter\n\
+         storage_audit_total_audits {total_audits}\n\
+         # HELP storage_audit_total_anomalies Total anomalies detected across all audits\n\
+         # TYPE storage_audit_total_anomalies counter\n\
+         storage_audit_total_anomalies {total_anomalies}\n\
+         # HELP storage_audit_last_duration_ms Duration of the last audit in milliseconds\n\
+         # TYPE storage_audit_last_duration_ms gauge\n\
+         storage_audit_last_duration_ms {last_audit_duration}\n\
+         # HELP storage_audit_last_timestamp Unix timestamp of the last audit\n\
+         # TYPE storage_audit_last_timestamp gauge\n\
+         storage_audit_last_timestamp {last_audit_timestamp}\n\
+         # HELP storage_audit_total_bytes Total database storage in bytes\n\
+         # TYPE storage_audit_total_bytes gauge\n\
+         storage_audit_total_bytes {total_storage_bytes}\n"
     )
 }

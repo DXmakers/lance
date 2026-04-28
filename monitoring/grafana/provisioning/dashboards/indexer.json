@@ -1,6 +1,6 @@
 {
-  "title": "Lance Indexer",
-  "uid": "lance-indexer",
+  "title": "Lance System Health",
+  "uid": "lance-system-health",
   "schemaVersion": 38,
   "refresh": "10s",
   "time": { "from": "now-30m", "to": "now" },
@@ -55,6 +55,36 @@
       }
     },
     {
+      "id": 9,
+      "type": "stat",
+      "title": "Storage Size",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "targets": [{ "expr": "storage_audit_total_bytes", "legendFormat": "bytes" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Storage Anomalies",
+      "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+      "targets": [{ "expr": "storage_audit_total_anomalies", "legendFormat": "anomalies" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      }
+    },
+    {
       "id": 5,
       "type": "timeseries",
       "title": "Event Throughput (events/sec)",
@@ -84,6 +114,46 @@
       "title": "Error Rate",
       "gridPos": { "x": 12, "y": 12, "w": 12, "h": 6 },
       "targets": [{ "expr": "rate(indexer_total_errors[1m])", "legendFormat": "errors/min" }]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Storage Growth (bytes)",
+      "gridPos": { "x": 0, "y": 18, "w": 12, "h": 8 },
+      "targets": [{ "expr": "storage_audit_total_bytes", "legendFormat": "database size" }]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Audit Duration (ms)",
+      "gridPos": { "x": 12, "y": 18, "w": 12, "h": 8 },
+      "targets": [{ "expr": "storage_audit_last_duration_ms", "legendFormat": "audit duration" }]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Total Audits Run",
+      "gridPos": { "x": 0, "y": 26, "w": 12, "h": 6 },
+      "targets": [{ "expr": "rate(storage_audit_total_audits[1h])", "legendFormat": "audits/hour" }]
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Last Audit",
+      "gridPos": { "x": 12, "y": 26, "w": 12, "h": 6 },
+      "targets": [{ "expr": "time() - storage_audit_last_timestamp", "legendFormat": "seconds ago" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dtdurations",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 7200 },
+              { "color": "red", "value": 14400 }
+            ]
+          }
+        }
+      }
     }
   ]
 }
