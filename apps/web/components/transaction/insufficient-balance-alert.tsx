@@ -75,8 +75,8 @@ export function InsufficientBalanceAlert({
             Insufficient {asset} balance
           </h3>
           <p className="mt-1 text-xs text-amber-200/80">
-            Your wallet doesn&apos;t have enough {asset} to complete this transaction. Fund
-            your wallet and try again.
+            Your wallet doesn&apos;t have enough {asset} to complete this
+            transaction. Fund your wallet and try again.
           </p>
         </div>
         {onDismiss && (
@@ -97,26 +97,35 @@ export function InsufficientBalanceAlert({
         data-testid={`${testId}-balances`}
       >
         <div>
-          <dt className="text-[10px] uppercase tracking-wide text-amber-300/70">Required</dt>
+          <dt className="text-[10px] uppercase tracking-wide text-amber-300/70">
+            Required
+          </dt>
           <dd className="text-amber-100" data-testid={`${testId}-required`}>
             {required} {asset}
           </dd>
         </div>
         <div>
-          <dt className="text-[10px] uppercase tracking-wide text-amber-300/70">Available</dt>
+          <dt className="text-[10px] uppercase tracking-wide text-amber-300/70">
+            Available
+          </dt>
           <dd className="text-amber-100" data-testid={`${testId}-available`}>
             {available} {asset}
           </dd>
         </div>
         <div>
-          <dt className="text-[10px] uppercase tracking-wide text-amber-300/70">Shortfall</dt>
+          <dt className="text-[10px] uppercase tracking-wide text-amber-300/70">
+            Shortfall
+          </dt>
           <dd className="text-rose-300" data-testid={`${testId}-shortfall`}>
             {shortfall ? `${shortfall} ${asset}` : "—"}
           </dd>
         </div>
       </dl>
 
-      <div className="mt-4 flex flex-wrap gap-2" data-testid={`${testId}-actions`}>
+      <div
+        className="mt-4 flex flex-wrap gap-2"
+        data-testid={`${testId}-actions`}
+      >
         {fundUrl && (
           <a
             href={fundUrl}

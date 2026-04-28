@@ -42,7 +42,9 @@ export function NotificationCenter() {
             className="absolute right-0 z-50 mt-2 w-[22rem] max-w-[92vw] rounded-xl border border-zinc-800 bg-zinc-950/95 p-3 shadow-[0_20px_70px_-35px_rgba(79,70,229,0.6)] backdrop-blur"
           >
             <header className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-zinc-100">Notifications</h3>
+              <h3 className="text-sm font-semibold text-zinc-100">
+                Notifications
+              </h3>
               <button
                 type="button"
                 onClick={markAllRead}
@@ -74,8 +76,12 @@ export function NotificationCenter() {
                     className="block rounded-xl border border-zinc-800 bg-zinc-900/70 p-3 transition-opacity duration-150 hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                   >
                     <div className="mb-1 flex items-center gap-2">
-                      <span className={`h-2.5 w-2.5 rounded-full ${statusTone(item.status)}`} />
-                      <p className="text-xs font-medium text-zinc-100">{item.title}</p>
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full ${statusTone(item.status)}`}
+                      />
+                      <p className="text-xs font-medium text-zinc-100">
+                        {item.title}
+                      </p>
                     </div>
                     <p className="text-xs text-zinc-300">{item.message}</p>
                     <p className="mt-1 text-[11px] text-zinc-500">

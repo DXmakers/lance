@@ -23,7 +23,7 @@ export function useApiDocs() {
 export function useApiEndpoint(id: string) {
   const { data: docs, ...rest } = useApiDocs();
   const endpoint = docs?.find((e) => e.id === id);
-  
+
   return {
     data: endpoint,
     ...rest,

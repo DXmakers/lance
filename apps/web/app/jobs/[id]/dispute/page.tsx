@@ -11,7 +11,13 @@ import {
   Scale,
 } from "lucide-react";
 import { SiteShell } from "@/components/site-shell";
-import { api, type Dispute, type Evidence, type Job, type Verdict } from "@/lib/api";
+import {
+  api,
+  type Dispute,
+  type Evidence,
+  type Job,
+  type Verdict,
+} from "@/lib/api";
 import { formatDateTime, formatUsdc, shortenAddress } from "@/lib/format";
 import { connectWallet, getConnectedWalletAddress } from "@/lib/stellar";
 
@@ -148,7 +154,9 @@ export default function JobDisputeCenterPage() {
   }
 
   const freelancerShare = verdict ? verdict.freelancer_share_bps / 100 : null;
-  const clientShare = verdict ? (10000 - verdict.freelancer_share_bps) / 100 : null;
+  const clientShare = verdict
+    ? (10000 - verdict.freelancer_share_bps) / 100
+    : null;
 
   return (
     <SiteShell
@@ -166,9 +174,10 @@ export default function JobDisputeCenterPage() {
                   Regular workflow is fully locked
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-red-800">
-                  While this dispute is open, Lance freezes milestone approvals and
-                  standard execution actions. The Agent Judge reviews the original
-                  brief, submitted evidence, and both parties&apos; written context.
+                  While this dispute is open, Lance freezes milestone approvals
+                  and standard execution actions. The Agent Judge reviews the
+                  original brief, submitted evidence, and both parties&apos;
+                  written context.
                 </p>
               </div>
             </div>
@@ -199,7 +208,9 @@ export default function JobDisputeCenterPage() {
               />
               <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                 <FileWarning className="h-4 w-4 text-amber-600" />
-                <span>{attachment ? attachment.name : "Attach supporting evidence"}</span>
+                <span>
+                  {attachment ? attachment.name : "Attach supporting evidence"}
+                </span>
                 <input
                   type="file"
                   className="hidden"
@@ -266,15 +277,21 @@ export default function JobDisputeCenterPage() {
             <div className="mt-4 grid gap-3 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
               <div className="flex items-center justify-between gap-4">
                 <span>Opened by</span>
-                <span className="font-medium">{shortenAddress(dispute.opened_by)}</span>
+                <span className="font-medium">
+                  {shortenAddress(dispute.opened_by)}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <span>Created</span>
-                <span className="font-medium">{formatDateTime(dispute.created_at)}</span>
+                <span className="font-medium">
+                  {formatDateTime(dispute.created_at)}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <span>Contract value</span>
-                <span className="font-medium">{formatUsdc(job.budget_usdc)}</span>
+                <span className="font-medium">
+                  {formatUsdc(job.budget_usdc)}
+                </span>
               </div>
             </div>
           </section>

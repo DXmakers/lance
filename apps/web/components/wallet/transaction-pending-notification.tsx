@@ -42,10 +42,14 @@ export function TransactionPendingNotification({
               ? "Connected wallet"
               : "No wallet connected"}
           </p>
-          {isConnected && address ? <CopyAddressButton address={address} /> : null}
+          {isConnected && address ? (
+            <CopyAddressButton address={address} />
+          ) : null}
           <p className="text-xs text-zinc-400">App network: {appNetwork}</p>
           {walletNetwork ? (
-            <p className="text-xs text-zinc-400">Wallet network: {walletNetwork}</p>
+            <p className="text-xs text-zinc-400">
+              Wallet network: {walletNetwork}
+            </p>
           ) : null}
         </div>
 
@@ -81,9 +85,9 @@ export function TransactionPendingNotification({
         >
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            Network mismatch detected. Your wallet is connected to {walletNetwork},
-            but this app is configured for {appNetwork}. Switch wallet network before
-            signing.
+            Network mismatch detected. Your wallet is connected to{" "}
+            {walletNetwork}, but this app is configured for {appNetwork}. Switch
+            wallet network before signing.
           </p>
         </div>
       ) : null}
@@ -103,7 +107,9 @@ export function TransactionPendingNotification({
           <LoaderCircle className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
           <div>
             <p className="font-medium">{pendingText}</p>
-            {txHash ? <p className="mt-1 break-all text-xs opacity-80">tx: {txHash}</p> : null}
+            {txHash ? (
+              <p className="mt-1 break-all text-xs opacity-80">tx: {txHash}</p>
+            ) : null}
           </div>
         </div>
       ) : null}

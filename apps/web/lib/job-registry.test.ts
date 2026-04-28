@@ -14,8 +14,10 @@ import {
 
 // Mock environment variables
 beforeEach(() => {
-  process.env.NEXT_PUBLIC_JOB_REGISTRY_CONTRACT_ID = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4";
-  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL = "https://soroban-testnet.stellar.org";
+  process.env.NEXT_PUBLIC_JOB_REGISTRY_CONTRACT_ID =
+    "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4";
+  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL =
+    "https://soroban-testnet.stellar.org";
   process.env.NEXT_PUBLIC_STELLAR_NETWORK = "TESTNET";
 });
 
@@ -28,31 +30,33 @@ describe("acceptBid", () => {
     };
 
     await expect(acceptBid(params)).rejects.toThrow(
-      "clientAddress is required."
+      "clientAddress is required.",
     );
   });
 
   it("should throw error when jobId is zero or negative", async () => {
     const params: AcceptBidParams = {
       jobId: 0n,
-      clientAddress: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      clientAddress:
+        "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
       bidId: 1n,
     };
 
     await expect(acceptBid(params)).rejects.toThrow(
-      "jobId must be greater than zero."
+      "jobId must be greater than zero.",
     );
   });
 
   it("should throw error when bidId is zero or negative", async () => {
     const params: AcceptBidParams = {
       jobId: 1n,
-      clientAddress: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      clientAddress:
+        "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
       bidId: 0n,
     };
 
     await expect(acceptBid(params)).rejects.toThrow(
-      "bidId must be greater than zero."
+      "bidId must be greater than zero.",
     );
   });
 
@@ -61,7 +65,8 @@ describe("acceptBid", () => {
 
     const params: AcceptBidParams = {
       jobId: 1n,
-      clientAddress: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      clientAddress:
+        "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
       bidId: 1n,
     };
 
@@ -90,12 +95,13 @@ describe("acceptBid", () => {
 
     const params: AcceptBidParams = {
       jobId: 1n,
-      clientAddress: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      clientAddress:
+        "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
       bidId: 1n,
     };
 
     await expect(acceptBid(params)).rejects.toThrow(
-      "NEXT_PUBLIC_JOB_REGISTRY_CONTRACT_ID is not configured."
+      "NEXT_PUBLIC_JOB_REGISTRY_CONTRACT_ID is not configured.",
     );
   });
 
@@ -104,7 +110,8 @@ describe("acceptBid", () => {
 
     const params: AcceptBidParams = {
       jobId: 123n,
-      clientAddress: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+      clientAddress:
+        "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
       bidId: 456n,
     };
 

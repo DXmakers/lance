@@ -120,7 +120,11 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
                 aria-label="Disconnect Stellar wallet"
                 className="inline-flex items-center gap-1 rounded-xl border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100"
               >
-                <span>{xlmBalance ? `${Number(xlmBalance).toFixed(1)} XLM` : "XLM --"}</span>
+                <span>
+                  {xlmBalance
+                    ? `${Number(xlmBalance).toFixed(1)} XLM`
+                    : "XLM --"}
+                </span>
                 <span className="text-zinc-400">{shortAddress(address)}</span>
                 <Unplug className="h-3.5 w-3.5 text-zinc-400" />
               </button>
@@ -132,7 +136,9 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
                 aria-label="Connect Stellar wallet"
                 className="inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-2.5 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
               >
-                {isConnecting ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : null}
+                {isConnecting ? (
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                ) : null}
                 {isConnecting ? "..." : "Connect"}
               </button>
             )}
@@ -146,7 +152,9 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
             {isConnected && address ? (
               <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 transition-opacity duration-200">
                 <span className="font-medium text-zinc-100">
-                  {xlmBalance ? `${Number(xlmBalance).toFixed(2)} XLM` : "XLM --"}
+                  {xlmBalance
+                    ? `${Number(xlmBalance).toFixed(2)} XLM`
+                    : "XLM --"}
                 </span>
                 <span className="text-zinc-400">{shortAddress(address)}</span>
                 <button
@@ -166,7 +174,9 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
                 aria-label="Connect Stellar wallet"
                 className="inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-xs font-semibold text-white transition-opacity duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isConnecting ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : null}
+                {isConnecting ? (
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                ) : null}
                 {isConnecting ? "Connecting..." : "Connect wallet"}
               </button>
             )}
@@ -199,14 +209,18 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
                   </AvatarFallback>
                 </Avatar>
                 <div className="pr-2">
-                  <p className="text-sm font-medium text-foreground">{user?.name}</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {user?.name}
+                  </p>
                   {walletAddress ? (
                     <p className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Wallet className="h-3 w-3" aria-hidden="true" />
                       {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
                     </p>
                   ) : (
-                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {user?.email}
+                    </p>
                   )}
                 </div>
               </div>
@@ -229,7 +243,10 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
                 variant="ghost"
                 size="sm"
                 onClick={() =>
-                  login({ name: "Amaka Client", email: "client@lance.so" }, "client")
+                  login(
+                    { name: "Amaka Client", email: "client@lance.so" },
+                    "client",
+                  )
                 }
                 className="rounded-full"
               >
@@ -239,7 +256,10 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
                 size="sm"
                 onClick={() =>
                   login(
-                    { name: "Kehinde Freelancer", email: "freelancer@lance.so" },
+                    {
+                      name: "Kehinde Freelancer",
+                      email: "freelancer@lance.so",
+                    },
                     "freelancer",
                   )
                 }

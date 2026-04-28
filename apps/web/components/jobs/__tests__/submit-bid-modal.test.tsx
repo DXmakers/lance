@@ -77,7 +77,9 @@ describe("SubmitBidModal", () => {
     fireEvent.change(textarea, { target: { value: "short" } });
 
     expect(screen.getByText(/at least 24 characters/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign & Submit Bid" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Sign & Submit Bid" }),
+    ).toBeDisabled();
   });
 
   it("prevents wallet submission until the job has an on-chain id", () => {
@@ -91,8 +93,12 @@ describe("SubmitBidModal", () => {
       },
     });
 
-    expect(screen.getByText(/not been indexed on-chain yet/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign & Submit Bid" })).toBeDisabled();
+    expect(
+      screen.getByText(/not been indexed on-chain yet/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sign & Submit Bid" }),
+    ).toBeDisabled();
   });
 
   it("submits bid and refreshes the job immediately on success", async () => {

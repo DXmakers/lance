@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Lance",
-  description: "Mock-ready freelance platform flows for deterministic E2E testing.",
+  description:
+    "Mock-ready freelance platform flows for deterministic E2E testing.",
 };
 
 export default function RootLayout({

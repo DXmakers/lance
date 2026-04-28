@@ -99,7 +99,7 @@ function PublicProfileWorkspace({ address }: { address: string }) {
   });
 
   const [formValues, setFormValues] = useState<ProfileFormValues>(() =>
-    profileQuery.data ? createProfileFormValues(profileQuery.data) : EMPTY_FORM
+    profileQuery.data ? createProfileFormValues(profileQuery.data) : EMPTY_FORM,
   );
 
   const connectWalletMutation = useMutation({
@@ -109,7 +109,9 @@ function PublicProfileWorkspace({ address }: { address: string }) {
       toast.success("Wallet connected");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Wallet connection failed.");
+      toast.error(
+        error instanceof Error ? error.message : "Wallet connection failed.",
+      );
     },
   });
 
@@ -124,7 +126,9 @@ function PublicProfileWorkspace({ address }: { address: string }) {
       toast.success("Profile updated successfully");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to save profile.");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save profile.",
+      );
     },
   });
 
@@ -232,14 +236,16 @@ function PublicProfileWorkspace({ address }: { address: string }) {
                       Trusted public profile
                     </Badge>
                     <h1 className="mt-5 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                      {profile.display_name || shortenAddress(profile.address, 12, 6)}
+                      {profile.display_name ||
+                        shortenAddress(profile.address, 12, 6)}
                     </h1>
                     <p className="mt-3 text-base leading-7 text-zinc-200">
                       {profile.headline ||
                         "Independent specialist building calm, verifiable delivery systems for complex Web3 work."}
                     </p>
                     <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300">
-                      {profile.bio || "This user has not added a public bio yet."}
+                      {profile.bio ||
+                        "This user has not added a public bio yet."}
                     </p>
                   </div>
 
@@ -263,7 +269,8 @@ function PublicProfileWorkspace({ address }: { address: string }) {
                     value={
                       reputationQuery.isPending
                         ? "..."
-                        : reputation?.freelancer.averageStars.toFixed(1) ?? "2.5"
+                        : (reputation?.freelancer.averageStars.toFixed(1) ??
+                          "2.5")
                     }
                     caption={`${reputation?.freelancer.scoreBps ?? 5000} bps on-chain`}
                     accent="emerald"
@@ -311,10 +318,12 @@ function PublicProfileWorkspace({ address }: { address: string }) {
               <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
                 <Card className="rounded-[24px] border-white/10 bg-white/7 text-zinc-50 shadow-none">
                   <CardHeader>
-                    <CardTitle className="text-white">Portfolio and proof of work</CardTitle>
+                    <CardTitle className="text-white">
+                      Portfolio and proof of work
+                    </CardTitle>
                     <CardDescription className="text-zinc-300">
-                      Public links give clients a fast way to validate craft, credibility,
-                      and specialization.
+                      Public links give clients a fast way to validate craft,
+                      credibility, and specialization.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -342,10 +351,12 @@ function PublicProfileWorkspace({ address }: { address: string }) {
 
                 <Card className="rounded-[24px] border-white/10 bg-white/7 text-zinc-50 shadow-none">
                   <CardHeader>
-                    <CardTitle className="text-white">Commercial trust snapshot</CardTitle>
+                    <CardTitle className="text-white">
+                      Commercial trust snapshot
+                    </CardTitle>
                     <CardDescription className="text-zinc-300">
-                      The signals below help clients evaluate delivery reliability before
-                      starting a contract.
+                      The signals below help clients evaluate delivery
+                      reliability before starting a contract.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -379,8 +390,8 @@ function PublicProfileWorkspace({ address }: { address: string }) {
                 <CardHeader>
                   <CardTitle className="text-white">Delivery history</CardTitle>
                   <CardDescription className="text-zinc-300">
-                    Shared job history helps clients and freelancers assess consistency,
-                    budget range, and execution cadence.
+                    Shared job history helps clients and freelancers assess
+                    consistency, budget range, and execution cadence.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -418,7 +429,8 @@ function PublicProfileWorkspace({ address }: { address: string }) {
                                 {entry.title}
                               </h2>
                               <p className="mt-2 text-sm leading-6 text-zinc-300">
-                                Counterparty {shortenAddress(entry.counterparty, 8, 4)}
+                                Counterparty{" "}
+                                {shortenAddress(entry.counterparty, 8, 4)}
                               </p>
                             </div>
                           </div>
@@ -453,10 +465,12 @@ function PublicProfileWorkspace({ address }: { address: string }) {
               <section className="grid gap-6 lg:grid-cols-2">
                 <Card className="rounded-[24px] border-white/10 bg-white/7 text-zinc-50 shadow-none">
                   <CardHeader>
-                    <CardTitle className="text-white">Operational reliability</CardTitle>
+                    <CardTitle className="text-white">
+                      Operational reliability
+                    </CardTitle>
                     <CardDescription className="text-zinc-300">
-                      This mix of on-chain and off-chain signals shows how consistently the
-                      user completes paid work.
+                      This mix of on-chain and off-chain signals shows how
+                      consistently the user completes paid work.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -477,14 +491,19 @@ function PublicProfileWorkspace({ address }: { address: string }) {
 
                 <Card className="rounded-[24px] border-white/10 bg-white/7 text-zinc-50 shadow-none">
                   <CardHeader>
-                    <CardTitle className="text-white">Live operating posture</CardTitle>
+                    <CardTitle className="text-white">
+                      Live operating posture
+                    </CardTitle>
                     <CardDescription className="text-zinc-300">
-                      A quick summary for deciding whether to start a brief or request a bid.
+                      A quick summary for deciding whether to start a brief or
+                      request a bid.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-4">
                     <SignalRow
-                      icon={<BriefcaseBusiness className="h-4 w-4 text-amber-300" />}
+                      icon={
+                        <BriefcaseBusiness className="h-4 w-4 text-amber-300" />
+                      }
                       label="Open commitments"
                       value={`${profile.metrics.active_jobs} active jobs`}
                     />
@@ -512,13 +531,14 @@ function PublicProfileWorkspace({ address }: { address: string }) {
                   Profile controls
                 </CardTitle>
                 <CardDescription className="text-zinc-300">
-                  Wallet-gated editing keeps the public narrative controlled by the actual
-                  profile owner.
+                  Wallet-gated editing keeps the public narrative controlled by
+                  the actual profile owner.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="rounded-[20px] border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-300">
-                  Only the connected owner can update profile copy and portfolio links.
+                  Only the connected owner can update profile copy and portfolio
+                  links.
                 </div>
 
                 {isOwner ? (
@@ -538,7 +558,9 @@ function PublicProfileWorkspace({ address }: { address: string }) {
                     className="h-11 w-full rounded-full bg-white text-zinc-950 hover:bg-zinc-200 active:scale-[0.99]"
                   >
                     <Wallet className="mr-2 h-4 w-4" />
-                    {connectWalletMutation.isPending ? "Connecting..." : "Connect wallet"}
+                    {connectWalletMutation.isPending
+                      ? "Connecting..."
+                      : "Connect wallet"}
                   </Button>
                 )}
               </CardContent>
@@ -547,14 +569,20 @@ function PublicProfileWorkspace({ address }: { address: string }) {
             {editing && isOwner ? (
               <Card className="rounded-[24px] border-white/10 bg-white/8 text-zinc-50 shadow-none">
                 <CardHeader>
-                  <CardTitle className="text-white">Edit public profile</CardTitle>
+                  <CardTitle className="text-white">
+                    Edit public profile
+                  </CardTitle>
                   <CardDescription className="text-zinc-300">
-                    Changes validate in real time and publish back into the cached profile
-                    surface instantly after save.
+                    Changes validate in real time and publish back into the
+                    cached profile surface instantly after save.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+                  <form
+                    className="space-y-4"
+                    onSubmit={handleSubmit}
+                    noValidate
+                  >
                     <ProfileField
                       label="Display name"
                       hint="Optional. Keep it concise and recognizable."
@@ -564,7 +592,9 @@ function PublicProfileWorkspace({ address }: { address: string }) {
                       <Input
                         id="profile-display-name"
                         value={formValues.displayName}
-                        onChange={(event) => updateField("displayName", event.target.value)}
+                        onChange={(event) =>
+                          updateField("displayName", event.target.value)
+                        }
                         placeholder="Amina O."
                         className="rounded-2xl border-white/10 bg-black/20 text-white placeholder:text-zinc-500"
                         aria-invalid={Boolean(formErrors.displayName)}
@@ -580,7 +610,9 @@ function PublicProfileWorkspace({ address }: { address: string }) {
                       <Input
                         id="profile-headline"
                         value={formValues.headline}
-                        onChange={(event) => updateField("headline", event.target.value)}
+                        onChange={(event) =>
+                          updateField("headline", event.target.value)
+                        }
                         placeholder="Senior Web3 strategist for escrow and talent systems"
                         className="rounded-2xl border-white/10 bg-black/20 text-white placeholder:text-zinc-500"
                         aria-invalid={Boolean(formErrors.headline)}
@@ -596,7 +628,9 @@ function PublicProfileWorkspace({ address }: { address: string }) {
                       <Textarea
                         id="profile-bio"
                         value={formValues.bio}
-                        onChange={(event) => updateField("bio", event.target.value)}
+                        onChange={(event) =>
+                          updateField("bio", event.target.value)
+                        }
                         placeholder="I design and ship trust-centered freelance experiences with measurable delivery signals."
                         className="min-h-[156px] rounded-2xl border-white/10 bg-black/20 text-white placeholder:text-zinc-500"
                         aria-invalid={Boolean(formErrors.bio)}
@@ -612,8 +646,12 @@ function PublicProfileWorkspace({ address }: { address: string }) {
                       <Textarea
                         id="profile-portfolio-links"
                         value={formValues.portfolioLinks}
-                        onChange={(event) => updateField("portfolioLinks", event.target.value)}
-                        placeholder={"https://amina.dev\nhttps://github.com/amina"}
+                        onChange={(event) =>
+                          updateField("portfolioLinks", event.target.value)
+                        }
+                        placeholder={
+                          "https://amina.dev\nhttps://github.com/amina"
+                        }
                         className="min-h-[132px] rounded-2xl border-white/10 bg-black/20 text-white placeholder:text-zinc-500"
                         aria-invalid={Boolean(formErrors.portfolioLinks)}
                       />
@@ -624,7 +662,9 @@ function PublicProfileWorkspace({ address }: { address: string }) {
                       disabled={saveProfileMutation.isPending}
                       className="h-11 w-full rounded-full bg-emerald-500 text-zinc-950 hover:bg-emerald-400 active:scale-[0.99]"
                     >
-                      {saveProfileMutation.isPending ? "Saving profile..." : "Save profile"}
+                      {saveProfileMutation.isPending
+                        ? "Saving profile..."
+                        : "Save profile"}
                     </Button>
                   </form>
                 </CardContent>
@@ -635,11 +675,16 @@ function PublicProfileWorkspace({ address }: { address: string }) {
               <CardHeader>
                 <CardTitle className="text-white">Share profile</CardTitle>
                 <CardDescription className="text-zinc-300">
-                  Designed to read well in proposals, social shares, and client reviews.
+                  Designed to read well in proposals, social shares, and client
+                  reviews.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button asChild variant="outline" className="h-11 w-full rounded-full border-white/10 bg-white/5 text-white hover:bg-white/10">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-11 w-full rounded-full border-white/10 bg-white/5 text-white hover:bg-white/10"
+                >
                   <Link href="/jobs">
                     Browse live opportunities
                     <ArrowUpRight className="ml-2 h-4 w-4" />
@@ -721,7 +766,9 @@ function MiniMetric({
 }) {
   return (
     <div className="rounded-[20px] border border-white/10 bg-black/20 p-4">
-      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">{label}</p>
+      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+        {label}
+      </p>
       <p className={`mt-3 text-2xl font-semibold ${tone}`}>{value}</p>
     </div>
   );
@@ -738,7 +785,9 @@ function SignalRow({
 }) {
   return (
     <div className="flex items-start gap-3 rounded-[20px] border border-white/10 bg-black/20 p-4">
-      <div className="mt-0.5 rounded-full border border-white/10 bg-white/5 p-2">{icon}</div>
+      <div className="mt-0.5 rounded-full border border-white/10 bg-white/5 p-2">
+        {icon}
+      </div>
       <div>
         <p className="text-sm font-semibold text-white">{label}</p>
         <p className="mt-1 text-sm leading-6 text-zinc-300">{value}</p>

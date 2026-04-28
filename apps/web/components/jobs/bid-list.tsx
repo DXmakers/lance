@@ -12,10 +12,7 @@ import { cn } from "@/lib/utils";
 
 // ── Status helpers ──────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; className: string }
-> = {
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   pending: {
     label: "Pending",
     className: "bg-amber-500/10 text-amber-400 border-amber-500/20",
@@ -38,7 +35,10 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <Badge
       variant="outline"
-      className={cn("rounded-full text-[11px] font-medium capitalize", config.className)}
+      className={cn(
+        "rounded-full text-[11px] font-medium capitalize",
+        config.className,
+      )}
     >
       {config.label}
     </Badge>
@@ -220,7 +220,10 @@ export function BidList({
                 <td className="px-6 py-5 align-top text-sm text-zinc-300">
                   <div className="flex flex-col gap-2">
                     <StatusBadge status={bid.status} />
-                    <time dateTime={bid.created_at} className="text-[11px] text-zinc-500">
+                    <time
+                      dateTime={bid.created_at}
+                      className="text-[11px] text-zinc-500"
+                    >
                       {formatDate(bid.created_at)}
                     </time>
                   </div>
@@ -237,12 +240,18 @@ export function BidList({
                     >
                       {isAccepting ? (
                         <>
-                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                          <Loader2
+                            className="mr-1.5 h-3.5 w-3.5 animate-spin"
+                            aria-hidden="true"
+                          />
                           Accepting…
                         </>
                       ) : (
                         <>
-                          <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                          <CheckCircle2
+                            className="mr-1.5 h-3.5 w-3.5"
+                            aria-hidden="true"
+                          />
                           Accept Bid
                         </>
                       )}

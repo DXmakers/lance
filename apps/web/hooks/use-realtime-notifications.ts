@@ -61,7 +61,8 @@ export function useRealtimeNotifications() {
   }, [notifications]);
 
   const enriched = useMemo(
-    () => notifications.map((item) => ({ ...item, read: seenIds.has(item.id) })),
+    () =>
+      notifications.map((item) => ({ ...item, read: seenIds.has(item.id) })),
     [notifications, seenIds],
   );
 

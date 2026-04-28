@@ -18,7 +18,9 @@ import {
 const bidReputationCache = new Map<string, ReputationMetrics>();
 
 async function enrichBidReputations(bids: Bid[]): Promise<Bid[]> {
-  const uniqueAddresses = [...new Set(bids.map((bid) => bid.freelancer_address))];
+  const uniqueAddresses = [
+    ...new Set(bids.map((bid) => bid.freelancer_address)),
+  ];
   const reputationEntries = await Promise.all(
     uniqueAddresses.map(async (address) => {
       const cached = bidReputationCache.get(address);
@@ -89,7 +91,10 @@ export function useLiveJobWorkspace(jobId: string): LiveJobWorkspace {
         const leftScore = left.freelancerReputation?.scoreBps ?? 0;
         const rightScore = right.freelancerReputation?.scoreBps ?? 0;
         if (rightScore !== leftScore) return rightScore - leftScore;
-        return new Date(left.created_at).getTime() - new Date(right.created_at).getTime();
+        return (
+          new Date(left.created_at).getTime() -
+          new Date(right.created_at).getTime()
+        );
       });
 
       setJob(nextJob);

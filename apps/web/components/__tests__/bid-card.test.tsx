@@ -19,7 +19,9 @@ describe("BidCard Component", () => {
     expect(screen.getByText("Satoshi Nakamoto")).toBeInTheDocument();
     expect(screen.getByText("1,500")).toBeInTheDocument();
     expect(screen.getByText("USDC")).toBeInTheDocument();
-    expect(screen.getByText("I can deliver this smart contract perfectly.")).toBeInTheDocument();
+    expect(
+      screen.getByText("I can deliver this smart contract perfectly."),
+    ).toBeInTheDocument();
   });
 
   it("calls onAccept correctly", () => {
@@ -40,7 +42,11 @@ describe("BidCard Component", () => {
 
   it("hides action buttons when status is not pending", () => {
     render(<BidCard {...defaultProps} status="success" />);
-    expect(screen.queryByRole("button", { name: /accept bid/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /decline/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /accept bid/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /decline/i }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -5,7 +5,8 @@ import { Wallet, LogOut, CheckCircle2 } from "lucide-react";
 import { ExplorerLink } from "@/components/ui/explorer-link";
 
 export function WalletConnect() {
-  const { address, network, isConnecting, connect, disconnect, setNetwork } = useWallet();
+  const { address, network, isConnecting, connect, disconnect, setNetwork } =
+    useWallet();
 
   const truncateAddress = (addr: string) =>
     `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -21,7 +22,9 @@ export function WalletConnect() {
           </h2>
           {address && (
             <div className="flex items-center gap-2 px-3 py-1 bg-zinc-800 rounded-full border border-zinc-700">
-              <span className={`w-2 h-2 rounded-full ${network === "MAINNET" ? "bg-indigo-500" : "bg-zinc-400"}`} />
+              <span
+                className={`w-2 h-2 rounded-full ${network === "MAINNET" ? "bg-indigo-500" : "bg-zinc-400"}`}
+              />
               <span className="text-xs text-zinc-300 font-medium">
                 {network}
               </span>
@@ -34,7 +37,8 @@ export function WalletConnect() {
           {!address ? (
             <div className="flex flex-col space-y-4">
               <p className="text-sm text-zinc-400 leading-relaxed">
-                Connect your Stellar wallet to securely manage your account and sign transactions.
+                Connect your Stellar wallet to securely manage your account and
+                sign transactions.
               </p>
               <button
                 onClick={connect}
@@ -58,17 +62,24 @@ export function WalletConnect() {
                 <CheckCircle2 className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
                 <div className="flex flex-col w-full">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-zinc-400 font-medium">Connected Address</span>
+                    <span className="text-xs text-zinc-400 font-medium">
+                      Connected Address
+                    </span>
                     <ExplorerLink address={address} label="Explorer" />
                   </div>
-                  <span className="text-sm text-zinc-100 font-mono tracking-tight" aria-label="Wallet Address">
+                  <span
+                    className="text-sm text-zinc-100 font-mono tracking-tight"
+                    aria-label="Wallet Address"
+                  >
                     {truncateAddress(address)}
                   </span>
                 </div>
               </div>
 
               <div className="flex flex-col space-y-3">
-                <label className="text-xs text-zinc-400 font-medium">Network Settings</label>
+                <label className="text-xs text-zinc-400 font-medium">
+                  Network Settings
+                </label>
                 <div className="flex bg-zinc-800 rounded-[12px] p-1 border border-zinc-700">
                   <button
                     onClick={() => setNetwork("TESTNET")}

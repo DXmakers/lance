@@ -22,8 +22,18 @@ describe("notifications utils", () => {
   it("builds notification status from job status", () => {
     const items = buildJobNotifications([
       baseJob,
-      { ...baseJob, id: "job_2", status: "funded", updated_at: "2026-01-03T00:00:00.000Z" },
-      { ...baseJob, id: "job_3", status: "disputed", updated_at: "2026-01-04T00:00:00.000Z" },
+      {
+        ...baseJob,
+        id: "job_2",
+        status: "funded",
+        updated_at: "2026-01-03T00:00:00.000Z",
+      },
+      {
+        ...baseJob,
+        id: "job_3",
+        status: "disputed",
+        updated_at: "2026-01-04T00:00:00.000Z",
+      },
     ]);
 
     expect(items[0].status).toBe("warning");
@@ -67,6 +77,8 @@ describe("notifications utils", () => {
     ];
 
     expect(getUnreadCount(items)).toBe(1);
-    expect(getNewItems(new Set(["a"]), items).map((item) => item.id)).toEqual(["b"]);
+    expect(getNewItems(new Set(["a"]), items).map((item) => item.id)).toEqual([
+      "b",
+    ]);
   });
 });

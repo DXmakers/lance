@@ -109,7 +109,10 @@ export default function DisputePage() {
     <main className="min-h-screen bg-stone-950 px-6 py-10 text-stone-50">
       <div className="mx-auto flex max-w-5xl flex-col gap-8">
         <header className="space-y-3">
-          <Link href="/jobs" className="text-sm text-amber-300 hover:text-amber-200">
+          <Link
+            href="/jobs"
+            className="text-sm text-amber-300 hover:text-amber-200"
+          >
             Back to jobs
           </Link>
           <p className="text-xs uppercase tracking-[0.35em] text-amber-300">
@@ -133,7 +136,9 @@ export default function DisputePage() {
                 <dt className="text-xs uppercase tracking-[0.3em] text-stone-500">
                   Opened by
                 </dt>
-                <dd className="break-all">{dispute?.opened_by ?? "Loading..."}</dd>
+                <dd className="break-all">
+                  {dispute?.opened_by ?? "Loading..."}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs uppercase tracking-[0.3em] text-stone-500">
@@ -155,13 +160,17 @@ export default function DisputePage() {
                 <dt className="text-xs uppercase tracking-[0.3em] text-stone-500">
                   Settlement Tx
                 </dt>
-                <dd className="break-all">{verdict?.on_chain_tx ?? "Pending"}</dd>
+                <dd className="break-all">
+                  {verdict?.on_chain_tx ?? "Pending"}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs uppercase tracking-[0.3em] text-stone-500">
                   Wallet
                 </dt>
-                <dd className="break-all">{walletAddress || "Not connected"}</dd>
+                <dd className="break-all">
+                  {walletAddress || "Not connected"}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs uppercase tracking-[0.3em] text-stone-500">
@@ -177,8 +186,9 @@ export default function DisputePage() {
           <section className="rounded-3xl border border-amber-400/20 bg-amber-400/5 p-6">
             <h2 className="text-xl font-semibold">Submit Evidence</h2>
             <p className="mt-2 text-sm text-stone-300">
-              The test suite injects a mock Freighter-compatible wallet and signs
-              this evidence payload in-browser before the request is accepted.
+              The test suite injects a mock Freighter-compatible wallet and
+              signs this evidence payload in-browser before the request is
+              accepted.
             </p>
 
             <form onSubmit={onSubmitEvidence} className="mt-6 space-y-4">

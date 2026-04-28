@@ -81,7 +81,8 @@ function metricsFromScore(score: ContractReputationScore): ReputationMetrics {
   const totalJobs = normalizeNumber(score.total_jobs);
   const totalPoints = normalizeNumber(score.total_points);
   const reviews = normalizeNumber(score.reviews);
-  const averageStars = reviews > 0 ? totalPoints / reviews : toStarRating(scoreBps);
+  const averageStars =
+    reviews > 0 ? totalPoints / reviews : toStarRating(scoreBps);
 
   return {
     scoreBps,
@@ -93,7 +94,9 @@ function metricsFromScore(score: ContractReputationScore): ReputationMetrics {
   };
 }
 
-export async function getReputationView(address: string): Promise<ReputationViewMetrics> {
+export async function getReputationView(
+  address: string,
+): Promise<ReputationViewMetrics> {
   if (!REPUTATION_CONTRACT_ID) {
     return fallbackView();
   }

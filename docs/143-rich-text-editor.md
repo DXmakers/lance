@@ -1,12 +1,11 @@
 # #143 — UI: Add Rich Text Editor for Descriptions
 
-Summary
--------
+## Summary
 
 This change implements a lightweight, accessible Rich Text Editor for job descriptions and integrates it into the job creation flow.
 
-What was done
---------------
+## What was done
+
 - Added `RichTextEditor` component used in the `jobs/new` page
 - Added Zod validation for job creation payloads
 - Added a unit test for the editor (`components/ui/__tests__/rich-text-editor.test.tsx`)
@@ -14,15 +13,13 @@ What was done
 - Installed required test dependencies and verified the new unit test passes
 - Verified E2E tests locally after installing Playwright browsers
 
-Status
-------
+## Status
 
 - Build: successful for `apps/web` (local)
 - Unit tests: editor unit test passes (Vitest)
 - E2E tests: Playwright run succeeded locally
 
-References
-----------
+## References
 
 Commit/Branch: `143-ui-add-rich-text-editor-for-descriptions`
 

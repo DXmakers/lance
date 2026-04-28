@@ -97,10 +97,7 @@ interface StepIconProps {
 function StepIcon({ status }: StepIconProps) {
   if (status === "done") {
     return (
-      <CheckCircle
-        className="h-5 w-5 text-emerald-400"
-        aria-hidden="true"
-      />
+      <CheckCircle className="h-5 w-5 text-emerald-400" aria-hidden="true" />
     );
   }
   if (status === "active") {
@@ -112,16 +109,9 @@ function StepIcon({ status }: StepIconProps) {
     );
   }
   if (status === "error") {
-    return (
-      <XCircle className="h-5 w-5 text-red-400" aria-hidden="true" />
-    );
+    return <XCircle className="h-5 w-5 text-red-400" aria-hidden="true" />;
   }
-  return (
-    <CircleDashed
-      className="h-5 w-5 text-zinc-600"
-      aria-hidden="true"
-    />
-  );
+  return <CircleDashed className="h-5 w-5 text-zinc-600" aria-hidden="true" />;
 }
 
 interface HashDisplayProps {
@@ -205,7 +195,11 @@ function FeeBreakdownPanel({ log }: SimLogPanelProps) {
       </div>
 
       <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <FeeMetric label="Base Fee" value={formatStroops(log.baseFee)} detail={`${log.baseFee} stroops`} />
+        <FeeMetric
+          label="Base Fee"
+          value={formatStroops(log.baseFee)}
+          detail={`${log.baseFee} stroops`}
+        />
         <FeeMetric
           label="Resource Fee"
           value={formatStroops(log.resourceFee)}
@@ -249,7 +243,9 @@ function FeeMetric({
           : "border-zinc-800 bg-zinc-950/70",
       )}
     >
-      <dt className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">{label}</dt>
+      <dt className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+        {label}
+      </dt>
       <dd
         className={cn(
           "mt-1 font-mono text-sm",
@@ -290,8 +286,14 @@ function SimLogPanel({ log }: SimLogPanelProps) {
             <SimLogRow label="CPU Instructions" value={log.cpuInsns} />
             <SimLogRow label="Memory Bytes" value={log.memBytes} />
             <SimLogRow label="Base Fee" value={`${log.baseFee} stroops`} />
-            <SimLogRow label="Resource Fee" value={`${log.resourceFee} stroops`} />
-            <SimLogRow label="Estimated Total" value={`${log.estimatedTotalFee} stroops`} />
+            <SimLogRow
+              label="Resource Fee"
+              value={`${log.resourceFee} stroops`}
+            />
+            <SimLogRow
+              label="Estimated Total"
+              value={`${log.estimatedTotalFee} stroops`}
+            />
             <SimLogRow label="Read Bytes" value={String(log.readBytes)} />
             <SimLogRow label="Write Bytes" value={String(log.writeBytes)} />
           </dl>
@@ -339,7 +341,10 @@ function XdrPanel({ label, xdr }: XdrPanelProps) {
         {open ? (
           <ChevronUp className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
         ) : (
-          <ChevronDown className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
+          <ChevronDown
+            className="h-3.5 w-3.5 text-zinc-500"
+            aria-hidden="true"
+          />
         )}
       </button>
 
@@ -421,14 +426,10 @@ export function TransactionPipeline({
         {PIPELINE_STEPS.map((pipelineStep, idx) => {
           const pipelineStepIndex = idx + 1; // building=1, simulating=2, …
           const isDone =
-            isSuccess ||
-            (!isError && currentIndex > pipelineStepIndex);
+            isSuccess || (!isError && currentIndex > pipelineStepIndex);
           const isActive =
-            !isSuccess &&
-            !isError &&
-            currentIndex === pipelineStepIndex;
-          const isStepError =
-            isError && currentIndex === pipelineStepIndex;
+            !isSuccess && !isError && currentIndex === pipelineStepIndex;
+          const isStepError = isError && currentIndex === pipelineStepIndex;
           const isPending = !isDone && !isActive && !isStepError;
 
           const status = isStepError

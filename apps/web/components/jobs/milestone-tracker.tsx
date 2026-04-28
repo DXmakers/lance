@@ -68,7 +68,8 @@ function getStatusConfig(
       label: "Released",
       icon: <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />,
       pill: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25 ring-emerald-500/10",
-      cardBorder: "border-emerald-500/20 shadow-[0_0_0_1px_rgba(16,185,129,0.08),0_8px_32px_-8px_rgba(16,185,129,0.12)]",
+      cardBorder:
+        "border-emerald-500/20 shadow-[0_0_0_1px_rgba(16,185,129,0.08),0_8px_32px_-8px_rgba(16,185,129,0.12)]",
       dot: "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]",
       connector: "bg-emerald-500/40",
     };
@@ -78,7 +79,8 @@ function getStatusConfig(
       label: "Disputed",
       icon: <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />,
       pill: "bg-red-500/15 text-red-400 border-red-500/25 ring-red-500/10",
-      cardBorder: "border-red-500/20 shadow-[0_0_0_1px_rgba(239,68,68,0.08),0_8px_32px_-8px_rgba(239,68,68,0.12)]",
+      cardBorder:
+        "border-red-500/20 shadow-[0_0_0_1px_rgba(239,68,68,0.08),0_8px_32px_-8px_rgba(239,68,68,0.12)]",
       dot: "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]",
       connector: "bg-red-500/30",
     };
@@ -88,7 +90,8 @@ function getStatusConfig(
       label: "Under Review",
       icon: <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />,
       pill: "bg-sky-500/15 text-sky-400 border-sky-500/25 ring-sky-500/10",
-      cardBorder: "border-sky-500/20 shadow-[0_0_0_1px_rgba(14,165,233,0.08),0_8px_32px_-8px_rgba(14,165,233,0.12)]",
+      cardBorder:
+        "border-sky-500/20 shadow-[0_0_0_1px_rgba(14,165,233,0.08),0_8px_32px_-8px_rgba(14,165,233,0.12)]",
       dot: "bg-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.4)] animate-pulse",
       connector: "bg-sky-500/30",
     };
@@ -105,13 +108,7 @@ function getStatusConfig(
 
 // ── Progress bar ──────────────────────────────────────────────────────────────
 
-function ProgressBar({
-  released,
-  total,
-}: {
-  released: number;
-  total: number;
-}) {
+function ProgressBar({ released, total }: { released: number; total: number }) {
   const pct = total === 0 ? 0 : Math.round((released / total) * 100);
 
   return (
@@ -156,13 +153,17 @@ function SummaryStats({
   return (
     <div className="grid grid-cols-3 gap-2">
       <div className="rounded-xl bg-zinc-900/60 px-3 py-2.5 text-center ring-1 ring-zinc-800/80">
-        <p className="text-lg font-semibold tabular-nums text-emerald-400">{released}</p>
+        <p className="text-lg font-semibold tabular-nums text-emerald-400">
+          {released}
+        </p>
         <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
           Released
         </p>
       </div>
       <div className="rounded-xl bg-zinc-900/60 px-3 py-2.5 text-center ring-1 ring-zinc-800/80">
-        <p className="text-lg font-semibold tabular-nums text-amber-400">{pending}</p>
+        <p className="text-lg font-semibold tabular-nums text-amber-400">
+          {pending}
+        </p>
         <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">
           Pending
         </p>
@@ -277,7 +278,10 @@ function MilestoneCard({
           {/* Amount */}
           <div className="flex-shrink-0 text-right">
             <div className="flex items-center gap-1.5 text-sm font-bold tabular-nums text-zinc-100">
-              <Coins className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" />
+              <Coins
+                className="h-3.5 w-3.5 text-amber-400"
+                aria-hidden="true"
+              />
               {formatUsdc(milestone.amount_usdc)}
             </div>
           </div>
@@ -287,7 +291,10 @@ function MilestoneCard({
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
           {milestone.released_at && (
             <span className="flex items-center gap-1.5 text-[11px] text-zinc-500">
-              <CheckCircle2 className="h-3 w-3 text-emerald-500" aria-hidden="true" />
+              <CheckCircle2
+                className="h-3 w-3 text-emerald-500"
+                aria-hidden="true"
+              />
               Released {formatDateTime(milestone.released_at)}
             </span>
           )}
@@ -320,7 +327,10 @@ function MilestoneCard({
                 rel="noreferrer"
                 className="flex items-center gap-2 rounded-lg bg-zinc-800/60 px-3 py-2 text-[12px] text-zinc-400 ring-1 ring-zinc-700/50 transition-all duration-150 hover:bg-zinc-800 hover:text-zinc-200 hover:ring-zinc-600/60"
               >
-                <Link2 className="h-3 w-3 flex-shrink-0 text-amber-500" aria-hidden="true" />
+                <Link2
+                  className="h-3 w-3 flex-shrink-0 text-amber-500"
+                  aria-hidden="true"
+                />
                 <span className="truncate">{d.label}</span>
                 <span className="ml-auto flex-shrink-0 text-[10px] text-zinc-600">
                   {formatDateTime(d.created_at)}
@@ -346,7 +356,10 @@ function MilestoneCard({
               aria-label={`Release funds for milestone ${milestone.index}: ${milestone.title}`}
             >
               {isBusy ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                <LoaderCircle
+                  className="h-4 w-4 animate-spin"
+                  aria-hidden="true"
+                />
               ) : (
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
               )}
@@ -388,7 +401,12 @@ function MilestoneTrackerSkeleton() {
         <div key={n} className="flex gap-4">
           <div className="flex flex-col items-center">
             <div className="h-8 w-8 animate-pulse rounded-full bg-zinc-800" />
-            {n < 3 && <div className="mt-1 w-0.5 flex-1 animate-pulse rounded-full bg-zinc-800/60" style={{ minHeight: "2rem" }} />}
+            {n < 3 && (
+              <div
+                className="mt-1 w-0.5 flex-1 animate-pulse rounded-full bg-zinc-800/60"
+                style={{ minHeight: "2rem" }}
+              />
+            )}
           </div>
           <div className="mb-4 flex-1 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
             <div className="flex items-start justify-between gap-3">
@@ -425,7 +443,9 @@ export function MilestoneTracker({
     return { releasedAmount: released, totalAmount: total };
   }, [milestones]);
 
-  const releasedCount = milestones.filter((m) => m.status === "released").length;
+  const releasedCount = milestones.filter(
+    (m) => m.status === "released",
+  ).length;
 
   return (
     <section

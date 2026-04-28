@@ -25,9 +25,7 @@ export function WalletProviderIcon({
   size = 20,
   className,
 }: WalletProviderIconProps) {
-  const label = walletName
-    ? `${walletName} wallet`
-    : "No wallet connected";
+  const label = walletName ? `${walletName} wallet` : "No wallet connected";
 
   if (!walletIcon) {
     return (

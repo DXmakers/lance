@@ -1,5 +1,10 @@
 import * as React from "react";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface PaginationProps {
@@ -35,9 +40,9 @@ function PageButton({
         active
           ? "bg-amber-500 text-white hover:bg-amber-600"
           : variant === "ghost"
-          ? "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-          : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-950",
-        className
+            ? "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+            : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-950",
+        className,
       )}
       disabled={disabled}
       aria-current={active ? "page" : undefined}
@@ -82,7 +87,7 @@ export function Pagination({
 
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLButtonElement>,
-    targetPage: number
+    targetPage: number,
   ) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -94,7 +99,7 @@ export function Pagination({
     <nav
       className={cn(
         "flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white/85 px-4 py-3 backdrop-blur-sm transition-colors duration-150",
-        className
+        className,
       )}
       aria-label="Pagination navigation"
     >
@@ -105,7 +110,11 @@ export function Pagination({
         </span>
       </div>
 
-      <div className="flex items-center gap-1" role="list" aria-label="Page numbers">
+      <div
+        className="flex items-center gap-1"
+        role="list"
+        aria-label="Page numbers"
+      >
         <PageButton
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
@@ -146,7 +155,7 @@ export function Pagination({
               >
                 {pageNum}
               </PageButton>
-            )
+            ),
           )}
         </div>
 
@@ -172,7 +181,11 @@ export function Pagination({
       {showPageSizeSelector && onPageSizeChange && (
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-slate-500">Show</span>
-          <div className="flex gap-1" role="list" aria-label="Page size options">
+          <div
+            className="flex gap-1"
+            role="list"
+            aria-label="Page size options"
+          >
             {pageSizeOptions.map((size) => (
               <PageButton
                 key={size}

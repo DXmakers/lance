@@ -13,7 +13,10 @@ function shorten(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-export function CopyAddressButton({ address, className }: CopyAddressButtonProps) {
+export function CopyAddressButton({
+  address,
+  className,
+}: CopyAddressButtonProps) {
   const [copied, setCopied] = useState(false);
   const valid = useMemo(() => isValidStellarAddress(address), [address]);
 

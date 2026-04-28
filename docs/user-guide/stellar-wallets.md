@@ -39,14 +39,14 @@ If you disconnect the wallet, Lance can no longer authorise anything on your beh
 
 Lance works with any wallet supported by `@creit.tech/stellar-wallets-kit`. The most common ones are:
 
-| Wallet       | Type               | Notes                                                  |
-| ------------ | ------------------ | ------------------------------------------------------ |
-| **Freighter**| Browser extension  | First-party Stellar wallet by SDF. Recommended default. |
-| **Albedo**   | Web popup          | No extension required; opens in a popup window.         |
-| **xBull**    | Browser extension  | Community wallet with strong multisig support.          |
-| **LOBSTR**   | Browser + mobile   | Requires the LOBSTR Vault signer extension.             |
-| **Hana**     | Browser extension  | Multi-chain; Stellar support included.                  |
-| **Rabet**    | Browser extension  | Open-source.                                            |
+| Wallet        | Type              | Notes                                                   |
+| ------------- | ----------------- | ------------------------------------------------------- |
+| **Freighter** | Browser extension | First-party Stellar wallet by SDF. Recommended default. |
+| **Albedo**    | Web popup         | No extension required; opens in a popup window.         |
+| **xBull**     | Browser extension | Community wallet with strong multisig support.          |
+| **LOBSTR**    | Browser + mobile  | Requires the LOBSTR Vault signer extension.             |
+| **Hana**      | Browser extension | Multi-chain; Stellar support included.                  |
+| **Rabet**     | Browser extension | Open-source.                                            |
 
 The wallet picker is shown automatically the first time you click **Connect wallet** — you don't need to pre-select one.
 
@@ -84,11 +84,11 @@ That's it — you're connected. Lance remembers your choice of provider for the 
 
 Whenever Lance needs to change on-chain state, your wallet will prompt you to sign a transaction. Always read the prompt. The three Lance actions you will see most often are:
 
-| Action                     | What it does on-chain                                                                   |
-| -------------------------- | ---------------------------------------------------------------------------------------- |
-| **Fund escrow**            | Transfers USDC from your wallet into the escrow contract for a specific job.            |
-| **Release milestone**      | As the client, marks a milestone complete and releases the corresponding USDC tranche.  |
-| **Open dispute**           | Flags a job for AI-judge review; locks the remaining escrow until the dispute resolves. |
+| Action                | What it does on-chain                                                                   |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| **Fund escrow**       | Transfers USDC from your wallet into the escrow contract for a specific job.            |
+| **Release milestone** | As the client, marks a milestone complete and releases the corresponding USDC tranche.  |
+| **Open dispute**      | Flags a job for AI-judge review; locks the remaining escrow until the dispute resolves. |
 
 The wallet will show the target contract address, the asset and amount moving, and the operation name. If anything looks wrong — unexpected amount, unknown contract, wrong network — **reject** the transaction and reach out in Lance's support channel.
 

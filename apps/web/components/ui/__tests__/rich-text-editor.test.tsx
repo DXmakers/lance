@@ -47,7 +47,9 @@ describe("RichTextEditor (#143)", () => {
   it("wraps the selection in ** when the bold button is clicked", () => {
     const onChange = vi.fn();
     render(<ControlledHarness initial="lance rocks" onChange={onChange} />);
-    const ta = screen.getByTestId("rich-text-editor-textarea") as HTMLTextAreaElement;
+    const ta = screen.getByTestId(
+      "rich-text-editor-textarea",
+    ) as HTMLTextAreaElement;
     ta.focus();
     ta.setSelectionRange(0, 5); // select "lance"
     fireEvent.click(screen.getByLabelText("Bold"));
@@ -57,7 +59,9 @@ describe("RichTextEditor (#143)", () => {
   it("wraps the selection in _ when italic is clicked", () => {
     const onChange = vi.fn();
     render(<ControlledHarness initial="hi there" onChange={onChange} />);
-    const ta = screen.getByTestId("rich-text-editor-textarea") as HTMLTextAreaElement;
+    const ta = screen.getByTestId(
+      "rich-text-editor-textarea",
+    ) as HTMLTextAreaElement;
     ta.setSelectionRange(3, 8);
     fireEvent.click(screen.getByLabelText("Italic"));
     expect(onChange).toHaveBeenLastCalledWith("hi _there_");
@@ -66,7 +70,9 @@ describe("RichTextEditor (#143)", () => {
   it("inserts an unordered list across the selected lines", () => {
     const onChange = vi.fn();
     render(<ControlledHarness initial={"alpha\nbeta"} onChange={onChange} />);
-    const ta = screen.getByTestId("rich-text-editor-textarea") as HTMLTextAreaElement;
+    const ta = screen.getByTestId(
+      "rich-text-editor-textarea",
+    ) as HTMLTextAreaElement;
     ta.setSelectionRange(0, ta.value.length);
     fireEvent.click(screen.getByLabelText("Unordered list"));
     expect(onChange).toHaveBeenLastCalledWith("- alpha\n- beta");
@@ -75,7 +81,9 @@ describe("RichTextEditor (#143)", () => {
   it("inserts a link template with placeholder URL", () => {
     const onChange = vi.fn();
     render(<ControlledHarness initial="see this" onChange={onChange} />);
-    const ta = screen.getByTestId("rich-text-editor-textarea") as HTMLTextAreaElement;
+    const ta = screen.getByTestId(
+      "rich-text-editor-textarea",
+    ) as HTMLTextAreaElement;
     ta.setSelectionRange(4, 8); // select "this"
     fireEvent.click(screen.getByLabelText("Insert link"));
     expect(onChange).toHaveBeenLastCalledWith("see [this](https://)");
@@ -96,7 +104,9 @@ describe("RichTextEditor (#143)", () => {
 
   it("does not invoke onChange when disabled", () => {
     const onChange = vi.fn();
-    render(<ControlledHarness initial="payload" disabled onChange={onChange} />);
+    render(
+      <ControlledHarness initial="payload" disabled onChange={onChange} />,
+    );
     fireEvent.click(screen.getByLabelText("Bold"));
     expect(onChange).not.toHaveBeenCalled();
   });

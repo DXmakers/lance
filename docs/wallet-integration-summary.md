@@ -91,6 +91,7 @@ The error handling system categorizes wallet errors into specific types:
 - `SIGNING_FAILED` - Transaction signing failure
 
 Each error type provides:
+
 - User-friendly messages
 - Specific recovery steps
 - Severity levels for UI display
@@ -105,17 +106,20 @@ Each error type provides:
 ## UI Design System
 
 ### Color Palette
+
 - **Primary**: Zinc-900 background
 - **Accent**: Indigo-500 for primary actions and connection states
 - **Error**: Red-500/Amber-500 for error states
 - **Success**: Green-400 for success states
 
 ### Typography
+
 - **Font Stack**: Inter/Geist sans-serif
 - **Sizes**: Responsive text scaling with `responsive-text-*` classes
 - **Hierarchy**: Clear visual hierarchy with proper contrast ratios
 
 ### Component Specifications
+
 - **Border Radius**: 12px for major components, 8px for nested elements
 - **Transitions**: 200ms opacity and color transitions
 - **Spacing**: 16px/24px grid system
@@ -124,6 +128,7 @@ Each error type provides:
 ## Testing Coverage
 
 ### Test Categories
+
 1. **Component Testing**: Individual component behavior
 2. **Integration Testing**: Wallet connection flows
 3. **Error Handling**: Error state management
@@ -132,6 +137,7 @@ Each error type provides:
 6. **E2E Scenarios**: Complete user workflows
 
 ### Test Features
+
 - Mock wallet libraries for isolated testing
 - Simulated error conditions
 - Accessibility compliance verification
@@ -141,27 +147,32 @@ Each error type provides:
 ## Security Considerations
 
 ### Data Protection
+
 - Session data stored in encrypted localStorage
 - Sensitive operations handled in memory only
 - No private key exposure to the application
 
 ### Input Validation
+
 - Stellar address validation using official SDK
 - Transaction XDR validation with network checks
 - SIWS challenge verification
 
 ### Error Information
+
 - Sanitized error messages to prevent information leakage
 - User-friendly error descriptions without technical details
 
 ## Performance Optimizations
 
 ### State Management
+
 - Efficient React hooks with proper dependency arrays
 - Minimal re-renders through memoization
 - Lazy loading of wallet libraries
 
 ### UI Performance
+
 - CSS transitions for smooth animations
 - Optimized component rendering
 - Responsive design without JavaScript bloat
@@ -169,12 +180,14 @@ Each error type provides:
 ## Browser Compatibility
 
 ### Supported Browsers
+
 - Chrome/Chromium (latest)
 - Firefox (latest)
 - Safari (latest)
 - Edge (latest)
 
 ### Mobile Support
+
 - iOS Safari (iOS 14+)
 - Chrome Mobile (Android 10+)
 - Responsive design for all screen sizes
@@ -182,12 +195,14 @@ Each error type provides:
 ## Configuration
 
 ### Environment Variables
+
 ```env
 NEXT_PUBLIC_STELLAR_NETWORK=TESTNET  # or PUBLIC
 NEXT_PUBLIC_E2E=true                  # for testing
 ```
 
 ### Network Configuration
+
 - Testnet: Automatic for development
 - Mainnet: Configurable for production
 - Easy switching via environment variables
@@ -195,8 +210,9 @@ NEXT_PUBLIC_E2E=true                  # for testing
 ## Usage Examples
 
 ### Basic Connection
+
 ```tsx
-import { ConnectWalletButton } from '@/components/wallet/connect-wallet-button';
+import { ConnectWalletButton } from "@/components/wallet/connect-wallet-button";
 
 function App() {
   return <ConnectWalletButton />;
@@ -204,18 +220,19 @@ function App() {
 ```
 
 ### Advanced Usage with SIWS
+
 ```tsx
-import { useWalletSession } from '@/hooks/use-wallet-session';
+import { useWalletSession } from "@/hooks/use-wallet-session";
 
 function SecureComponent() {
   const { address, isAuthenticated, authenticate } = useWalletSession();
-  
+
   const handleSignIn = async () => {
     if (address && !isAuthenticated) {
       await authenticate(address);
     }
   };
-  
+
   return (
     <div>
       {address && !isAuthenticated && (
@@ -230,6 +247,7 @@ function SecureComponent() {
 ## Future Enhancements
 
 ### Planned Features
+
 1. **Multi-wallet Support**: Simultaneous connection to multiple wallets
 2. **Transaction History**: Recent transaction display
 3. **Balance Display**: Real-time balance updates
@@ -237,6 +255,7 @@ function SecureComponent() {
 5. **DeFi Integration**: Protocol-specific connections
 
 ### Technical Improvements
+
 1. **WebAssembly**: Performance-critical operations
 2. **Service Workers**: Offline wallet state management
 3. **IndexedDB**: Enhanced local storage
@@ -249,6 +268,7 @@ This wallet integration implementation provides a production-ready solution that
 The system handles wallet extension rejection errors gracefully through comprehensive error categorization, user-friendly messaging, and clear recovery steps. The sophisticated UI design ensures a high-trust financial environment while maintaining excellent accessibility standards.
 
 All acceptance criteria have been met:
+
 - ✅ Single-click connect/disconnect with immediate UI updates
 - ✅ Network mismatch detection and warnings
 - ✅ SIWS protocol integration for backend verification

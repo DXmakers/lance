@@ -23,10 +23,7 @@ import {
   nativeToScVal,
   xdr,
 } from "@stellar/stellar-sdk";
-import {
-  Server as SorobanServer,
-  Api,
-} from "@stellar/stellar-sdk/rpc";
+import { Server as SorobanServer, Api } from "@stellar/stellar-sdk/rpc";
 import { signTransaction } from "./stellar";
 
 // ─── Configuration ──────────────────────────────────────────────────────────
@@ -363,7 +360,10 @@ async function invokeJobRegistry(
       // ── Step 1: Build ──────────────────────────────────────────────────
       onStep?.("building");
       const account = await rpc.getAccount(callerAddress);
-      devLog("source-account", { address: callerAddress, sequence: account.sequenceNumber() });
+      devLog("source-account", {
+        address: callerAddress,
+        sequence: account.sequenceNumber(),
+      });
 
       const txBuilder = new TransactionBuilder(account, {
         fee: BASE_FEE,
@@ -456,8 +456,7 @@ async function invokeJobRegistry(
         `Confirmation timed out after ${POLL_MAX_RETRIES * (POLL_INTERVAL_MS / 1_000)}s (hash: ${txHash})`,
       );
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err);
 
       // Detect sequence number mismatch → retry with fresh account
       if (
@@ -481,7 +480,10 @@ async function invokeJobRegistry(
 
   // Exhausted retries for sequence mismatch
   onStep?.("failed", lastError?.message);
-  throw lastError ?? new Error("Transaction failed after sequence mismatch retries.");
+  throw (
+    lastError ??
+    new Error("Transaction failed after sequence mismatch retries.")
+  );
 }
 
 /**

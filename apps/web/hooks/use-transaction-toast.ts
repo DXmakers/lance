@@ -20,7 +20,7 @@ export function useTransactionToast() {
     async <T extends { txHash?: string }>(
       operation: () => Promise<T>,
       config: TransactionConfig = {},
-      callbacks?: TransactionCallbacks
+      callbacks?: TransactionCallbacks,
     ): Promise<T | null> => {
       const {
         loadingMessage = "Processing transaction...",
@@ -30,7 +30,8 @@ export function useTransactionToast() {
 
       const loadingToast = toast.loading({
         title: loadingMessage,
-        description: "Please wait while we confirm your transaction on the Stellar network",
+        description:
+          "Please wait while we confirm your transaction on the Stellar network",
       });
 
       try {
@@ -62,30 +63,33 @@ export function useTransactionToast() {
         return null;
       }
     },
-    []
+    [],
   );
 
-  const showLoading = useCallback((title: string, description?: string): ToastState => {
-    return toast.loading({ title, description });
-  }, []);
+  const showLoading = useCallback(
+    (title: string, description?: string): ToastState => {
+      return toast.loading({ title, description });
+    },
+    [],
+  );
 
   const updateToSuccess = useCallback(
     (
       state: ToastState,
       title: string,
       description?: string,
-      txHash?: string
+      txHash?: string,
     ): void => {
       toast.update(state, "success", { title, description, txHash });
     },
-    []
+    [],
   );
 
   const updateToError = useCallback(
     (state: ToastState, title: string, description?: string): void => {
       toast.update(state, "error", { title, description });
     },
-    []
+    [],
   );
 
   const dismiss = useCallback((state: ToastState): void => {

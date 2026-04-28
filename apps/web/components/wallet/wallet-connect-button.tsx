@@ -71,8 +71,12 @@ export function WalletConnectButton() {
           walletIcon={walletIcon ?? undefined}
           size={18}
         />
-        <span className="font-medium text-foreground">{walletName ?? walletId}</span>
-        <span className="text-xs text-muted-foreground">{truncate(address)}</span>
+        <span className="font-medium text-foreground">
+          {walletName ?? walletId}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {truncate(address)}
+        </span>
       </div>
     );
   }

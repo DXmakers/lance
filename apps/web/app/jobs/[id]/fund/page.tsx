@@ -31,7 +31,10 @@ export default function EscrowFundingPage() {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    api.jobs.get(id).then(setJob).catch((error: Error) => setLoadError(error.message));
+    api.jobs
+      .get(id)
+      .then(setJob)
+      .catch((error: Error) => setLoadError(error.message));
   }, [id]);
 
   const platformFee = job
@@ -56,9 +59,11 @@ export default function EscrowFundingPage() {
       setTxHash(hash);
       setFundingState("polling");
 
-      await api.jobs.markFunded(id, {
-        client_address: job.client_address,
-      }).catch(() => null);
+      await api.jobs
+        .markFunded(id, {
+          client_address: job.client_address,
+        })
+        .catch(() => null);
 
       let attempts = 0;
       const interval = setInterval(async () => {
@@ -175,11 +180,15 @@ export default function EscrowFundingPage() {
               </div>
               <div className="flex justify-between gap-4">
                 <span>Contract value</span>
-                <span className="font-medium">{formatUsdc(job.budget_usdc)}</span>
+                <span className="font-medium">
+                  {formatUsdc(job.budget_usdc)}
+                </span>
               </div>
               <div className="flex justify-between gap-4">
                 <span>Escrow contract</span>
-                <span className="font-mono text-xs">{getEscrowContractId() || "Not configured"}</span>
+                <span className="font-mono text-xs">
+                  {getEscrowContractId() || "Not configured"}
+                </span>
               </div>
               <div className="flex justify-between gap-4">
                 <span>Platform fee (2%)</span>
@@ -200,7 +209,9 @@ export default function EscrowFundingPage() {
               className="mt-1 h-4 w-4 accent-amber-600"
             />
             <span className="text-sm leading-6 text-slate-600">
-              I have verified the wallet addresses, milestone breakdown, and total amount. I understand these funds stay locked until approvals or a dispute resolution completes.
+              I have verified the wallet addresses, milestone breakdown, and
+              total amount. I understand these funds stay locked until approvals
+              or a dispute resolution completes.
             </span>
           </label>
 
@@ -228,7 +239,9 @@ export default function EscrowFundingPage() {
             This step flips the job into capital-backed execution.
           </h2>
           <p className="mt-4 text-sm leading-7 text-slate-300">
-            Once funds are deposited into escrow they can only move through milestone releases or a dispute verdict. Make sure the freelancer wallet and milestone count are correct.
+            Once funds are deposited into escrow they can only move through
+            milestone releases or a dispute verdict. Make sure the freelancer
+            wallet and milestone count are correct.
           </p>
         </aside>
       </div>
@@ -240,9 +253,8 @@ export default function EscrowFundingPage() {
               Final Confirmation
             </h2>
             <p className="mt-4 text-sm leading-6 text-slate-600">
-              You are about to transfer{" "}
-              <strong>{formatUsdc(total)}</strong> into the escrow smart
-              contract for <strong>{job.title}</strong>.
+              You are about to transfer <strong>{formatUsdc(total)}</strong>{" "}
+              into the escrow smart contract for <strong>{job.title}</strong>.
             </p>
             <div className="mt-6 flex gap-3">
               <button
@@ -272,7 +284,9 @@ export default function EscrowFundingPage() {
                 : "Broadcasting transaction and confirming on-chain..."}
             </p>
             {txHash ? (
-              <p className="mt-3 break-all text-xs text-slate-500">tx: {txHash}</p>
+              <p className="mt-3 break-all text-xs text-slate-500">
+                tx: {txHash}
+              </p>
             ) : null}
           </div>
         </div>

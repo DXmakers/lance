@@ -87,7 +87,11 @@ export function ShareJobButton({
       aria-label="Share this job"
       title="Share this job"
     >
-      {copied ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
+      {copied ? (
+        <Check className="h-3.5 w-3.5" />
+      ) : (
+        <Share2 className="h-3.5 w-3.5" />
+      )}
       {copied ? "Copied" : "Share"}
       <Link2 className="h-3.5 w-3.5 text-slate-400" />
     </button>

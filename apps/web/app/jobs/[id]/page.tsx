@@ -22,18 +22,17 @@ import { Stars } from "@/components/stars";
 import { JobDetailsSkeleton } from "@/components/ui/skeleton";
 import { useLiveJobWorkspace } from "@/hooks/use-live-job-workspace";
 import { api } from "@/lib/api";
-import { releaseFunds, openDispute, getEscrowContractId } from "@/lib/contracts";
 import {
-  formatDateTime,
-  formatUsdc,
-  shortenAddress,
-} from "@/lib/format";
+  releaseFunds,
+  openDispute,
+  getEscrowContractId,
+} from "@/lib/contracts";
+import { formatDateTime, formatUsdc, shortenAddress } from "@/lib/format";
 import { connectWallet, getConnectedWalletAddress } from "@/lib/stellar";
 
 import { ActivityLogList } from "@/components/activity-log";
 import { TransactionPipeline } from "@/components/blockchain/transaction-pipeline";
 import { useAcceptBid } from "@/hooks/use-accept-bid";
-
 
 export default function JobDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -59,7 +58,7 @@ export default function JobDetailsPage() {
     setViewerAddress(connected);
     return connected;
   }
-  
+
   async function handleAcceptBid(bidId: string) {
     if (!workspace.job) return;
     const bid = workspace.bids.find((item) => item.id === bidId);
@@ -156,7 +155,8 @@ export default function JobDetailsPage() {
     setBusyAction("dispute");
 
     try {
-      const actor = (await ensureViewerAddress()) ?? workspace.job.client_address;
+      const actor =
+        (await ensureViewerAddress()) ?? workspace.job.client_address;
       await openDispute(BigInt(workspace.job.on_chain_job_id ?? 0));
       const dispute = await api.jobs.dispute.open(id, { opened_by: actor });
       router.push(`/jobs/${id}/dispute?disputeId=${dispute.id}`);
@@ -206,7 +206,8 @@ export default function JobDetailsPage() {
   const isClientOwner = Boolean(
     viewerAddress && viewerAddress === job.client_address,
   );
-  const workflowLocked = job.status === "disputed" || workspace.dispute !== null;
+  const workflowLocked =
+    job.status === "disputed" || workspace.dispute !== null;
 
   return (
     <SiteShell
@@ -292,11 +293,12 @@ export default function JobDetailsPage() {
                   <ShieldAlert className="mt-0.5 h-5 w-5" />
                   <div>
                     <p className="font-semibold">
-                      Regular workflow is locked while the dispute center is active.
+                      Regular workflow is locked while the dispute center is
+                      active.
                     </p>
                     <p className="mt-2 text-sm leading-6">
-                      Deliverable uploads and release actions stay frozen until the
-                      Agent Judge returns an immutable verdict.
+                      Deliverable uploads and release actions stay frozen until
+                      the Agent Judge returns an immutable verdict.
                     </p>
                     <Link
                       href={`/jobs/${id}/dispute${workspace.dispute ? `?disputeId=${workspace.dispute.id}` : ""}`}
@@ -317,21 +319,30 @@ export default function JobDetailsPage() {
                   Submit a Proposal
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-300">
-                  Pitch your approach, timing, and why your previous work maps cleanly to this brief.
+                  Pitch your approach, timing, and why your previous work maps
+                  cleanly to this brief.
                 </p>
                 {isClientOwner ? (
                   <div className="mt-5 rounded-[1.6rem] border border-slate-700/40 bg-slate-900/80 p-5 text-sm text-slate-200">
-                    <p className="font-semibold text-slate-100">Clients cannot submit proposals</p>
+                    <p className="font-semibold text-slate-100">
+                      Clients cannot submit proposals
+                    </p>
                     <p className="mt-2 text-slate-300/90">
-                      This job is owned by your account. Freelancers can submit bids and you can accept the strongest proposal from the shortlist.
+                      This job is owned by your account. Freelancers can submit
+                      bids and you can accept the strongest proposal from the
+                      shortlist.
                     </p>
                   </div>
                 ) : null}
                 {viewerBid ? (
                   <div className="mt-5 rounded-[1.6rem] border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-100">
-                    <p className="font-semibold text-amber-200">Your bid is pending review</p>
+                    <p className="font-semibold text-amber-200">
+                      Your bid is pending review
+                    </p>
                     <p className="mt-2 text-amber-100/90">
-                      You have already submitted a proposal for this job. The client is reviewing your pitch and will assign the winning freelancer once a bid is accepted.
+                      You have already submitted a proposal for this job. The
+                      client is reviewing your pitch and will assign the winning
+                      freelancer once a bid is accepted.
                     </p>
                   </div>
                 ) : null}
@@ -340,7 +351,9 @@ export default function JobDetailsPage() {
                     <SubmitBidErrorBoundary>
                       <SubmitBidModal
                         jobId={id}
-                        onChainJobId={BigInt(workspace.job?.on_chain_job_id ?? 0)}
+                        onChainJobId={BigInt(
+                          workspace.job?.on_chain_job_id ?? 0,
+                        )}
                         disabled={Boolean(viewerBid) || busyAction !== null}
                         onSubmitted={workspace.refresh}
                       />
@@ -378,7 +391,8 @@ export default function JobDetailsPage() {
                       Accept bid transaction
                     </h3>
                     <p className="mt-2 text-sm text-indigo-200">
-                      The platform is building and confirming the on-chain accept_bid call for this selected freelancer.
+                      The platform is building and confirming the on-chain
+                      accept_bid call for this selected freelancer.
                     </p>
                     <div className="mt-4">
                       <TransactionPipeline
@@ -445,29 +459,41 @@ export default function JobDetailsPage() {
                       Deliverables
                     </h2>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Freelancers can pin files to IPFS or share links, then the client gets a dedicated approval moment.
+                      Freelancers can pin files to IPFS or share links, then the
+                      client gets a dedicated approval moment.
                     </p>
                   </div>
                   <FileUp className="h-5 w-5 text-amber-600" />
                 </div>
 
                 {!workflowLocked ? (
-                  <form onSubmit={handleSubmitDeliverable} className="mt-5 space-y-4">
+                  <form
+                    onSubmit={handleSubmitDeliverable}
+                    className="mt-5 space-y-4"
+                  >
                     <input
                       value={deliverableLabel}
-                      onChange={(event) => setDeliverableLabel(event.target.value)}
+                      onChange={(event) =>
+                        setDeliverableLabel(event.target.value)
+                      }
                       placeholder="Submission title"
                       className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
                     />
                     <input
                       value={deliverableLink}
-                      onChange={(event) => setDeliverableLink(event.target.value)}
+                      onChange={(event) =>
+                        setDeliverableLink(event.target.value)
+                      }
                       placeholder="GitHub repo, Figma file, hosted ZIP link, or leave blank to upload a file"
                       className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
                     />
                     <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                       <FileUp className="h-4 w-4 text-amber-600" />
-                      <span>{deliverableFile ? deliverableFile.name : "Upload ZIP, image, JSON, or PDF evidence"}</span>
+                      <span>
+                        {deliverableFile
+                          ? deliverableFile.name
+                          : "Upload ZIP, image, JSON, or PDF evidence"}
+                      </span>
                       <input
                         type="file"
                         className="hidden"
@@ -564,9 +590,12 @@ export default function JobDetailsPage() {
                   Client reputation
                 </p>
                 <div className="mt-3 flex items-center justify-between gap-3">
-                  <Stars value={workspace.clientReputation?.starRating ?? 2.5} />
+                  <Stars
+                    value={workspace.clientReputation?.starRating ?? 2.5}
+                  />
                   <span className="text-sm font-semibold text-slate-800">
-                    {workspace.clientReputation?.averageStars.toFixed(1) ?? "2.5"}
+                    {workspace.clientReputation?.averageStars.toFixed(1) ??
+                      "2.5"}
                   </span>
                 </div>
                 <p className="mt-3 text-xs text-slate-500">
@@ -584,11 +613,14 @@ export default function JobDetailsPage() {
                       value={workspace.freelancerReputation?.starRating ?? 2.5}
                     />
                     <span className="text-sm font-semibold text-slate-800">
-                      {workspace.freelancerReputation?.averageStars.toFixed(1) ?? "2.5"}
+                      {workspace.freelancerReputation?.averageStars.toFixed(
+                        1,
+                      ) ?? "2.5"}
                     </span>
                   </div>
                   <p className="mt-3 text-xs text-slate-500">
-                    {workspace.freelancerReputation?.totalJobs ?? 0} completed jobs
+                    {workspace.freelancerReputation?.totalJobs ?? 0} completed
+                    jobs
                   </p>
                 </div>
               ) : null}
@@ -602,7 +634,8 @@ export default function JobDetailsPage() {
               </p>
               <h2 className="mt-3 text-xl font-semibold">Fund the escrow</h2>
               <p className="mt-3 text-sm leading-6">
-                The freelancer is locked in. Deposit funds to transition the contract into active execution.
+                The freelancer is locked in. Deposit funds to transition the
+                contract into active execution.
               </p>
               <Link
                 href={`/jobs/${id}/fund`}
@@ -622,7 +655,8 @@ export default function JobDetailsPage() {
                 Awaiting Client Approval
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-300">
-                Approve the latest submitted milestone, or escalate to a dispute if the evidence does not satisfy the brief.
+                Approve the latest submitted milestone, or escalate to a dispute
+                if the evidence does not satisfy the brief.
               </p>
               <div className="mt-5 space-y-3">
                 <button
@@ -674,4 +708,3 @@ export default function JobDetailsPage() {
     </SiteShell>
   );
 }
-

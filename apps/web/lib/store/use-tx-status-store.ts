@@ -54,7 +54,11 @@ export const useTxStatusStore = create<TxStatusState>()((set) => ({
           ? Date.now()
           : state.startedAt,
       finishedAt:
-        step === "building" ? null : (step === "confirmed" || step === "failed" ? Date.now() : state.finishedAt),
+        step === "building"
+          ? null
+          : step === "confirmed" || step === "failed"
+            ? Date.now()
+            : state.finishedAt,
     })),
 
   setTxHash: (hash: string) => set({ txHash: hash }),

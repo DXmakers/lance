@@ -29,14 +29,29 @@ import type { BoardJob } from "@/hooks/use-job-board";
 // ─── Sort options ────────────────────────────────────────────────────────────
 
 const SORT_OPTIONS = [
-  { id: "chronological", label: "Newest", icon: <Clock3 className="h-3.5 w-3.5" /> },
-  { id: "budget", label: "Top Budget", icon: <TrendingUp className="h-3.5 w-3.5" /> },
-  { id: "reputation", label: "Best Client", icon: <Shield className="h-3.5 w-3.5" /> },
+  {
+    id: "chronological",
+    label: "Newest",
+    icon: <Clock3 className="h-3.5 w-3.5" />,
+  },
+  {
+    id: "budget",
+    label: "Top Budget",
+    icon: <TrendingUp className="h-3.5 w-3.5" />,
+  },
+  {
+    id: "reputation",
+    label: "Best Client",
+    icon: <Shield className="h-3.5 w-3.5" />,
+  },
 ] as const;
 
 // ─── Status config ───────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string; bg: string }> = {
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; dot: string; text: string; bg: string }
+> = {
   open: {
     label: "Open",
     dot: "bg-emerald-500",
@@ -336,8 +351,9 @@ export default function JobsPage() {
               Find open work with clean trust signals
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-zinc-500">
-              Live jobs from the Soroban registry — filtered, sorted, and layered with
-              on-chain client reputation before you open a single brief.
+              Live jobs from the Soroban registry — filtered, sorted, and
+              layered with on-chain client reputation before you open a single
+              brief.
             </p>
           </div>
 
@@ -386,7 +402,10 @@ export default function JobsPage() {
                 "transition-all duration-150 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/30",
               )}
             >
-              <Search className="h-4 w-4 shrink-0 text-zinc-600" aria-hidden="true" />
+              <Search
+                className="h-4 w-4 shrink-0 text-zinc-600"
+                aria-hidden="true"
+              />
               <input
                 id="job-search"
                 type="search"
@@ -473,10 +492,13 @@ export default function JobsPage() {
           role="alert"
           className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-400"
         >
-          <Zap className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
+          <Zap
+            className="mt-0.5 h-4 w-4 shrink-0 text-amber-500"
+            aria-hidden="true"
+          />
           <span>
-            <span className="font-semibold">Live API unavailable</span> — showing
-            resilient mock listings. {error}
+            <span className="font-semibold">Live API unavailable</span> —
+            showing resilient mock listings. {error}
           </span>
         </div>
       )}

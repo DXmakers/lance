@@ -9,10 +9,7 @@ interface WalletGuardProps {
   redirectTo?: string;
 }
 
-export function WalletGuard({
-  children,
-  redirectTo = "/",
-}: WalletGuardProps) {
+export function WalletGuard({ children, redirectTo = "/" }: WalletGuardProps) {
   const { isLoggedIn, hydrated } = useAuthStore();
   const router = useRouter();
 

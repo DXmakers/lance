@@ -80,19 +80,12 @@ describe("BidStatusIndicator Component", () => {
     });
 
     it("should render timestamp when provided", () => {
-      render(
-        <BidStatusIndicator
-          status="accepted"
-          timestamp="2 hours ago"
-        />,
-      );
+      render(<BidStatusIndicator status="accepted" timestamp="2 hours ago" />);
       expect(screen.getByText(/Updated 2 hours ago/)).toBeInTheDocument();
     });
 
     it("should not render timestamp section when not provided", () => {
-      const { container } = render(
-        <BidStatusIndicator status="rejected" />,
-      );
+      const { container } = render(<BidStatusIndicator status="rejected" />);
       const timestampText = container.textContent?.match(/Updated/);
       expect(timestampText).toBeNull();
     });
@@ -102,15 +95,15 @@ describe("BidStatusIndicator Component", () => {
     it("should apply status-specific colors", () => {
       render(<BidStatusIndicator status="accepted" />);
       const container = screen.getByText("Accepted").parentElement;
-      expect(container).toHaveClass("bg-emerald-500/10", "border-emerald-500/20");
+      expect(container).toHaveClass(
+        "bg-emerald-500/10",
+        "border-emerald-500/20",
+      );
     });
 
     it("should accept custom className", () => {
       render(
-        <BidStatusIndicator
-          status="pending"
-          className="custom-indicator"
-        />,
+        <BidStatusIndicator status="pending" className="custom-indicator" />,
       );
       const container = screen.getByText("Pending").closest("div");
       expect(container).toHaveClass("custom-indicator");

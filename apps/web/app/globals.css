@@ -17,7 +17,8 @@
   --success: #22c55e;
   --warning: #f59e0b;
   --font-geist-sans:
-    Inter, "Segoe UI", "Helvetica Neue", Arial, ui-sans-serif, system-ui, sans-serif;
+    Inter, "Segoe UI", "Helvetica Neue", Arial, ui-sans-serif, system-ui,
+    sans-serif;
   --font-geist-mono:
     "SFMono-Regular", "Cascadia Code", "Fira Code", Consolas, ui-monospace,
     monospace;
@@ -91,7 +92,8 @@ input,
 textarea,
 select {
   transition-duration: 200ms;
-  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-property:
+    color, background-color, border-color, box-shadow, opacity, transform;
   transition-timing-function: ease;
 }
 
@@ -106,12 +108,12 @@ select {
     font-size: 0.625rem;
     line-height: 0.75rem;
   }
-  
+
   .responsive-text-sm {
     font-size: 0.75rem;
     line-height: 1rem;
   }
-  
+
   .responsive-gap {
     gap: 0.5rem;
   }
@@ -123,7 +125,7 @@ select {
     --border: #000000;
     --ring: #ffffff;
   }
-  
+
   .dark {
     --border: #ffffff;
     --ring: #000000;
@@ -139,7 +141,7 @@ select {
   select {
     transition: none;
   }
-  
+
   .animate-spin,
   .animate-pulse {
     animation: none;

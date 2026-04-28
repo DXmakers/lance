@@ -36,8 +36,8 @@ export class ProfileErrorBoundary extends React.Component<
             We could not render this profile surface.
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300">
-            The rest of the application is still safe. Retry just this module without
-            dropping the current session.
+            The rest of the application is still safe. Retry just this module
+            without dropping the current session.
           </p>
           <Button
             type="button"

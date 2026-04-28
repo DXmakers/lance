@@ -95,6 +95,7 @@ export default function TransactionsPage() { ... }
 ### `useTransactionHistory` hook
 
 Central data hook. Responsibilities:
+
 - Fetch transaction records from Horizon for the connected wallet address.
 - Manage pagination state (current page, page size, total pages).
 - Apply client-side filters (operation type, date range).
@@ -103,8 +104,8 @@ Central data hook. Responsibilities:
 
 ```ts
 interface UseTransactionHistoryReturn {
-  records: TransactionRecord[];          // filtered + paginated slice
-  allRecords: TransactionRecord[];       // full unfiltered list
+  records: TransactionRecord[]; // filtered + paginated slice
+  allRecords: TransactionRecord[]; // full unfiltered list
   loading: boolean;
   error: string | null;
   page: number;
@@ -126,8 +127,8 @@ Subscribes to `useTxStatusStore`. When the store transitions to `"confirmed"` or
 
 ```ts
 function useLivePipelineIntegration(
-  prependRecord: (record: TransactionRecord) => void
-): void
+  prependRecord: (record: TransactionRecord) => void,
+): void;
 ```
 
 ### `TransactionHistoryList`
@@ -135,6 +136,7 @@ function useLivePipelineIntegration(
 Renders the list of `TransactionHistoryRow` components, the `Pagination` control, and delegates empty/loading states to `EmptyState` and `Skeleton` primitives.
 
 Props:
+
 ```ts
 interface TransactionHistoryListProps {
   records: TransactionRecord[];
@@ -154,6 +156,7 @@ interface TransactionHistoryListProps {
 Renders the operation-type multi-select and date-range picker. Calls `setFilters` on change. Renders a "Clear filters" button when any filter is active.
 
 Props:
+
 ```ts
 interface TransactionHistoryFiltersProps {
   filters: TransactionFilters;
@@ -165,6 +168,7 @@ interface TransactionHistoryFiltersProps {
 ### `TransactionHistoryRow`
 
 Renders a single `TransactionRecord` as a table/list row. Includes:
+
 - Truncated monospace hash with copy button and `ExplorerLink`.
 - Operation type label badge.
 - Status badge (green for confirmed, red for failed).
@@ -173,6 +177,7 @@ Renders a single `TransactionRecord` as a table/list row. Includes:
 - Expand/collapse toggle for `TransactionDetailPanel`.
 
 Props:
+
 ```ts
 interface TransactionHistoryRowProps {
   record: TransactionRecord;
@@ -184,12 +189,14 @@ interface TransactionHistoryRowProps {
 ### `TransactionDetailPanel`
 
 Rendered inside an expanded `TransactionHistoryRow`. Shows:
+
 - Full transaction hash (copyable).
 - Simulated fee vs. actual on-chain fee comparison.
 - `SimulationLog` metrics (CPU, memory, ledger I/O).
 - In Dev_Mode: collapsible unsigned XDR, signed XDR, and raw simulation JSON panels.
 
 Props:
+
 ```ts
 interface TransactionDetailPanelProps {
   record: TransactionRecord;
@@ -220,7 +227,7 @@ export type OperationType =
 export type TransactionStatus = "confirmed" | "failed";
 
 export interface SimulationMetrics {
-  estimatedFeeStroops: string;   // from SimulationLog.estimatedTotalFee
+  estimatedFeeStroops: string; // from SimulationLog.estimatedTotalFee
   cpuInstructions: string;
   memoryBytes: string;
   readBytes: number;
@@ -255,7 +262,7 @@ export interface TransactionRecord {
 
 ```ts
 export interface TransactionFilters {
-  operationTypes: OperationType[];   // empty = show all
+  operationTypes: OperationType[]; // empty = show all
   dateFrom: Date | null;
   dateTo: Date | null;
 }
@@ -298,79 +305,79 @@ export function applyFeeMargin(simulatedFeeStroops: string): string {
 
 ## Correctness Properties
 
-*A property is a characteristic or behavior that should hold true across all valid executions of a system — essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
+_A property is a characteristic or behavior that should hold true across all valid executions of a system — essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees._
 
 This feature contains pure transformation and filtering functions that are well-suited to property-based testing. The property-based testing library used is **fast-check** (already compatible with the Vitest setup in `package.json`).
 
 ### Property 1: Pagination slice correctness
 
-*For any* list of `TransactionRecord` objects, page number, and page size, the paginated slice should contain exactly `min(pageSize, remaining)` records starting at the correct offset, and every record in the slice should also appear in the original list.
+_For any_ list of `TransactionRecord` objects, page number, and page size, the paginated slice should contain exactly `min(pageSize, remaining)` records starting at the correct offset, and every record in the slice should also appear in the original list.
 
 **Validates: Requirements 1.2**
 
 ### Property 2: Transaction record rendering completeness
 
-*For any* `TransactionRecord`, the rendered `TransactionHistoryRow` output should contain the transaction hash, the operation type label, a status badge, the fee formatted in XLM, and a relative timestamp.
+_For any_ `TransactionRecord`, the rendered `TransactionHistoryRow` output should contain the transaction hash, the operation type label, a status badge, the fee formatted in XLM, and a relative timestamp.
 
 **Validates: Requirements 2.1**
 
 ### Property 3: Explorer link presence for confirmed records
 
-*For any* `TransactionRecord` with `status === "confirmed"`, the rendered row should contain an anchor element whose `href` includes the transaction hash and points to `stellar.expert`.
+_For any_ `TransactionRecord` with `status === "confirmed"`, the rendered row should contain an anchor element whose `href` includes the transaction hash and points to `stellar.expert`.
 
 **Validates: Requirements 2.2**
 
 ### Property 4: Failed record badge styling
 
-*For any* `TransactionRecord` with `status === "failed"` and a non-empty `failureReason`, the rendered row should display a badge with red styling and the failure reason text.
+_For any_ `TransactionRecord` with `status === "failed"` and a non-empty `failureReason`, the rendered row should display a badge with red styling and the failure reason text.
 
 **Validates: Requirements 2.4**
 
 ### Property 5: Date-range filter correctness
 
-*For any* list of `TransactionRecord` objects and any date range `[dateFrom, dateTo]`, the filtered result should contain only records whose `createdAt` timestamp falls within `[dateFrom, dateTo]` (inclusive), and no records outside that range.
+_For any_ list of `TransactionRecord` objects and any date range `[dateFrom, dateTo]`, the filtered result should contain only records whose `createdAt` timestamp falls within `[dateFrom, dateTo]` (inclusive), and no records outside that range.
 
 **Validates: Requirements 4.2**
 
 ### Property 6: Filter clear is a round-trip
 
-*For any* list of `TransactionRecord` objects and any `TransactionFilters` state, applying filters and then clearing all filters should produce a result equal to the original unfiltered list.
+_For any_ list of `TransactionRecord` objects and any `TransactionFilters` state, applying filters and then clearing all filters should produce a result equal to the original unfiltered list.
 
 **Validates: Requirements 4.4**
 
 ### Property 7: Live confirmed record is prepended
 
-*For any* existing history list and any newly confirmed `TransactionRecord` from the pipeline store, after prepending, the first element of the list should be the new record and the rest of the list should be unchanged.
+_For any_ existing history list and any newly confirmed `TransactionRecord` from the pipeline store, after prepending, the first element of the list should be the new record and the rest of the list should be unchanged.
 
 **Validates: Requirements 5.1, 5.2**
 
 ### Property 8: In-progress step label display
 
-*For any* non-idle, non-terminal `TxLifecycleStep` value, the `TransactionHistoryPipelineIndicator` should render a visible label that corresponds to that step.
+_For any_ non-idle, non-terminal `TxLifecycleStep` value, the `TransactionHistoryPipelineIndicator` should render a visible label that corresponds to that step.
 
 **Validates: Requirements 5.3**
 
 ### Property 9: Fee margin calculation
 
-*For any* simulated fee value (as a non-negative integer string), `applyFeeMargin(fee)` should return a value equal to `fee + floor(fee * 200 / 10000)`, and the result should always be greater than or equal to the input.
+_For any_ simulated fee value (as a non-negative integer string), `applyFeeMargin(fee)` should return a value equal to `fee + floor(fee * 200 / 10000)`, and the result should always be greater than or equal to the input.
 
 **Validates: Requirements 7.2**
 
 ### Property 10: Fee formatting precision
 
-*For any* stroop value (non-negative integer), `formatFeeXlm(stroops)` should produce a string that ends with " XLM", contains exactly 7 digits after the decimal point, and whose numeric value equals `stroops / 10_000_000`.
+_For any_ stroop value (non-negative integer), `formatFeeXlm(stroops)` should produce a string that ends with " XLM", contains exactly 7 digits after the decimal point, and whose numeric value equals `stroops / 10_000_000`.
 
 **Validates: Requirements 7.4**
 
 ### Property 11: Simulation log rendering completeness
 
-*For any* `SimulationMetrics` object, the rendered `TransactionDetailPanel` should contain all six required fields: estimated total fee, CPU instruction count, memory byte count, ledger read bytes, ledger write bytes, and base fee.
+_For any_ `SimulationMetrics` object, the rendered `TransactionDetailPanel` should contain all six required fields: estimated total fee, CPU instruction count, memory byte count, ledger read bytes, ledger write bytes, and base fee.
 
 **Validates: Requirements 7.1**
 
 ### Property 12: Icon-only controls have aria-labels
 
-*For any* rendered state of `TransactionHistoryRow` or `TransactionDetailPanel`, every button element that contains only an icon (no visible text) should have a non-empty `aria-label` attribute that describes the action and references the associated transaction hash.
+_For any_ rendered state of `TransactionHistoryRow` or `TransactionDetailPanel`, every button element that contains only an icon (no visible text) should have a non-empty `aria-label` attribute that describes the action and references the associated transaction hash.
 
 **Validates: Requirements 9.2**
 
@@ -378,16 +385,16 @@ This feature contains pure transformation and filtering functions that are well-
 
 ## Error Handling
 
-| Scenario | Handling |
-|---|---|
-| Horizon fetch fails | `useTransactionHistory` sets `error` string; page renders `role="alert"` banner with failure reason and retry button |
-| No wallet connected | Page renders `EmptyState` with "Connect your wallet" prompt |
-| No records match filters | `TransactionHistoryList` renders `EmptyState` with "No results match your filters" |
-| Wallet signing rejected | `useTxStatusStore` transitions to `"failed"` with message "Signing cancelled by wallet"; `useLivePipelineIntegration` prepends a failed record |
-| Sequence number mismatch (≤3 retries) | Pipeline retries automatically; `TransactionHistoryPipelineIndicator` shows "Sequence mismatch — retrying (n/3)" |
-| Sequence number mismatch (>3 retries) | Pipeline emits `"failed"` with message including "sequence number mismatch after 3 attempts"; failed record prepended to history |
-| Confirmation timeout | Pipeline emits `"failed"` with timeout message; failed record prepended |
-| Clipboard API unavailable | Copy button catches the error silently; no "Copied!" confirmation is shown |
+| Scenario                              | Handling                                                                                                                                       |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Horizon fetch fails                   | `useTransactionHistory` sets `error` string; page renders `role="alert"` banner with failure reason and retry button                           |
+| No wallet connected                   | Page renders `EmptyState` with "Connect your wallet" prompt                                                                                    |
+| No records match filters              | `TransactionHistoryList` renders `EmptyState` with "No results match your filters"                                                             |
+| Wallet signing rejected               | `useTxStatusStore` transitions to `"failed"` with message "Signing cancelled by wallet"; `useLivePipelineIntegration` prepends a failed record |
+| Sequence number mismatch (≤3 retries) | Pipeline retries automatically; `TransactionHistoryPipelineIndicator` shows "Sequence mismatch — retrying (n/3)"                               |
+| Sequence number mismatch (>3 retries) | Pipeline emits `"failed"` with message including "sequence number mismatch after 3 attempts"; failed record prepended to history               |
+| Confirmation timeout                  | Pipeline emits `"failed"` with timeout message; failed record prepended                                                                        |
+| Clipboard API unavailable             | Copy button catches the error silently; no "Copied!" confirmation is shown                                                                     |
 
 ---
 

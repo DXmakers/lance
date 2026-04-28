@@ -41,7 +41,9 @@ export function useSubmitBid() {
 
       try {
         if (!JOB_REGISTRY_CONTRACT_ID) {
-          throw new Error("NEXT_PUBLIC_JOB_REGISTRY_CONTRACT_ID is not configured.");
+          throw new Error(
+            "NEXT_PUBLIC_JOB_REGISTRY_CONTRACT_ID is not configured.",
+          );
         }
 
         if (params.onChainJobId <= 0n) {
@@ -82,11 +84,7 @@ export function useSubmitBid() {
             },
             onError: (error) => {
               transactionErrorHandled = true;
-              updateToError(
-                toastId,
-                "Submission Failed",
-                error.message,
-              );
+              updateToError(toastId, "Submission Failed", error.message);
             },
           },
         );
@@ -103,7 +101,9 @@ export function useSubmitBid() {
           updateToError(
             toastId,
             "Submission Failed",
-            error instanceof Error ? error.message : "Blockchain transaction failed.",
+            error instanceof Error
+              ? error.message
+              : "Blockchain transaction failed.",
           );
         }
 

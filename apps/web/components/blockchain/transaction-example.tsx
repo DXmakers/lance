@@ -16,7 +16,13 @@
 import { useState } from "react";
 import { Address, nativeToScVal } from "@stellar/stellar-sdk";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { TransactionPipeline } from "./transaction-pipeline";
 import { useSorobanTransaction } from "@/hooks/use-soroban-transaction";
@@ -36,7 +42,8 @@ export function TransactionExample() {
     if (!address) {
       toast.error({
         title: "Wallet Not Connected",
-        description: "Please connect your wallet before submitting a transaction.",
+        description:
+          "Please connect your wallet before submitting a transaction.",
       });
       return;
     }
@@ -44,7 +51,8 @@ export function TransactionExample() {
     if (!ESCROW_CONTRACT_ID) {
       toast.error({
         title: "Contract Not Configured",
-        description: "NEXT_PUBLIC_ESCROW_CONTRACT_ID is missing from environment.",
+        description:
+          "NEXT_PUBLIC_ESCROW_CONTRACT_ID is missing from environment.",
       });
       return;
     }
@@ -97,7 +105,10 @@ export function TransactionExample() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label htmlFor="jobId" className="text-sm font-medium text-zinc-300">
+              <label
+                htmlFor="jobId"
+                className="text-sm font-medium text-zinc-300"
+              >
                 Job ID
               </label>
               <Input
@@ -111,7 +122,10 @@ export function TransactionExample() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="milestoneIndex" className="text-sm font-medium text-zinc-300">
+              <label
+                htmlFor="milestoneIndex"
+                className="text-sm font-medium text-zinc-300"
+              >
                 Milestone Index
               </label>
               <Input
@@ -127,7 +141,9 @@ export function TransactionExample() {
 
           <Button
             onClick={() => void handleReleaseMilestone()}
-            disabled={!isConnected || transaction.isPending || !ESCROW_CONTRACT_ID}
+            disabled={
+              !isConnected || transaction.isPending || !ESCROW_CONTRACT_ID
+            }
             className="w-full"
           >
             {transaction.isPending ? "Processing…" : "Release Milestone"}
@@ -161,39 +177,42 @@ export function TransactionExample() {
       )}
 
       {/* Progress history (dev only) */}
-      {process.env.NODE_ENV !== "production" && transaction.progressHistory.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Progress History</CardTitle>
-            <CardDescription>
-              All pipeline events for the current transaction (dev only)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-2 text-xs">
-              {transaction.progressHistory.map((event, idx) => (
-                <li
-                  key={idx}
-                  className="flex items-start gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2"
-                >
-                  <span className="shrink-0 font-mono text-zinc-500">
-                    {String(idx + 1).padStart(2, "0")}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-zinc-300">{event.step}</p>
-                    <p className="mt-0.5 text-zinc-500">{event.message}</p>
-                    {event.txHash && (
-                      <p className="mt-1 break-all font-mono text-[10px] text-indigo-400">
-                        {event.txHash}
+      {process.env.NODE_ENV !== "production" &&
+        transaction.progressHistory.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Progress History</CardTitle>
+              <CardDescription>
+                All pipeline events for the current transaction (dev only)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ol className="space-y-2 text-xs">
+                {transaction.progressHistory.map((event, idx) => (
+                  <li
+                    key={idx}
+                    className="flex items-start gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2"
+                  >
+                    <span className="shrink-0 font-mono text-zinc-500">
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-zinc-300">
+                        {event.step}
                       </p>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
-      )}
+                      <p className="mt-0.5 text-zinc-500">{event.message}</p>
+                      {event.txHash && (
+                        <p className="mt-1 break-all font-mono text-[10px] text-indigo-400">
+                          {event.txHash}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </CardContent>
+          </Card>
+        )}
     </div>
   );
 }

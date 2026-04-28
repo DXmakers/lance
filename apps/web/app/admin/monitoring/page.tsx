@@ -2,11 +2,24 @@
 
 import React, { useState, useCallback, useEffect } from "react";
 import {
-  Activity, Database, RefreshCw, Terminal, AlertCircle,
-  CheckCircle2, TrendingUp, Cpu, Clock,
+  Activity,
+  Database,
+  RefreshCw,
+  Terminal,
+  AlertCircle,
+  CheckCircle2,
+  TrendingUp,
+  Cpu,
+  Clock,
 } from "lucide-react";
 import {
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +31,9 @@ const generateInitialData = () => {
   const now = new Date();
   return Array.from({ length: 21 }, (_, i) => ({
     time: new Date(now.getTime() - (20 - i) * 5000).toLocaleTimeString([], {
-      hour: "2-digit", minute: "2-digit", second: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     }),
     throughput: 0,
     latency: 0,
@@ -28,13 +43,25 @@ const generateInitialData = () => {
 export default function MonitoringDashboard() {
   const { data: status, isLoading } = useIndexerStatus();
   const [chartData, setChartData] = useState(generateInitialData);
-  const [logs, setLogs] = useState<{ id: string; msg: string; type: "info" | "error" | "warn" }[]>([]);
-  const [confirmAction, setConfirmAction] = useState<"restart" | "rescan" | null>(null);
+  const [logs, setLogs] = useState<
+    { id: string; msg: string; type: "info" | "error" | "warn" }[]
+  >([]);
+  const [confirmAction, setConfirmAction] = useState<
+    "restart" | "rescan" | null
+  >(null);
   const [actionPending, setActionPending] = useState(false);
 
-  const addLog = useCallback((msg: string, type: "info" | "error" | "warn" = "info") => {
-    setLogs((prev) => [{ id: Math.random().toString(36).slice(2), msg, type }, ...prev].slice(0, 50));
-  }, []);
+  const addLog = useCallback(
+    (msg: string, type: "info" | "error" | "warn" = "info") => {
+      setLogs((prev) =>
+        [{ id: Math.random().toString(36).slice(2), msg, type }, ...prev].slice(
+          0,
+          50,
+        ),
+      );
+    },
+    [],
+  );
 
   const handleRestart = async () => {
     setActionPending(true);
@@ -43,7 +70,10 @@ export default function MonitoringDashboard() {
       const res = await apiAdmin.indexer.restart();
       addLog(res.message, "info");
     } catch (e) {
-      addLog(`Restart failed: ${e instanceof Error ? e.message : String(e)}`, "error");
+      addLog(
+        `Restart failed: ${e instanceof Error ? e.message : String(e)}`,
+        "error",
+      );
     } finally {
       setActionPending(false);
     }
@@ -56,7 +86,10 @@ export default function MonitoringDashboard() {
       const res = await apiAdmin.indexer.rescan();
       addLog(`Re-scan initiated from ledger ${res.rescan_from_ledger}`, "warn");
     } catch (e) {
-      addLog(`Re-scan failed: ${e instanceof Error ? e.message : String(e)}`, "error");
+      addLog(
+        `Re-scan failed: ${e instanceof Error ? e.message : String(e)}`,
+        "error",
+      );
     } finally {
       setActionPending(false);
     }
@@ -68,7 +101,11 @@ export default function MonitoringDashboard() {
       setChartData((prev) => [
         ...prev.slice(1),
         {
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+          time: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }),
           throughput: status.last_batch_rate_per_second,
           latency: status.last_rpc_latency_ms || status.last_loop_duration_ms,
         },
@@ -100,16 +137,26 @@ export default function MonitoringDashboard() {
                 ? "Send restart signal to the indexer worker?"
                 : "Roll back checkpoint and trigger ledger re-scan?"}
             </p>
-            <p className="text-[10px] text-zinc-600 uppercase">This action cannot be undone.</p>
+            <p className="text-[10px] text-zinc-600 uppercase">
+              This action cannot be undone.
+            </p>
             <div className="flex gap-3 justify-end">
-              <Button size="sm" variant="outline"
+              <Button
+                size="sm"
+                variant="outline"
                 className="border-zinc-700 text-zinc-400 bg-black hover:bg-zinc-900"
-                onClick={() => setConfirmAction(null)}>
+                onClick={() => setConfirmAction(null)}
+              >
                 Cancel
               </Button>
-              <Button size="sm" variant="outline"
+              <Button
+                size="sm"
+                variant="outline"
                 className="border-red-900/40 text-red-500 bg-black hover:bg-red-950/20"
-                onClick={confirmAction === "restart" ? handleRestart : handleRescan}>
+                onClick={
+                  confirmAction === "restart" ? handleRestart : handleRescan
+                }
+              >
                 Confirm
               </Button>
             </div>
@@ -128,14 +175,22 @@ export default function MonitoringDashboard() {
           </p>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline" size="sm" disabled={actionPending}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={actionPending}
             className="border-zinc-800 hover:bg-zinc-900 text-zinc-400 bg-black"
-            onClick={() => setConfirmAction("rescan")}>
+            onClick={() => setConfirmAction("rescan")}
+          >
             <RefreshCw className="mr-2 h-4 w-4" /> RE-SCAN
           </Button>
-          <Button variant="outline" size="sm" disabled={actionPending}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={actionPending}
             className="border-red-900/30 hover:bg-red-900/10 text-red-500 bg-black"
-            onClick={() => setConfirmAction("restart")}>
+            onClick={() => setConfirmAction("restart")}
+          >
             <Cpu className="mr-2 h-4 w-4" /> RESTART_WORKER
           </Button>
         </div>
@@ -146,7 +201,13 @@ export default function MonitoringDashboard() {
           title="SYNC_STATUS"
           value={status?.in_sync ? "OPERATIONAL" : "LAGGING"}
           subValue={`${status?.ledger_lag ?? 0} LEDGER LAG`}
-          icon={status?.in_sync ? <CheckCircle2 className="text-green-500" /> : <AlertCircle className="text-red-500" />}
+          icon={
+            status?.in_sync ? (
+              <CheckCircle2 className="text-green-500" />
+            ) : (
+              <AlertCircle className="text-red-500" />
+            )
+          }
           trend={status?.in_sync ? "STABLE" : "DEGRADED"}
         />
         <StatCard
@@ -160,7 +221,11 @@ export default function MonitoringDashboard() {
           value={status?.error_count?.toString() ?? "0"}
           subValue="SINCE_UPTIME"
           icon={<AlertCircle className="text-zinc-500" />}
-          color={status?.error_count && status.error_count > 0 ? "text-red-500" : "text-zinc-500"}
+          color={
+            status?.error_count && status.error_count > 0
+              ? "text-red-500"
+              : "text-zinc-500"
+          }
         />
         <StatCard
           title="REFRESH_RATE"
@@ -183,16 +248,53 @@ export default function MonitoringDashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
-                    <linearGradient id="colorThroughput" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient
+                      id="colorThroughput"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
                       <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#18181b" vertical={false} />
-                  <XAxis dataKey="time" stroke="#3f3f46" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#3f3f46" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} eps`} />
-                  <Tooltip contentStyle={{ backgroundColor: "#09090b", borderColor: "#27272a", color: "#fff", fontSize: "12px" }} itemStyle={{ color: "#22c55e" }} />
-                  <Area type="monotone" dataKey="throughput" stroke="#22c55e" fillOpacity={1} fill="url(#colorThroughput)" isAnimationActive={false} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#18181b"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="time"
+                    stroke="#3f3f46"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="#3f3f46"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) => `${v} eps`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#09090b",
+                      borderColor: "#27272a",
+                      color: "#fff",
+                      fontSize: "12px",
+                    }}
+                    itemStyle={{ color: "#22c55e" }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="throughput"
+                    stroke="#22c55e"
+                    fillOpacity={1}
+                    fill="url(#colorThroughput)"
+                    isAnimationActive={false}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
@@ -200,24 +302,56 @@ export default function MonitoringDashboard() {
 
           <Card className="bg-zinc-950 border-zinc-800 rounded-none">
             <CardHeader className="border-b border-zinc-900 py-3">
-              <CardTitle className="text-sm font-medium text-zinc-400 uppercase">System Parameters</CardTitle>
+              <CardTitle className="text-sm font-medium text-zinc-400 uppercase">
+                System Parameters
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
                   <tr className="border-b border-zinc-900">
-                    <th className="px-4 py-2 font-medium text-zinc-500 uppercase">Parameter</th>
-                    <th className="px-4 py-2 font-medium text-zinc-500 uppercase">Value</th>
-                    <th className="px-4 py-2 font-medium text-zinc-500 uppercase text-right">ID</th>
+                    <th className="px-4 py-2 font-medium text-zinc-500 uppercase">
+                      Parameter
+                    </th>
+                    <th className="px-4 py-2 font-medium text-zinc-500 uppercase">
+                      Value
+                    </th>
+                    <th className="px-4 py-2 font-medium text-zinc-500 uppercase text-right">
+                      ID
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-900">
-                  <TableRow label="RPC_ENDPOINT" value={status?.rpc.url ?? "NULL"} id="rpc_v0" />
-                  <TableRow label="RPC_HEALTH" value={status?.rpc.reachable ? "REACHABLE" : "UNREACHABLE"} id="rpc_h" />
-                  <TableRow label="MAX_LAG_LIMIT" value={`${status?.max_allowed_lag ?? "—"} ledgers`} id="cfg_0" />
-                  <TableRow label="LAST_BATCH_EVENTS" value={`${status?.last_batch_events_processed ?? 0}`} id="evt_rt" />
-                  <TableRow label="RPC_RETRIES" value={`${status?.rpc_retry_count ?? 0}`} id="rpc_rt" />
-                  <TableRow label="TOTAL_EVENTS" value={`${status?.total_events_processed?.toLocaleString() ?? 0}`} id="evt_tot" />
+                  <TableRow
+                    label="RPC_ENDPOINT"
+                    value={status?.rpc.url ?? "NULL"}
+                    id="rpc_v0"
+                  />
+                  <TableRow
+                    label="RPC_HEALTH"
+                    value={status?.rpc.reachable ? "REACHABLE" : "UNREACHABLE"}
+                    id="rpc_h"
+                  />
+                  <TableRow
+                    label="MAX_LAG_LIMIT"
+                    value={`${status?.max_allowed_lag ?? "—"} ledgers`}
+                    id="cfg_0"
+                  />
+                  <TableRow
+                    label="LAST_BATCH_EVENTS"
+                    value={`${status?.last_batch_events_processed ?? 0}`}
+                    id="evt_rt"
+                  />
+                  <TableRow
+                    label="RPC_RETRIES"
+                    value={`${status?.rpc_retry_count ?? 0}`}
+                    id="rpc_rt"
+                  />
+                  <TableRow
+                    label="TOTAL_EVENTS"
+                    value={`${status?.total_events_processed?.toLocaleString() ?? 0}`}
+                    id="evt_tot"
+                  />
                 </tbody>
               </table>
             </CardContent>
@@ -227,19 +361,41 @@ export default function MonitoringDashboard() {
         <div className="lg:col-span-1">
           <Card className="bg-zinc-950 border-zinc-800 rounded-none h-full flex flex-col">
             <CardHeader className="border-b border-zinc-900 py-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium text-zinc-400 uppercase">Live_Events</CardTitle>
-              <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px] h-4">STREAMING</Badge>
+              <CardTitle className="text-sm font-medium text-zinc-400 uppercase">
+                Live_Events
+              </CardTitle>
+              <Badge
+                variant="outline"
+                className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px] h-4"
+              >
+                STREAMING
+              </Badge>
             </CardHeader>
             <CardContent className="p-0 flex-grow overflow-y-auto max-h-[600px] bg-[#050505]">
               <div className="p-3 space-y-2">
                 {logs.length === 0 && (
-                  <p className="text-zinc-600 text-[10px] italic">No events in current session...</p>
+                  <p className="text-zinc-600 text-[10px] italic">
+                    No events in current session...
+                  </p>
                 )}
                 {logs.map((log) => (
-                  <div key={log.id} className="border-l-2 border-zinc-800 pl-2 py-1 leading-tight text-[11px]">
+                  <div
+                    key={log.id}
+                    className="border-l-2 border-zinc-800 pl-2 py-1 leading-tight text-[11px]"
+                  >
                     <div className="flex items-center gap-2">
-                      <span className="text-zinc-600">[{new Date().toLocaleTimeString()}]</span>
-                      <span className={log.type === "error" ? "text-red-500" : log.type === "warn" ? "text-yellow-500" : "text-zinc-400"}>
+                      <span className="text-zinc-600">
+                        [{new Date().toLocaleTimeString()}]
+                      </span>
+                      <span
+                        className={
+                          log.type === "error"
+                            ? "text-red-500"
+                            : log.type === "warn"
+                              ? "text-yellow-500"
+                              : "text-zinc-400"
+                        }
+                      >
                         {log.msg}
                       </span>
                     </div>
@@ -247,8 +403,12 @@ export default function MonitoringDashboard() {
                 ))}
                 <div className="border-l-2 border-green-500/40 pl-2 py-1 leading-tight text-[11px]">
                   <div className="flex items-center gap-2">
-                    <span className="text-zinc-600">[{new Date().toLocaleTimeString()}]</span>
-                    <span className="text-green-500">LEDGER_CONSUMED :: #{status?.last_processed_ledger}</span>
+                    <span className="text-zinc-600">
+                      [{new Date().toLocaleTimeString()}]
+                    </span>
+                    <span className="text-green-500">
+                      LEDGER_CONSUMED :: #{status?.last_processed_ledger}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -269,18 +429,29 @@ interface StatCardProps {
   trend?: "STABLE" | "DEGRADED";
 }
 
-function StatCard({ title, value, subValue, icon, color = "text-white", trend }: StatCardProps) {
+function StatCard({
+  title,
+  value,
+  subValue,
+  icon,
+  color = "text-white",
+  trend,
+}: StatCardProps) {
   return (
     <Card className="bg-zinc-950 border-zinc-800 rounded-none hover:border-zinc-700 transition-colors">
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-2">
-          <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">{title}</p>
+          <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">
+            {title}
+          </p>
           <div className="h-4 w-4">{icon}</div>
         </div>
         <div className="flex items-baseline gap-2">
           <p className={`text-xl font-bold tracking-tight ${color}`}>{value}</p>
           {trend && (
-            <span className={`text-[9px] px-1 border ${trend === "STABLE" ? "border-green-900/30 text-green-500" : "border-red-900/30 text-red-500"}`}>
+            <span
+              className={`text-[9px] px-1 border ${trend === "STABLE" ? "border-green-900/30 text-green-500" : "border-red-900/30 text-red-500"}`}
+            >
               {trend}
             </span>
           )}
@@ -291,7 +462,15 @@ function StatCard({ title, value, subValue, icon, color = "text-white", trend }:
   );
 }
 
-function TableRow({ label, value, id }: { label: string; value: string; id: string }) {
+function TableRow({
+  label,
+  value,
+  id,
+}: {
+  label: string;
+  value: string;
+  id: string;
+}) {
   return (
     <tr className="hover:bg-zinc-900/50 transition-colors">
       <td className="px-4 py-3 font-medium text-zinc-400">{label}</td>

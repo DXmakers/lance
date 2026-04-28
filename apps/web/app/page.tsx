@@ -9,8 +9,13 @@ import { WalletConnect } from "@/components/WalletConnect";
 export default function Home() {
   const { role, isLoggedIn } = useAuthStore();
 
-  const eyebrow = isLoggedIn ? `${role} cockpit` : "Stellar Freelance Infrastructure";
-  const title = role === 'client' ? "Manage hiring and escrow milestones with absolute clarity." : "Premium freelance execution with escrow, verifiable reputation, and transparent AI arbitration.";
+  const eyebrow = isLoggedIn
+    ? `${role} cockpit`
+    : "Stellar Freelance Infrastructure";
+  const title =
+    role === "client"
+      ? "Manage hiring and escrow milestones with absolute clarity."
+      : "Premium freelance execution with escrow, verifiable reputation, and transparent AI arbitration.";
 
   return (
     <SiteShell

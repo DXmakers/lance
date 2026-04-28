@@ -3,8 +3,15 @@ import { useState, useCallback, useRef } from "react";
 const MOCK_GATEWAY = "https://ipfs.io/ipfs/";
 
 function generateCID() {
-  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  return "Qm" + Array.from({ length: 44 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  const chars =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  return (
+    "Qm" +
+    Array.from(
+      { length: 44 },
+      () => chars[Math.floor(Math.random() * chars.length)],
+    ).join("")
+  );
 }
 
 function formatBytes(bytes) {
@@ -31,7 +38,12 @@ function getFileType(name) {
     ts: { label: "TS", color: "#60a5fa" },
     js: { label: "JS", color: "#fbbf24" },
   };
-  return map[ext] || { label: (ext || "FILE").toUpperCase().slice(0, 4), color: "#94a3b8" };
+  return (
+    map[ext] || {
+      label: (ext || "FILE").toUpperCase().slice(0, 4),
+      color: "#94a3b8",
+    }
+  );
 }
 
 function validateFile(file) {
@@ -310,12 +322,20 @@ const styles = `
 function FileTypeTag({ name }) {
   const ft = getFileType(name);
   return (
-    <div style={{
-      background: `${ft.color}18`, border: `1px solid ${ft.color}35`,
-      borderRadius: 6, padding: "2px 7px",
-      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 500,
-      color: ft.color, flexShrink: 0, letterSpacing: "0.04em"
-    }}>
+    <div
+      style={{
+        background: `${ft.color}18`,
+        border: `1px solid ${ft.color}35`,
+        borderRadius: 6,
+        padding: "2px 7px",
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 10,
+        fontWeight: 500,
+        color: ft.color,
+        flexShrink: 0,
+        letterSpacing: "0.04em",
+      }}
+    >
       {ft.label}
     </div>
   );
@@ -324,7 +344,9 @@ function FileTypeTag({ name }) {
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
-    try { await navigator.clipboard.writeText(text); } catch { }
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {}
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -344,52 +366,126 @@ function UploadRow({ item, onRemove }) {
     <div className="file-row">
       <FileTypeTag name={item.file.name} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isUploading ? 6 : 4 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#e4e4e7", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: isUploading ? 6 : 4,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#e4e4e7",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
             {item.file.name}
           </span>
-          <span style={{ fontSize: 10.5, color: "#71717a", flexShrink: 0, fontFamily: "'IBM Plex Mono', monospace" }}>
+          <span
+            style={{
+              fontSize: 10.5,
+              color: "#71717a",
+              flexShrink: 0,
+              fontFamily: "'IBM Plex Mono', monospace",
+            }}
+          >
             {formatBytes(item.file.size)}
           </span>
         </div>
         {isUploading && (
           <div>
             <div className="progress-track">
-              <div className="progress-bar uploading" style={{ width: `${item.progress}%` }} />
+              <div
+                className="progress-bar uploading"
+                style={{ width: `${item.progress}%` }}
+              />
             </div>
-            <div style={{ fontSize: 10, color: "#71717a", marginTop: 3, fontFamily: "'IBM Plex Mono', monospace" }}>
+            <div
+              style={{
+                fontSize: 10,
+                color: "#71717a",
+                marginTop: 3,
+                fontFamily: "'IBM Plex Mono', monospace",
+              }}
+            >
               Pinning to IPFS node… {item.progress}%
             </div>
           </div>
         )}
         {isSuccess && item.cid && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              marginTop: 2,
+            }}
+          >
             <span className="cid-chip">{item.cid}</span>
           </div>
         )}
         {isError && (
-          <div style={{ fontSize: 11, color: "#f87171", fontFamily: "'IBM Plex Mono', monospace", marginTop: 2 }}>
+          <div
+            style={{
+              fontSize: 11,
+              color: "#f87171",
+              fontFamily: "'IBM Plex Mono', monospace",
+              marginTop: 2,
+            }}
+          >
             Upload failed — retry
           </div>
         )}
         {item.validationErrors?.length > 0 && (
-          <div style={{ fontSize: 11, color: "#f87171", fontFamily: "'IBM Plex Mono', monospace", marginTop: 2 }}>
+          <div
+            style={{
+              fontSize: 11,
+              color: "#f87171",
+              fontFamily: "'IBM Plex Mono', monospace",
+              marginTop: 2,
+            }}
+          >
             {item.validationErrors[0]}
           </div>
         )}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+      <div
+        style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}
+      >
         {isSuccess && (
           <>
-            <span className="badge badge-success"><span className="stat-dot dot-success" />PINNED</span>
+            <span className="badge badge-success">
+              <span className="stat-dot dot-success" />
+              PINNED
+            </span>
             <CopyButton text={item.cid} />
           </>
         )}
-        {isUploading && <span className="badge badge-pending"><span className="stat-dot dot-pending" />UPLOADING</span>}
+        {isUploading && (
+          <span className="badge badge-pending">
+            <span className="stat-dot dot-pending" />
+            UPLOADING
+          </span>
+        )}
         {isError && <span className="badge badge-error">FAILED</span>}
-        {item.status === "queued" && <span className="badge badge-info">QUEUED</span>}
-        {item.validationErrors?.length > 0 && <span className="badge badge-error">INVALID</span>}
-        <button className="btn-icon" onClick={() => onRemove(item.id)} style={{ padding: "5px 7px", fontSize: 13, color: "#52525b" }}>✕</button>
+        {item.status === "queued" && (
+          <span className="badge badge-info">QUEUED</span>
+        )}
+        {item.validationErrors?.length > 0 && (
+          <span className="badge badge-error">INVALID</span>
+        )}
+        <button
+          className="btn-icon"
+          onClick={() => onRemove(item.id)}
+          style={{ padding: "5px 7px", fontSize: 13, color: "#52525b" }}
+        >
+          ✕
+        </button>
       </div>
     </div>
   );
@@ -398,7 +494,9 @@ function UploadRow({ item, onRemove }) {
 function PinnedFileRow({ item }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
-    try { await navigator.clipboard.writeText(`${MOCK_GATEWAY}${item.cid}`); } catch { }
+    try {
+      await navigator.clipboard.writeText(`${MOCK_GATEWAY}${item.cid}`);
+    } catch {}
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -406,19 +504,48 @@ function PinnedFileRow({ item }) {
     <div className="file-row">
       <FileTypeTag name={item.file.name} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#e4e4e7", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#e4e4e7",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            marginBottom: 4,
+          }}
+        >
           {item.file.name}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span className="cid-chip" style={{ maxWidth: 180 }}>{item.cid}</span>
+          <span className="cid-chip" style={{ maxWidth: 180 }}>
+            {item.cid}
+          </span>
           <span className="link-pill" onClick={copy}>
             {copied ? "✓ Copied link" : "⬡ IPFS link"}
           </span>
         </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-        <span className="badge badge-success"><span className="stat-dot dot-success" />PINNED</span>
-        <span style={{ fontSize: 10, color: "#52525b", fontFamily: "'IBM Plex Mono', monospace" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: 4,
+          flexShrink: 0,
+        }}
+      >
+        <span className="badge badge-success">
+          <span className="stat-dot dot-success" />
+          PINNED
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            color: "#52525b",
+            fontFamily: "'IBM Plex Mono', monospace",
+          }}
+        >
           {formatBytes(item.file.size)}
         </span>
       </div>
@@ -449,36 +576,58 @@ export default function IPFSUpload() {
     setFiles((prev) => [...prev, ...items]);
   }, []);
 
-  const onDrop = useCallback((e) => {
-    e.preventDefault();
-    setDragOver(false);
-    addFiles(e.dataTransfer.files);
-  }, [addFiles]);
+  const onDrop = useCallback(
+    (e) => {
+      e.preventDefault();
+      setDragOver(false);
+      addFiles(e.dataTransfer.files);
+    },
+    [addFiles],
+  );
 
-  const onDragOver = (e) => { e.preventDefault(); setDragOver(true); };
+  const onDragOver = (e) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
   const onDragLeave = () => setDragOver(false);
 
-  const removeFile = (id) => setFiles((prev) => prev.filter((f) => f.id !== id));
+  const removeFile = (id) =>
+    setFiles((prev) => prev.filter((f) => f.id !== id));
 
   const uploadAll = useCallback(async () => {
     if (uploadingRef.current) return;
-    const toUpload = files.filter((f) => f.status === "queued" && !f.validationErrors?.length);
+    const toUpload = files.filter(
+      (f) => f.status === "queued" && !f.validationErrors?.length,
+    );
     if (!toUpload.length) return;
     uploadingRef.current = true;
 
     for (const item of toUpload) {
-      setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "uploading" } : f));
+      setFiles((prev) =>
+        prev.map((f) => (f.id === item.id ? { ...f, status: "uploading" } : f)),
+      );
       for (let p = 0; p <= 100; p += Math.floor(Math.random() * 15 + 8)) {
         await new Promise((r) => setTimeout(r, 80 + Math.random() * 60));
         const clamped = Math.min(p, 99);
-        setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, progress: clamped } : f));
+        setFiles((prev) =>
+          prev.map((f) => (f.id === item.id ? { ...f, progress: clamped } : f)),
+        );
       }
       await new Promise((r) => setTimeout(r, 200));
       const success = Math.random() > 0.1;
       const cid = generateCID();
-      setFiles((prev) => prev.map((f) =>
-        f.id === item.id ? { ...f, status: success ? "success" : "error", progress: 100, cid: success ? cid : null } : f
-      ));
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === item.id
+            ? {
+                ...f,
+                status: success ? "success" : "error",
+                progress: 100,
+                cid: success ? cid : null,
+              }
+            : f,
+        ),
+      );
       if (success) {
         setPinned((prev) => [...prev, { ...item, cid, status: "success" }]);
       }
@@ -491,15 +640,27 @@ export default function IPFSUpload() {
     setResolving(true);
     setCidResult(null);
     await new Promise((r) => setTimeout(r, 800 + Math.random() * 600));
-    const valid = cidInput.startsWith("Qm") || cidInput.startsWith("bafk") || cidInput.startsWith("bafy");
-    setCidResult(valid
-      ? { ok: true, cid: cidInput.trim(), size: Math.floor(Math.random() * 5000000), type: "file", nodes: Math.floor(Math.random() * 8 + 2) }
-      : { ok: false }
+    const valid =
+      cidInput.startsWith("Qm") ||
+      cidInput.startsWith("bafk") ||
+      cidInput.startsWith("bafy");
+    setCidResult(
+      valid
+        ? {
+            ok: true,
+            cid: cidInput.trim(),
+            size: Math.floor(Math.random() * 5000000),
+            type: "file",
+            nodes: Math.floor(Math.random() * 8 + 2),
+          }
+        : { ok: false },
     );
     setResolving(false);
   };
 
-  const pendingCount = files.filter((f) => f.status === "queued" && !f.validationErrors?.length).length;
+  const pendingCount = files.filter(
+    (f) => f.status === "queued" && !f.validationErrors?.length,
+  ).length;
   const uploadingCount = files.filter((f) => f.status === "uploading").length;
   const totalSize = files.reduce((a, f) => a + f.file.size, 0);
 
@@ -508,28 +669,62 @@ export default function IPFSUpload() {
       <style>{styles}</style>
       <div className="ipfs-root">
         <div style={{ maxWidth: 980, margin: "0 auto" }}>
-
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 32,
+            }}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 10,
-                background: "linear-gradient(135deg, #10b981, #059669)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 18, boxShadow: "0 0 20px rgba(16,185,129,0.25)"
-              }}>⬡</div>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  background: "linear-gradient(135deg, #10b981, #059669)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 18,
+                  boxShadow: "0 0 20px rgba(16,185,129,0.25)",
+                }}
+              >
+                ⬡
+              </div>
               <div>
-                <h1 style={{ fontSize: 22, fontWeight: 800, color: "#f4f4f5", letterSpacing: "-0.02em", lineHeight: 1 }}>
+                <h1
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 800,
+                    color: "#f4f4f5",
+                    letterSpacing: "-0.02em",
+                    lineHeight: 1,
+                  }}
+                >
                   IPFS Upload
                 </h1>
-                <p style={{ fontSize: 12, color: "#71717a", marginTop: 3, fontFamily: "'IBM Plex Mono', monospace" }}>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "#71717a",
+                    marginTop: 3,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                  }}
+                >
                   lance / deliverables / pinning
                 </p>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div className="header-tag">
-                <span className="stat-dot dot-success" style={{ width: 5, height: 5 }} /> IPFS NODE ONLINE
+                <span
+                  className="stat-dot dot-success"
+                  style={{ width: 5, height: 5 }}
+                />{" "}
+                IPFS NODE ONLINE
               </div>
               <div className="badge badge-info" style={{ padding: "5px 12px" }}>
                 Kubo v0.28.0
@@ -538,15 +733,28 @@ export default function IPFSUpload() {
           </div>
 
           {/* Layout */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 260px", gap: 16, alignItems: "start" }}>
-
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 260px",
+              gap: 16,
+              alignItems: "start",
+            }}
+          >
             {/* Main Panel */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
               {/* Tabs */}
               <div className="tabs">
-                {[["upload", "⬆ Upload Files"], ["pinned", `⬡ Pinned (${pinned.length})`], ["resolve", "⌕ Resolve CID"]].map(([key, label]) => (
-                  <button key={key} className={`tab${tab === key ? " active" : ""}`} onClick={() => setTab(key)}>
+                {[
+                  ["upload", "⬆ Upload Files"],
+                  ["pinned", `⬡ Pinned (${pinned.length})`],
+                  ["resolve", "⌕ Resolve CID"],
+                ].map(([key, label]) => (
+                  <button
+                    key={key}
+                    className={`tab${tab === key ? " active" : ""}`}
+                    onClick={() => setTab(key)}
+                  >
                     {label}
                   </button>
                 ))}
@@ -555,11 +763,14 @@ export default function IPFSUpload() {
               {/* Upload Tab */}
               {tab === "upload" && (
                 <div className="glass" style={{ padding: 24 }}>
-
                   {/* Drop Zone */}
                   <div
                     className={`drop-zone${dragOver ? " drag-over" : ""}`}
-                    style={{ padding: "40px 24px", textAlign: "center", marginBottom: 20 }}
+                    style={{
+                      padding: "40px 24px",
+                      textAlign: "center",
+                      marginBottom: 20,
+                    }}
                     onDrop={onDrop}
                     onDragOver={onDragOver}
                     onDragLeave={onDragLeave}
@@ -573,17 +784,46 @@ export default function IPFSUpload() {
                       onChange={(e) => addFiles(e.target.files)}
                     />
                     <div className="upload-icon-ring">
-                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg
+                        width="26"
+                        height="26"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#10b981"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <path d="M12 16V4m0 0-3 3m3-3 3 3" />
                         <path d="M20 16.7A4 4 0 0 0 16 9h-.5A7 7 0 1 0 4 15.7" />
                       </svg>
                     </div>
-                    <p style={{ fontSize: 15, fontWeight: 700, color: "#e4e4e7", marginBottom: 6 }}>
+                    <p
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: "#e4e4e7",
+                        marginBottom: 6,
+                      }}
+                    >
                       Drop files to pin on IPFS
                     </p>
-                    <p style={{ fontSize: 12, color: "#71717a", lineHeight: 1.6 }}>
-                      Drag & drop or click to browse · Max 100MB per file<br />
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#52525b", fontSize: 11 }}>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "#71717a",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      Drag & drop or click to browse · Max 100MB per file
+                      <br />
+                      <span
+                        style={{
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          color: "#52525b",
+                          fontSize: 11,
+                        }}
+                      >
                         All file types accepted (except .exe .bat .sh .cmd)
                       </span>
                     </p>
@@ -592,37 +832,92 @@ export default function IPFSUpload() {
                   {/* File Queue */}
                   {files.length > 0 && (
                     <>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                        <span style={{ fontSize: 12, color: "#a1a1aa", fontWeight: 600, letterSpacing: "0.06em" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          marginBottom: 12,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 12,
+                            color: "#a1a1aa",
+                            fontWeight: 600,
+                            letterSpacing: "0.06em",
+                          }}
+                        >
                           UPLOAD QUEUE ({files.length})
                         </span>
                         <div style={{ display: "flex", gap: 8 }}>
-                          <button className="btn-ghost" onClick={() => setFiles([])}>Clear all</button>
+                          <button
+                            className="btn-ghost"
+                            onClick={() => setFiles([])}
+                          >
+                            Clear all
+                          </button>
                           <button
                             className="btn-primary"
                             onClick={uploadAll}
                             disabled={!pendingCount || uploadingCount > 0}
                           >
-                            {uploadingCount > 0 ? `Uploading…` : `Pin ${pendingCount} file${pendingCount !== 1 ? "s" : ""}`}
+                            {uploadingCount > 0
+                              ? `Uploading…`
+                              : `Pin ${pendingCount} file${pendingCount !== 1 ? "s" : ""}`}
                           </button>
                         </div>
                       </div>
                       <div className="scroll-area">
                         {files.map((item) => (
-                          <UploadRow key={item.id} item={item} onRemove={removeFile} />
+                          <UploadRow
+                            key={item.id}
+                            item={item}
+                            onRemove={removeFile}
+                          />
                         ))}
                       </div>
                     </>
                   )}
 
                   {files.length === 0 && (
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
-                      {["contract.sol", "deliverable.pdf", "metadata.json", "screenshot.png"].map((f) => (
-                        <div key={f} className="glass-sm" style={{ padding: "5px 12px", fontSize: 11, color: "#71717a", fontFamily: "'IBM Plex Mono', monospace", cursor: "default" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        flexWrap: "wrap",
+                        marginTop: 4,
+                      }}
+                    >
+                      {[
+                        "contract.sol",
+                        "deliverable.pdf",
+                        "metadata.json",
+                        "screenshot.png",
+                      ].map((f) => (
+                        <div
+                          key={f}
+                          className="glass-sm"
+                          style={{
+                            padding: "5px 12px",
+                            fontSize: 11,
+                            color: "#71717a",
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            cursor: "default",
+                          }}
+                        >
                           {f}
                         </div>
                       ))}
-                      <div className="glass-sm" style={{ padding: "5px 12px", fontSize: 11, color: "#52525b", fontFamily: "'IBM Plex Mono', monospace" }}>
+                      <div
+                        className="glass-sm"
+                        style={{
+                          padding: "5px 12px",
+                          fontSize: 11,
+                          color: "#52525b",
+                          fontFamily: "'IBM Plex Mono', monospace",
+                        }}
+                      >
                         + drop any file →
                       </div>
                     </div>
@@ -633,27 +928,65 @@ export default function IPFSUpload() {
               {/* Pinned Tab */}
               {tab === "pinned" && (
                 <div className="glass" style={{ padding: 24 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                    <span style={{ fontSize: 12, color: "#a1a1aa", fontWeight: 600, letterSpacing: "0.06em" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: 16,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: "#a1a1aa",
+                        fontWeight: 600,
+                        letterSpacing: "0.06em",
+                      }}
+                    >
                       PINNED FILES ({pinned.length})
                     </span>
                     {pinned.length > 0 && (
-                      <span style={{ fontSize: 11, color: "#71717a", fontFamily: "'IBM Plex Mono', monospace" }}>
-                        Total: {formatBytes(pinned.reduce((a, f) => a + f.file.size, 0))}
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "#71717a",
+                          fontFamily: "'IBM Plex Mono', monospace",
+                        }}
+                      >
+                        Total:{" "}
+                        {formatBytes(
+                          pinned.reduce((a, f) => a + f.file.size, 0),
+                        )}
                       </span>
                     )}
                   </div>
                   {pinned.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "40px 0", color: "#52525b" }}>
+                    <div
+                      style={{
+                        textAlign: "center",
+                        padding: "40px 0",
+                        color: "#52525b",
+                      }}
+                    >
                       <div style={{ fontSize: 32, marginBottom: 12 }}>⬡</div>
                       <p style={{ fontSize: 13 }}>No files pinned yet</p>
-                      <p style={{ fontSize: 11, fontFamily: "'IBM Plex Mono', monospace", marginTop: 4, color: "#3f3f46" }}>
+                      <p
+                        style={{
+                          fontSize: 11,
+                          fontFamily: "'IBM Plex Mono', monospace",
+                          marginTop: 4,
+                          color: "#3f3f46",
+                        }}
+                      >
                         Switch to Upload to add files
                       </p>
                     </div>
                   ) : (
                     <div className="scroll-area">
-                      {pinned.map((item) => <PinnedFileRow key={item.id} item={item} />)}
+                      {pinned.map((item) => (
+                        <PinnedFileRow key={item.id} item={item} />
+                      ))}
                     </div>
                   )}
                 </div>
@@ -662,8 +995,16 @@ export default function IPFSUpload() {
               {/* Resolve CID Tab */}
               {tab === "resolve" && (
                 <div className="glass" style={{ padding: 24 }}>
-                  <p style={{ fontSize: 12, color: "#71717a", marginBottom: 16, lineHeight: 1.6 }}>
-                    Enter an IPFS CID (v0 or v1) to resolve its metadata from the network.
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#71717a",
+                      marginBottom: 16,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    Enter an IPFS CID (v0 or v1) to resolve its metadata from
+                    the network.
                   </p>
                   <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
                     <input
@@ -673,14 +1014,33 @@ export default function IPFSUpload() {
                       onChange={(e) => setCidInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && resolveCID()}
                     />
-                    <button className="btn-primary" onClick={resolveCID} disabled={resolving || !cidInput.trim()} style={{ flexShrink: 0 }}>
+                    <button
+                      className="btn-primary"
+                      onClick={resolveCID}
+                      disabled={resolving || !cidInput.trim()}
+                      style={{ flexShrink: 0 }}
+                    >
                       {resolving ? "Resolving…" : "Resolve"}
                     </button>
                   </div>
                   {resolving && (
-                    <div className="glass-sm" style={{ padding: 16, display: "flex", alignItems: "center", gap: 10 }}>
+                    <div
+                      className="glass-sm"
+                      style={{
+                        padding: 16,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                      }}
+                    >
                       <span className="stat-dot dot-pending" />
-                      <span style={{ fontSize: 12, color: "#f59e0b", fontFamily: "'IBM Plex Mono', monospace" }}>
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: "#f59e0b",
+                          fontFamily: "'IBM Plex Mono', monospace",
+                        }}
+                      >
                         Querying IPFS DHT…
                       </span>
                     </div>
@@ -689,32 +1049,85 @@ export default function IPFSUpload() {
                     <div className={`glass-sm`} style={{ padding: 16 }}>
                       {cidResult.ok ? (
                         <>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                            <span className="badge badge-success"><span className="stat-dot dot-success" />RESOLVED</span>
-                            <span className="mono" style={{ fontSize: 11, color: "#6366f1" }}>{cidResult.cid}</span>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              marginBottom: 12,
+                            }}
+                          >
+                            <span className="badge badge-success">
+                              <span className="stat-dot dot-success" />
+                              RESOLVED
+                            </span>
+                            <span
+                              className="mono"
+                              style={{ fontSize: 11, color: "#6366f1" }}
+                            >
+                              {cidResult.cid}
+                            </span>
                           </div>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr 1fr 1fr",
+                              gap: 8,
+                            }}
+                          >
                             {[
                               ["Size", formatBytes(cidResult.size)],
                               ["Peers", cidResult.nodes + " nodes"],
                               ["Type", "UnixFS"],
                             ].map(([k, v]) => (
                               <div key={k} className="sidebar-stat">
-                                <span style={{ fontSize: 10, color: "#52525b", letterSpacing: "0.06em", fontWeight: 600 }}>{k}</span>
-                                <span style={{ fontSize: 13, color: "#e4e4e7", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 500 }}>{v}</span>
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    color: "#52525b",
+                                    letterSpacing: "0.06em",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {k}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: 13,
+                                    color: "#e4e4e7",
+                                    fontFamily: "'IBM Plex Mono', monospace",
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  {v}
+                                </span>
                               </div>
                             ))}
                           </div>
-                          <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-                            <button className="btn-ghost" style={{ fontSize: 11 }} onClick={() => window.open(`${MOCK_GATEWAY}${cidResult.cid}`, "_blank")}>
+                          <div
+                            style={{ marginTop: 12, display: "flex", gap: 8 }}
+                          >
+                            <button
+                              className="btn-ghost"
+                              style={{ fontSize: 11 }}
+                              onClick={() =>
+                                window.open(
+                                  `${MOCK_GATEWAY}${cidResult.cid}`,
+                                  "_blank",
+                                )
+                              }
+                            >
                               Open in Gateway ↗
                             </button>
-                            <CopyButton text={`${MOCK_GATEWAY}${cidResult.cid}`} />
+                            <CopyButton
+                              text={`${MOCK_GATEWAY}${cidResult.cid}`}
+                            />
                           </div>
                         </>
                       ) : (
                         <div className="validation-err">
-                          ✕ &nbsp;CID not found or invalid format — check the hash and try again
+                          ✕ &nbsp;CID not found or invalid format — check the
+                          hash and try again
                         </div>
                       )}
                     </div>
@@ -725,22 +1138,62 @@ export default function IPFSUpload() {
 
             {/* Sidebar */}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-
               {/* Node Status */}
               <div className="glass" style={{ padding: 20 }}>
-                <p style={{ fontSize: 10, color: "#52525b", fontWeight: 700, letterSpacing: "0.1em", marginBottom: 14 }}>NODE STATUS</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <p
+                  style={{
+                    fontSize: 10,
+                    color: "#52525b",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    marginBottom: 14,
+                  }}
+                >
+                  NODE STATUS
+                </p>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                >
                   {[
                     ["IPFS", "Online", "dot-success"],
                     ["Pinata", "Connected", "dot-success"],
                     ["DHT", "Active", "dot-success"],
                     ["Gateway", "Public", "dot-success"],
                   ].map(([label, val, dot]) => (
-                    <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 11, color: "#71717a", fontFamily: "'IBM Plex Mono', monospace" }}>{label}</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <div
+                      key={label}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "#71717a",
+                          fontFamily: "'IBM Plex Mono', monospace",
+                        }}
+                      >
+                        {label}
+                      </span>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                        }}
+                      >
                         <span className={`stat-dot ${dot}`} />
-                        <span style={{ fontSize: 11, color: "#a1a1aa", fontFamily: "'IBM Plex Mono', monospace" }}>{val}</span>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "#a1a1aa",
+                            fontFamily: "'IBM Plex Mono', monospace",
+                          }}
+                        >
+                          {val}
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -749,20 +1202,87 @@ export default function IPFSUpload() {
 
               {/* Upload Stats */}
               <div className="glass" style={{ padding: 20 }}>
-                <p style={{ fontSize: 10, color: "#52525b", fontWeight: 700, letterSpacing: "0.1em", marginBottom: 14 }}>SESSION STATS</p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                <p
+                  style={{
+                    fontSize: 10,
+                    color: "#52525b",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    marginBottom: 14,
+                  }}
+                >
+                  SESSION STATS
+                </p>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 8,
+                    marginBottom: 8,
+                  }}
+                >
                   <div className="sidebar-stat">
-                    <span style={{ fontSize: 10, color: "#52525b", letterSpacing: "0.06em", fontWeight: 600 }}>PINNED</span>
-                    <span style={{ fontSize: 20, fontWeight: 800, color: "#10b981" }}>{pinned.length}</span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "#52525b",
+                        letterSpacing: "0.06em",
+                        fontWeight: 600,
+                      }}
+                    >
+                      PINNED
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 20,
+                        fontWeight: 800,
+                        color: "#10b981",
+                      }}
+                    >
+                      {pinned.length}
+                    </span>
                   </div>
                   <div className="sidebar-stat">
-                    <span style={{ fontSize: 10, color: "#52525b", letterSpacing: "0.06em", fontWeight: 600 }}>QUEUED</span>
-                    <span style={{ fontSize: 20, fontWeight: 800, color: "#f59e0b" }}>{pendingCount}</span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "#52525b",
+                        letterSpacing: "0.06em",
+                        fontWeight: 600,
+                      }}
+                    >
+                      QUEUED
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 20,
+                        fontWeight: 800,
+                        color: "#f59e0b",
+                      }}
+                    >
+                      {pendingCount}
+                    </span>
                   </div>
                 </div>
                 <div className="sidebar-stat">
-                  <span style={{ fontSize: 10, color: "#52525b", letterSpacing: "0.06em", fontWeight: 600 }}>TOTAL SIZE</span>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: "#e4e4e7", fontFamily: "'IBM Plex Mono', monospace" }}>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: "#52525b",
+                      letterSpacing: "0.06em",
+                      fontWeight: 600,
+                    }}
+                  >
+                    TOTAL SIZE
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: "#e4e4e7",
+                      fontFamily: "'IBM Plex Mono', monospace",
+                    }}
+                  >
                     {formatBytes(totalSize)}
                   </span>
                 </div>
@@ -770,14 +1290,45 @@ export default function IPFSUpload() {
 
               {/* Gateway */}
               <div className="glass" style={{ padding: 20 }}>
-                <p style={{ fontSize: 10, color: "#52525b", fontWeight: 700, letterSpacing: "0.1em", marginBottom: 14 }}>PUBLIC GATEWAY</p>
-                <div className="glass-sm" style={{ padding: "8px 10px", marginBottom: 10 }}>
-                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#6366f1", wordBreak: "break-all", lineHeight: 1.5, display: "block" }}>
+                <p
+                  style={{
+                    fontSize: 10,
+                    color: "#52525b",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    marginBottom: 14,
+                  }}
+                >
+                  PUBLIC GATEWAY
+                </p>
+                <div
+                  className="glass-sm"
+                  style={{ padding: "8px 10px", marginBottom: 10 }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 10,
+                      color: "#6366f1",
+                      wordBreak: "break-all",
+                      lineHeight: 1.5,
+                      display: "block",
+                    }}
+                  >
                     ipfs.io/ipfs/&lt;cid&gt;
                   </span>
                 </div>
                 <div className="glass-sm" style={{ padding: "8px 10px" }}>
-                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "#818cf8", wordBreak: "break-all", lineHeight: 1.5, display: "block" }}>
+                  <span
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 10,
+                      color: "#818cf8",
+                      wordBreak: "break-all",
+                      lineHeight: 1.5,
+                      display: "block",
+                    }}
+                  >
                     cloudflare-ipfs.com/ipfs/&lt;cid&gt;
                   </span>
                 </div>
@@ -785,35 +1336,87 @@ export default function IPFSUpload() {
 
               {/* Zod Validation Info */}
               <div className="glass" style={{ padding: 20 }}>
-                <p style={{ fontSize: 10, color: "#52525b", fontWeight: 700, letterSpacing: "0.1em", marginBottom: 12 }}>VALIDATION RULES</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                <p
+                  style={{
+                    fontSize: 10,
+                    color: "#52525b",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    marginBottom: 12,
+                  }}
+                >
+                  VALIDATION RULES
+                </p>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 7 }}
+                >
                   {[
                     ["Max size", "100 MB", true],
                     ["Blocked", ".exe .bat .sh", true],
                     ["CID format", "v0 / v1", true],
                     ["Pinning", "Auto on upload", true],
                   ].map(([k, v, ok]) => (
-                    <div key={k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                      <span style={{ fontSize: 10.5, color: "#71717a" }}>{k}</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <span className={`stat-dot ${ok ? "dot-success" : "dot-error"}`} style={{ width: 5, height: 5 }} />
-                        <span style={{ fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace", color: "#a1a1aa" }}>{v}</span>
+                    <div
+                      key={k}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
+                      }}
+                    >
+                      <span style={{ fontSize: 10.5, color: "#71717a" }}>
+                        {k}
+                      </span>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                        }}
+                      >
+                        <span
+                          className={`stat-dot ${ok ? "dot-success" : "dot-error"}`}
+                          style={{ width: 5, height: 5 }}
+                        />
+                        <span
+                          style={{
+                            fontSize: 10.5,
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            color: "#a1a1aa",
+                          }}
+                        >
+                          {v}
+                        </span>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-
           </div>
 
           {/* Footer */}
-          <div style={{ marginTop: 24, textAlign: "center", padding: "16px 0", borderTop: "1px solid rgba(63,63,70,0.3)" }}>
-            <span style={{ fontSize: 10.5, color: "#3f3f46", fontFamily: "'IBM Plex Mono', monospace", letterSpacing: "0.04em" }}>
-              LANCE MARKETPLACE · IPFS PINNING MODULE · DISTRIBUTED STORAGE LAYER
+          <div
+            style={{
+              marginTop: 24,
+              textAlign: "center",
+              padding: "16px 0",
+              borderTop: "1px solid rgba(63,63,70,0.3)",
+            }}
+          >
+            <span
+              style={{
+                fontSize: 10.5,
+                color: "#3f3f46",
+                fontFamily: "'IBM Plex Mono', monospace",
+                letterSpacing: "0.04em",
+              }}
+            >
+              LANCE MARKETPLACE · IPFS PINNING MODULE · DISTRIBUTED STORAGE
+              LAYER
             </span>
           </div>
-
         </div>
       </div>
     </>

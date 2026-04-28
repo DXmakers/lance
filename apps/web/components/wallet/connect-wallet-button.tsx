@@ -39,7 +39,12 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
 
   if (isLoading) {
     return (
-      <div className={cn("flex flex-col items-end gap-2 responsive-gap", className)}>
+      <div
+        className={cn(
+          "flex flex-col items-end gap-2 responsive-gap",
+          className,
+        )}
+      >
         <Button
           variant="outline"
           size="sm"
@@ -48,10 +53,13 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
           aria-describedby="loading-status"
           className="rounded-[12px] border-zinc-700/60 bg-zinc-900/50 text-zinc-400 transition-all duration-200 min-h-[32px] px-4"
         >
-          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          <Loader2
+            className="mr-2 h-3.5 w-3.5 animate-spin"
+            aria-hidden="true"
+          />
           <span className="responsive-text-xs">Checking…</span>
         </Button>
-        <div 
+        <div
           id="loading-status"
           className="flex items-center gap-1.5 text-[10px] text-zinc-500 responsive-text-xs"
           role="status"
@@ -68,7 +76,12 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
     const truncated = shortenAddress(address, 4, 4);
 
     return (
-      <div className={cn("flex flex-col items-end gap-1 responsive-gap", className)}>
+      <div
+        className={cn(
+          "flex flex-col items-end gap-1 responsive-gap",
+          className,
+        )}
+      >
         {networkMismatch && (
           <div className="flex flex-col gap-1">
             <p
@@ -76,7 +89,10 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
               aria-live="polite"
               className="flex items-center gap-1 rounded-[12px] bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-400 responsive-text-xs"
             >
-              <AlertTriangle className="h-3 w-3 animate-pulse" aria-hidden="true" />
+              <AlertTriangle
+                className="h-3 w-3 animate-pulse"
+                aria-hidden="true"
+              />
               Network mismatch detected
             </p>
             <p className="text-[10px] text-zinc-500 text-right responsive-text-xs max-w-[200px]">
@@ -96,7 +112,10 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
             aria-label={`Disconnect wallet ${truncated}`}
             className="rounded-[12px] border-zinc-700/60 bg-zinc-900/50 text-xs text-zinc-300 transition-all duration-200 hover:border-indigo-500/50 hover:bg-zinc-800 hover:text-white group min-h-[32px] px-4"
           >
-            <Wallet className="mr-1.5 h-3.5 w-3.5 text-indigo-400 group-hover:text-indigo-300 transition-colors" aria-hidden="true" />
+            <Wallet
+              className="mr-1.5 h-3.5 w-3.5 text-indigo-400 group-hover:text-indigo-300 transition-colors"
+              aria-hidden="true"
+            />
             <span className="font-mono responsive-text-xs">{truncated}</span>
           </Button>
           <Button
@@ -115,10 +134,12 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
   }
 
   return (
-    <div className={cn("flex flex-col items-end gap-2 responsive-gap", className)}>
+    <div
+      className={cn("flex flex-col items-end gap-2 responsive-gap", className)}
+    >
       {error && (
-        <WalletErrorBanner 
-          error={error} 
+        <WalletErrorBanner
+          error={error}
           onRetry={() => void connect()}
           className="w-full max-w-xs"
         />
@@ -135,7 +156,10 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
       >
         {isConnecting ? (
           <div className="flex items-center">
-            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            <Loader2
+              className="mr-1.5 h-3.5 w-3.5 animate-spin"
+              aria-hidden="true"
+            />
             <span className="responsive-text-xs">Connecting…</span>
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
           </div>
@@ -146,9 +170,9 @@ export function ConnectWalletButton({ className }: ConnectWalletButtonProps) {
           </div>
         )}
       </Button>
-      
+
       {isConnecting && (
-        <div 
+        <div
           id="connection-status"
           className="flex items-center gap-1.5 text-[10px] text-zinc-500 responsive-text-xs"
           role="status"

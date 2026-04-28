@@ -38,17 +38,33 @@ export const MOCK_API_DOCS: ApiEndpoint[] = [
     method: "GET",
     path: "/api/v1/jobs",
     title: "List Jobs",
-    description: "Retrieve a paginated list of available jobs on the marketplace.",
+    description:
+      "Retrieve a paginated list of available jobs on the marketplace.",
     status: "stable",
     params: [
-      { name: "page", type: "number", required: false, description: "Page number for pagination" },
-      { name: "status", type: "string", required: false, description: "Filter by job status" },
+      {
+        name: "page",
+        type: "number",
+        required: false,
+        description: "Page number for pagination",
+      },
+      {
+        name: "status",
+        type: "string",
+        required: false,
+        description: "Filter by job status",
+      },
     ],
     response: {
       jobs: [
-        { id: "1", title: "Smart Contract Audit", budget: "5000 XLM", status: "open" }
+        {
+          id: "1",
+          title: "Smart Contract Audit",
+          budget: "5000 XLM",
+          status: "open",
+        },
       ],
-      total: 100
+      total: 100,
     },
   },
   {
@@ -61,8 +77,8 @@ export const MOCK_API_DOCS: ApiEndpoint[] = [
       title: "string",
       description: "string",
       budget: "string",
-      category: "string"
+      category: "string",
     },
     status: "beta",
-  }
+  },
 ];

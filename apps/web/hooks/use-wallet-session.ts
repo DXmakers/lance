@@ -58,8 +58,12 @@ function persistSession(address: string | null): void {
 }
 
 export function useWalletSession() {
-  const [address, setAddress] = useState<string | null>(() => readCachedSession()?.address ?? null);
-  const [walletNetwork, setWalletNetwork] = useState<StellarNetwork | null>(null);
+  const [address, setAddress] = useState<string | null>(
+    () => readCachedSession()?.address ?? null,
+  );
+  const [walletNetwork, setWalletNetwork] = useState<StellarNetwork | null>(
+    null,
+  );
   const [walletPassphrase, setWalletPassphrase] = useState<string | null>(null);
   const [xlmBalance, setXlmBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,7 +77,9 @@ export function useWalletSession() {
       const connected = await getConnectedWalletAddress();
       const network = getWalletNetwork();
       const balance = connected ? await getXlmBalance(connected) : null;
-      const walletPassphrase = connected ? await getWalletNetworkPassphrase() : null;
+      const walletPassphrase = connected
+        ? await getWalletNetworkPassphrase()
+        : null;
 
       setAddress(connected);
       setWalletNetwork(network);
@@ -152,9 +158,10 @@ export function useWalletSession() {
 
   // Network mismatch: compare wallet's reported passphrase against the app's expected passphrase.
   // Falls back to the StellarNetwork string comparison when passphrase is unavailable.
-  const APP_PASSPHRASE = APP_STELLAR_NETWORK === "public"
-    ? "Public Global Stellar Network ; September 2015"
-    : "Test SDF Network ; September 2015";
+  const APP_PASSPHRASE =
+    APP_STELLAR_NETWORK === "public"
+      ? "Public Global Stellar Network ; September 2015"
+      : "Test SDF Network ; September 2015";
 
   const networkMismatch = useMemo(
     () =>

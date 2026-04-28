@@ -18,7 +18,11 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { postJobAuto, type PostJobResult, type LifecycleListener } from "@/lib/job-registry";
+import {
+  postJobAuto,
+  type PostJobResult,
+  type LifecycleListener,
+} from "@/lib/job-registry";
 import { useTxStatusStore } from "@/lib/store/use-tx-status-store";
 import { useTransactionToast } from "@/hooks/use-transaction-toast";
 import { api } from "@/lib/api";
@@ -40,7 +44,8 @@ export function usePostJob() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { setStep, setTxHash, setRawXdr, setSimulation, reset } = useTxStatusStore();
+  const { setStep, setTxHash, setRawXdr, setSimulation, reset } =
+    useTxStatusStore();
   const { showLoading, updateToSuccess, updateToError } = useTransactionToast();
 
   const submit = useCallback(
@@ -53,8 +58,7 @@ export function usePostJob() {
       try {
         // ── Ensure wallet connection ────────────────────────────────────
         const clientAddress =
-          (await getConnectedWalletAddress()) ??
-          (await connectWallet());
+          (await getConnectedWalletAddress()) ?? (await connectWallet());
 
         // ── Step A: Create off-chain job record ─────────────────────────
         loadingToast = showLoading(
@@ -68,7 +72,10 @@ export function usePostJob() {
           budget_usdc: input.budgetUsdc,
           milestones: input.milestones,
           client_address: clientAddress,
-          memo: [input.memo, `Estimated completion: ${input.estimatedCompletionDate}`]
+          memo: [
+            input.memo,
+            `Estimated completion: ${input.estimatedCompletionDate}`,
+          ]
             .filter(Boolean)
             .join(" | "),
         });
@@ -94,7 +101,9 @@ export function usePostJob() {
 
         const metadataHash = metadataResponse.metadata_hash;
         if (!metadataHash) {
-          throw new Error("Failed to resolve job metadata CID before posting on-chain.");
+          throw new Error(
+            "Failed to resolve job metadata CID before posting on-chain.",
+          );
         }
 
         updateToSuccess(
@@ -159,11 +168,16 @@ export function usePostJob() {
 
         return { job, result };
       } catch (error) {
-        setStep("failed", error instanceof Error ? error.message : String(error));
+        setStep(
+          "failed",
+          error instanceof Error ? error.message : String(error),
+        );
         updateToError(
           loadingToast ?? showLoading("Processing..."),
           "Transaction failed",
-          error instanceof Error ? error.message : "An unexpected error occurred",
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
         );
         throw error;
       } finally {

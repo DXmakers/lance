@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { X, Wallet, Shield, CheckCircle, AlertTriangle, ExternalLink } from "lucide-react";
+import {
+  X,
+  Wallet,
+  Shield,
+  CheckCircle,
+  AlertTriangle,
+  ExternalLink,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +27,7 @@ const SUPPORTED_WALLETS = [
     description: "Popular browser wallet for Stellar",
     url: "https://freighter.app",
     icon: "🚀",
-    recommended: true
+    recommended: true,
   },
   {
     id: "albedo",
@@ -28,7 +35,7 @@ const SUPPORTED_WALLETS = [
     description: "Secure web-based wallet",
     url: "https://albedo.link",
     icon: "🌟",
-    recommended: false
+    recommended: false,
   },
   {
     id: "xbull",
@@ -36,23 +43,23 @@ const SUPPORTED_WALLETS = [
     description: "Advanced wallet for power users",
     url: "https://xbull.app",
     icon: "🐂",
-    recommended: false
-  }
+    recommended: false,
+  },
 ];
 
 /**
  * Wallet Connection Modal
- * 
+ *
  * Sophisticated, minimalist UI for wallet selection
  * Follows Zinc-900/Indigo-500 design system
  * WCAG 2.1 AA compliant with proper ARIA labels
  */
-export function WalletConnectionModal({ 
-  isOpen, 
-  onClose, 
-  onConnect, 
+export function WalletConnectionModal({
+  isOpen,
+  onClose,
+  onConnect,
   isConnecting = false,
-  error = null
+  error = null,
 }: WalletConnectionModalProps) {
   const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
 
@@ -68,7 +75,7 @@ export function WalletConnectionModal({
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
@@ -76,12 +83,12 @@ export function WalletConnectionModal({
       aria-describedby="wallet-modal-description"
     >
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-zinc-900/80 backdrop-blur-sm transition-opacity duration-200"
         onClick={onClose}
         aria-hidden="true"
       />
-      
+
       {/* Modal */}
       <div className="relative w-full max-w-md rounded-[12px] bg-zinc-900 border border-zinc-700/50 shadow-2xl shadow-zinc-900/50 transition-all duration-200 transform">
         {/* Header */}
@@ -91,10 +98,16 @@ export function WalletConnectionModal({
               <Wallet className="w-5 h-5 text-indigo-400" />
             </div>
             <div>
-              <h2 id="wallet-modal-title" className="text-lg font-semibold text-white">
+              <h2
+                id="wallet-modal-title"
+                className="text-lg font-semibold text-white"
+              >
                 Connect Wallet
               </h2>
-              <p id="wallet-modal-description" className="text-sm text-zinc-400">
+              <p
+                id="wallet-modal-description"
+                className="text-sm text-zinc-400"
+              >
                 Choose your Stellar wallet
               </p>
             </div>
@@ -120,7 +133,8 @@ export function WalletConnectionModal({
                 Secure Connection
               </p>
               <p className="text-xs text-indigo-400/80 leading-relaxed">
-                Your wallet will be securely connected. We never have access to your private keys or funds.
+                Your wallet will be securely connected. We never have access to
+                your private keys or funds.
               </p>
             </div>
           </div>
@@ -130,7 +144,7 @@ export function WalletConnectionModal({
             <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
               Available Wallets
             </p>
-            
+
             {SUPPORTED_WALLETS.map((wallet) => (
               <div
                 key={wallet.id}
@@ -138,7 +152,7 @@ export function WalletConnectionModal({
                   "relative rounded-[8px] border transition-all duration-200",
                   selectedWallet === wallet.id && isConnecting
                     ? "border-indigo-500/50 bg-indigo-500/5"
-                    : "border-zinc-700/50 bg-zinc-800/50 hover:border-zinc-600 hover:bg-zinc-800"
+                    : "border-zinc-700/50 bg-zinc-800/50 hover:border-zinc-600 hover:bg-zinc-800",
                 )}
               >
                 <button
@@ -151,7 +165,7 @@ export function WalletConnectionModal({
                   <div className="flex items-center justify-center w-10 h-10 rounded-[6px] bg-zinc-700/50 text-lg">
                     {wallet.icon}
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="text-sm font-medium text-white truncate">
@@ -163,7 +177,7 @@ export function WalletConnectionModal({
                         </span>
                       )}
                     </div>
-                    <p 
+                    <p
                       id={`wallet-${wallet.id}-description`}
                       className="text-xs text-zinc-400 truncate"
                     >
@@ -175,12 +189,14 @@ export function WalletConnectionModal({
                     {selectedWallet === wallet.id && isConnecting ? (
                       <div className="flex items-center gap-1.5">
                         <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-xs text-indigo-400">Connecting...</span>
+                        <span className="text-xs text-indigo-400">
+                          Connecting...
+                        </span>
                       </div>
                     ) : selectedWallet === wallet.id && !isConnecting ? (
                       <CheckCircle className="w-4 h-4 text-green-400" />
                     ) : (
-                      <ExternalLink 
+                      <ExternalLink
                         className="w-4 h-4 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={(e) => {
                           e.stopPropagation();

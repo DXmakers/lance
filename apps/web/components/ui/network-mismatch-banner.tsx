@@ -17,8 +17,8 @@ export function NetworkMismatchBanner() {
       <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
       <p>
         <span className="font-semibold">Network mismatch — </span>
-        your wallet is connected to a different network than this app.
-        Please switch your wallet to the correct network to continue.
+        your wallet is connected to a different network than this app. Please
+        switch your wallet to the correct network to continue.
       </p>
     </div>
   );

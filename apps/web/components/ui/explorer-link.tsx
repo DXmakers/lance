@@ -10,12 +10,18 @@ interface ExplorerLinkProps {
   className?: string;
 }
 
-export function ExplorerLink({ address, txHash, label, className = "" }: ExplorerLinkProps) {
+export function ExplorerLink({
+  address,
+  txHash,
+  label,
+  className = "",
+}: ExplorerLinkProps) {
   const { network } = useWallet();
 
-  const baseUrl = network === "MAINNET"
-    ? "https://stellar.expert/explorer/public"
-    : "https://stellar.expert/explorer/testnet";
+  const baseUrl =
+    network === "MAINNET"
+      ? "https://stellar.expert/explorer/public"
+      : "https://stellar.expert/explorer/testnet";
 
   const url = txHash
     ? `${baseUrl}/tx/${txHash}`

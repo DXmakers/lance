@@ -22,15 +22,18 @@ interface StellarError {
 const STELLAR_ERROR_MAP: Record<string, ErrorToast> = {
   tx_bad_seq: {
     title: "Transaction Sequence Error",
-    description: "Your wallet is out of sync. Please refresh the page and try again.",
+    description:
+      "Your wallet is out of sync. Please refresh the page and try again.",
   },
   tx_insufficient_balance: {
     title: "Insufficient Funds",
-    description: "Your wallet doesn't have enough XLM to complete this transaction.",
+    description:
+      "Your wallet doesn't have enough XLM to complete this transaction.",
   },
   tx_bad_auth: {
     title: "Authentication Failed",
-    description: "Transaction signature is invalid. Please check your wallet connection.",
+    description:
+      "Transaction signature is invalid. Please check your wallet connection.",
   },
   tx_bad_auth_extra: {
     title: "Extra Authentication Required",
@@ -70,7 +73,8 @@ const STELLAR_ERROR_MAP: Record<string, ErrorToast> = {
   },
   op_underfunded: {
     title: "Insufficient Escrow Funds",
-    description: "The escrow account doesn't have enough funds for this operation.",
+    description:
+      "The escrow account doesn't have enough funds for this operation.",
   },
   op_over_source_max: {
     title: "Exceeds Maximum Amount",
@@ -90,7 +94,8 @@ const STELLAR_ERROR_MAP: Record<string, ErrorToast> = {
   },
   op_low_reserve: {
     title: "Low Reserve",
-    description: "This operation would drop the account below the minimum reserve.",
+    description:
+      "This operation would drop the account below the minimum reserve.",
   },
   op_cross_self: {
     title: "Self Trade",
@@ -106,7 +111,8 @@ const STELLAR_ERROR_MAP: Record<string, ErrorToast> = {
   },
   op_sell_no_trust: {
     title: "No Trust Line for Selling",
-    description: "The selling account doesn't have a trust line for this asset.",
+    description:
+      "The selling account doesn't have a trust line for this asset.",
   },
   op_buy_not_authorized: {
     title: "Not Authorized to Buy",
@@ -122,75 +128,83 @@ const STELLAR_ERROR_MAP: Record<string, ErrorToast> = {
   },
 
   // ── Job Registry contract errors ─────────────────────────────────────────
-  "AlreadyInitialized": {
+  AlreadyInitialized: {
     title: "Contract Already Initialized",
     description: "The job registry contract has already been initialized.",
   },
-  "NotInitialized": {
+  NotInitialized: {
     title: "Contract Not Initialized",
-    description: "The job registry contract has not been initialized. Contact the admin.",
+    description:
+      "The job registry contract has not been initialized. Contact the admin.",
   },
-  "InvalidJobId": {
+  InvalidJobId: {
     title: "Invalid Job ID",
-    description: "The provided job ID is invalid. Job IDs must be positive integers.",
+    description:
+      "The provided job ID is invalid. Job IDs must be positive integers.",
   },
-  "InvalidBudget": {
+  InvalidBudget: {
     title: "Invalid Budget",
     description: "The budget must be greater than zero.",
   },
-  "InvalidHash": {
+  InvalidHash: {
     title: "Invalid Metadata Hash",
-    description: "The metadata hash is empty or exceeds the maximum allowed length.",
+    description:
+      "The metadata hash is empty or exceeds the maximum allowed length.",
   },
-  "JobAlreadyExists": {
+  JobAlreadyExists: {
     title: "Job Already Exists",
-    description: "A job with this ID already exists on-chain. Try again with a different ID.",
+    description:
+      "A job with this ID already exists on-chain. Try again with a different ID.",
   },
-  "JobNotFound": {
+  JobNotFound: {
     title: "Job Not Found",
     description: "The specified job does not exist on-chain.",
   },
-  "JobNotOpen": {
+  JobNotOpen: {
     title: "Job Not Open",
     description: "This job is no longer accepting bids.",
   },
-  "Unauthorized": {
+  Unauthorized: {
     title: "Unauthorized",
     description: "You are not authorized to perform this action on this job.",
   },
-  "BidAlreadySubmitted": {
+  BidAlreadySubmitted: {
     title: "Bid Already Submitted",
     description: "You have already submitted a bid for this job.",
   },
-  "BidNotFound": {
+  BidNotFound: {
     title: "Bid Not Found",
     description: "The specified bid could not be found for this job.",
   },
-  "InvalidStateTransition": {
+  InvalidStateTransition: {
     title: "Invalid State Transition",
     description: "This action is not allowed in the current job state.",
   },
-  "NoDeliverable": {
+  NoDeliverable: {
     title: "No Deliverable",
     description: "No deliverable has been submitted for this job.",
   },
-  "Overflow": {
+  Overflow: {
     title: "Arithmetic Overflow",
-    description: "An arithmetic overflow occurred. The values may be too large.",
+    description:
+      "An arithmetic overflow occurred. The values may be too large.",
   },
 
   // ── Simulation / pipeline errors ─────────────────────────────────────────
   "Simulation failed": {
     title: "Simulation Failed",
-    description: "The transaction simulation failed. Check the contract parameters and try again.",
+    description:
+      "The transaction simulation failed. Check the contract parameters and try again.",
   },
   "Confirmation timed out": {
     title: "Confirmation Timeout",
-    description: "The transaction was submitted but not confirmed in time. Check the explorer for status.",
+    description:
+      "The transaction was submitted but not confirmed in time. Check the explorer for status.",
   },
   "Transaction submission failed": {
     title: "Submission Failed",
-    description: "The transaction was rejected by the network. Please try again.",
+    description:
+      "The transaction was rejected by the network. Please try again.",
   },
   "Transaction failed on-chain": {
     title: "On-Chain Failure",
@@ -213,11 +227,13 @@ const BACKEND_ERROR_MAP: Record<string, ErrorToast> = {
   },
   "409": {
     title: "Conflict",
-    description: "This action conflicts with the current state. Please refresh and try again.",
+    description:
+      "This action conflicts with the current state. Please refresh and try again.",
   },
   "422": {
     title: "Validation Error",
-    description: "The provided data is invalid. Please check your inputs and try again.",
+    description:
+      "The provided data is invalid. Please check your inputs and try again.",
   },
   "429": {
     title: "Rate Limited",
@@ -229,18 +245,21 @@ const BACKEND_ERROR_MAP: Record<string, ErrorToast> = {
   },
   "502": {
     title: "Service Unavailable",
-    description: "The service is temporarily unavailable. Please try again later.",
+    description:
+      "The service is temporarily unavailable. Please try again later.",
   },
   "503": {
     title: "Service Overloaded",
-    description: "The service is currently overloaded. Please try again in a moment.",
+    description:
+      "The service is currently overloaded. Please try again in a moment.",
   },
 };
 
 const WALLET_ERROR_MAP: Record<string, ErrorToast> = {
   "User declined access": {
     title: "Wallet Connection Declined",
-    description: "You declined the wallet connection request. Please try again.",
+    description:
+      "You declined the wallet connection request. Please try again.",
   },
   "User rejected the request": {
     title: "Transaction Rejected",
@@ -248,7 +267,8 @@ const WALLET_ERROR_MAP: Record<string, ErrorToast> = {
   },
   "Wallet not connected": {
     title: "Wallet Not Connected",
-    description: "Please connect your wallet first before performing this action.",
+    description:
+      "Please connect your wallet first before performing this action.",
   },
   "Freighter is not installed": {
     title: "Freighter Not Found",
@@ -256,7 +276,8 @@ const WALLET_ERROR_MAP: Record<string, ErrorToast> = {
   },
   "Network mismatch": {
     title: "Network Mismatch",
-    description: "Your wallet is on a different network. Please switch to the correct network.",
+    description:
+      "Your wallet is on a different network. Please switch to the correct network.",
   },
 };
 
@@ -331,7 +352,10 @@ export function mapErrorToToast(error: unknown): ErrorToast {
   };
 }
 
-export function mapBackendError(statusCode: number, message?: string): ErrorToast {
+export function mapBackendError(
+  statusCode: number,
+  message?: string,
+): ErrorToast {
   const mapped = BACKEND_ERROR_MAP[String(statusCode)];
   if (mapped) return mapped;
 
@@ -359,7 +383,9 @@ const INSUFFICIENT_BALANCE_MARKERS = [
 export function isInsufficientBalanceError(error: unknown): boolean {
   const haystack = collectErrorStrings(error).map((s) => s.toLowerCase());
   return haystack.some((s) =>
-    INSUFFICIENT_BALANCE_MARKERS.some((marker) => s.includes(marker.toLowerCase())),
+    INSUFFICIENT_BALANCE_MARKERS.some((marker) =>
+      s.includes(marker.toLowerCase()),
+    ),
   );
 }
 

@@ -46,8 +46,12 @@ export interface RichTextEditorValidation {
 export function buildRichTextSchema(minLength = 0, maxLength = DEFAULT_MAX) {
   return z
     .string()
-    .min(minLength, { message: `Description must be at least ${minLength} characters.` })
-    .max(maxLength, { message: `Description cannot exceed ${maxLength} characters.` });
+    .min(minLength, {
+      message: `Description must be at least ${minLength} characters.`,
+    })
+    .max(maxLength, {
+      message: `Description cannot exceed ${maxLength} characters.`,
+    });
 }
 
 export function validateRichText(
@@ -57,7 +61,10 @@ export function validateRichText(
 ): RichTextEditorValidation {
   const result = buildRichTextSchema(minLength, maxLength).safeParse(value);
   if (result.success) return { ok: true, errors: [] };
-  return { ok: false, errors: result.error.issues.map((issue) => issue.message) };
+  return {
+    ok: false,
+    errors: result.error.issues.map((issue) => issue.message),
+  };
 }
 
 interface ToolbarAction {
@@ -103,7 +110,9 @@ function applyAction(
     }
     case "list": {
       const lines = (selected || "List item").split("\n");
-      const bulleted = lines.map((line) => (line.startsWith("- ") ? line : `- ${line}`)).join("\n");
+      const bulleted = lines
+        .map((line) => (line.startsWith("- ") ? line : `- ${line}`))
+        .join("\n");
       const next = value.slice(0, start) + bulleted + value.slice(end);
       return {
         next,
@@ -171,7 +180,10 @@ export function RichTextEditor({
 
   return (
     <div
-      className={cn("rounded-xl border border-zinc-800/80 bg-zinc-950/60", className)}
+      className={cn(
+        "rounded-xl border border-zinc-800/80 bg-zinc-950/60",
+        className,
+      )}
       data-testid={testId}
     >
       <div
@@ -224,7 +236,10 @@ export function RichTextEditor({
         )}
         <span
           id={counterId}
-          className={cn("font-mono text-[11px]", overLimit ? "text-rose-400" : "text-zinc-500")}
+          className={cn(
+            "font-mono text-[11px]",
+            overLimit ? "text-rose-400" : "text-zinc-500",
+          )}
           data-testid={`${testId}-counter`}
         >
           {remaining}

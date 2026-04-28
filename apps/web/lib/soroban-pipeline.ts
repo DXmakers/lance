@@ -25,7 +25,8 @@ import { signTransaction, APP_STELLAR_NETWORK } from "./stellar";
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const RPC_URL =
-  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? "https://soroban-testnet.stellar.org";
+  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ??
+  "https://soroban-testnet.stellar.org";
 
 const NETWORK_PASSPHRASE =
   (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET;
@@ -132,8 +133,10 @@ function extractSimulationLog(
   // SimulateTransactionSuccessResponse carries transactionData (SorobanDataBuilder)
   // and minResourceFee. The cost field is not in the parsed type but may appear
   // on the raw response — we access it defensively.
-  const asAny = (sim as unknown) as Record<string, unknown>;
-  const cost = asAny["cost"] as { cpuInsns?: string; memBytes?: string } | undefined;
+  const asAny = sim as unknown as Record<string, unknown>;
+  const cost = asAny["cost"] as
+    | { cpuInsns?: string; memBytes?: string }
+    | undefined;
   const minFee =
     "minResourceFee" in sim
       ? (sim as Api.SimulateTransactionSuccessResponse).minResourceFee
@@ -151,8 +154,10 @@ function extractSimulationLog(
     cpuInsns: cost?.cpuInsns ?? "0",
     memBytes: cost?.memBytes ?? "0",
     // SorobanDataBuilder exposes readBytes/writeBytes as numbers
-    readBytes: (transactionData as { readBytes?: number } | null)?.readBytes ?? 0,
-    writeBytes: (transactionData as { writeBytes?: number } | null)?.writeBytes ?? 0,
+    readBytes:
+      (transactionData as { readBytes?: number } | null)?.readBytes ?? 0,
+    writeBytes:
+      (transactionData as { writeBytes?: number } | null)?.writeBytes ?? 0,
   };
 }
 
@@ -188,7 +193,10 @@ export async function invokeContract(
 ): Promise<PipelineResult> {
   const { callerAddress, contractId, method, args, onProgress } = params;
 
-  function emit(step: PipelineStep, extra: Partial<PipelineProgressEvent> = {}) {
+  function emit(
+    step: PipelineStep,
+    extra: Partial<PipelineProgressEvent> = {},
+  ) {
     onProgress?.({ step, message: stepMessage(step), ...extra });
   }
 
@@ -345,8 +353,13 @@ async function pollForConfirmation(
 
     if (result.status === Api.GetTransactionStatus.FAILED) {
       // resultXdr is an xdr.TransactionResult on the parsed response
-      const detail = "resultXdr" in result ? String(result.resultXdr) : "no detail available";
-      throw new Error(`Transaction failed on-chain (hash: ${txHash}): ${detail}`);
+      const detail =
+        "resultXdr" in result
+          ? String(result.resultXdr)
+          : "no detail available";
+      throw new Error(
+        `Transaction failed on-chain (hash: ${txHash}): ${detail}`,
+      );
     }
 
     // status === NOT_FOUND → still pending, continue polling

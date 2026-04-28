@@ -85,7 +85,9 @@ export function BidCard({
                 <span className="text-2xl font-bold text-zinc-100 tracking-tight font-geist">
                   {bidAmount.toLocaleString()}
                 </span>
-                <span className="text-sm text-zinc-400 font-medium font-geist">{currency}</span>
+                <span className="text-sm text-zinc-400 font-medium font-geist">
+                  {currency}
+                </span>
               </div>
             </div>
           </div>

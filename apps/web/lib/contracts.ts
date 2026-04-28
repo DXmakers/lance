@@ -9,14 +9,19 @@ import {
   xdr,
 } from "@stellar/stellar-sdk";
 import { Server as SorobanServer } from "@stellar/stellar-sdk/rpc";
-import { connectWallet, getConnectedWalletAddress, signTransaction } from "./stellar";
+import {
+  connectWallet,
+  getConnectedWalletAddress,
+  signTransaction,
+} from "./stellar";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const ESCROW_CONTRACT_ID = process.env.NEXT_PUBLIC_ESCROW_CONTRACT_ID ?? "";
 const USDC_CONTRACT_ID = process.env.NEXT_PUBLIC_USDC_CONTRACT_ID ?? "";
 const RPC_URL =
-  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? "https://soroban-testnet.stellar.org";
+  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ??
+  "https://soroban-testnet.stellar.org";
 const NETWORK_PASSPHRASE =
   (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET;
 
@@ -139,7 +144,8 @@ export async function depositEscrow(params: {
   milestones: number;
 }): Promise<string> {
   if (shouldMockEscrowCalls(true)) return "FAKE_TX_HASH";
-  const { jobId, clientAddress, freelancerAddress, amountUsdc, milestones } = params;
+  const { jobId, clientAddress, freelancerAddress, amountUsdc, milestones } =
+    params;
 
   // ── Parameter validation (throws before any network call) ─────────────────
   if (!USDC_CONTRACT_ID) {

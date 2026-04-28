@@ -47,7 +47,7 @@ function createToastContent(
   type: ToastType,
   title: string,
   description?: string,
-  txHash?: string
+  txHash?: string,
 ): ReactNode {
   return (
     <div className="flex flex-col gap-1">
@@ -77,9 +77,12 @@ export const toast = {
   info: (options: ToastOptions): ToastState => {
     const id =
       options.id ??
-      sonnerToast.info(createToastContent("info", options.title, options.description), {
-        duration: options.duration ?? 5000,
-      });
+      sonnerToast.info(
+        createToastContent("info", options.title, options.description),
+        {
+          duration: options.duration ?? 5000,
+        },
+      );
     return { id, type: "info" };
   },
 
@@ -90,7 +93,7 @@ export const toast = {
         createToastContent("warning", options.title, options.description),
         {
           duration: options.duration ?? 7000,
-        }
+        },
       );
     return { id, type: "warning" };
   },
@@ -99,10 +102,15 @@ export const toast = {
     const id =
       options.id ??
       sonnerToast.success(
-        createToastContent("success", options.title, options.description, options.txHash),
+        createToastContent(
+          "success",
+          options.title,
+          options.description,
+          options.txHash,
+        ),
         {
           duration: options.duration ?? 5000,
-        }
+        },
       );
     return { id, type: "success" };
   },
@@ -110,9 +118,12 @@ export const toast = {
   error: (options: ToastOptions): ToastState => {
     const id =
       options.id ??
-      sonnerToast.error(createToastContent("error", options.title, options.description), {
-        duration: options.duration ?? 8000,
-      });
+      sonnerToast.error(
+        createToastContent("error", options.title, options.description),
+        {
+          duration: options.duration ?? 8000,
+        },
+      );
     return { id, type: "error" };
   },
 
@@ -121,7 +132,7 @@ export const toast = {
       createToastContent("loading", options.title, options.description),
       {
         duration: Infinity,
-      }
+      },
     );
     return { id, type: "loading" };
   },
@@ -129,17 +140,22 @@ export const toast = {
   update: (
     state: ToastState,
     newType: Exclude<ToastType, "loading">,
-    options: Omit<ToastOptions, "id"> & { txHash?: string }
+    options: Omit<ToastOptions, "id"> & { txHash?: string },
   ): void => {
     sonnerToast.dismiss(state.id);
 
     switch (newType) {
       case "success":
         sonnerToast.success(
-          createToastContent("success", options.title, options.description, options.txHash),
+          createToastContent(
+            "success",
+            options.title,
+            options.description,
+            options.txHash,
+          ),
           {
             duration: options.duration ?? 5000,
-          }
+          },
         );
         break;
       case "error":
@@ -147,7 +163,7 @@ export const toast = {
           createToastContent("error", options.title, options.description),
           {
             duration: options.duration ?? 8000,
-          }
+          },
         );
         break;
       case "warning":
@@ -155,7 +171,7 @@ export const toast = {
           createToastContent("warning", options.title, options.description),
           {
             duration: options.duration ?? 7000,
-          }
+          },
         );
         break;
       case "info":
@@ -163,7 +179,7 @@ export const toast = {
           createToastContent("info", options.title, options.description),
           {
             duration: options.duration ?? 5000,
-          }
+          },
         );
         break;
     }

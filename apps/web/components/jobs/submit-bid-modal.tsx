@@ -77,7 +77,7 @@ export function SubmitBidModal({
       ? ""
       : validation.success
         ? ""
-        : validation.error.flatten().fieldErrors.proposal?.[0] ?? "";
+        : (validation.error.flatten().fieldErrors.proposal?.[0] ?? "");
 
   return (
     <>
@@ -109,12 +109,19 @@ export function SubmitBidModal({
                 <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">
                   Sign → Simulate → Submit
                 </p>
-                <h3 id="submit-bid-title" className="mt-2 text-2xl font-semibold text-zinc-50">
+                <h3
+                  id="submit-bid-title"
+                  className="mt-2 text-2xl font-semibold text-zinc-50"
+                >
                   Submit your bid
                 </h3>
-                <p id="submit-bid-description" className="mt-2 max-w-2xl text-sm text-zinc-300">
-                  Prepare the proposal off-chain, inspect the simulated Soroban fee profile, then
-                  sign and submit the transaction through your connected wallet.
+                <p
+                  id="submit-bid-description"
+                  className="mt-2 max-w-2xl text-sm text-zinc-300"
+                >
+                  Prepare the proposal off-chain, inspect the simulated Soroban
+                  fee profile, then sign and submit the transaction through your
+                  connected wallet.
                 </p>
               </div>
               <div className="rounded-xl border border-zinc-800 bg-black/40 px-3 py-2 text-right">
@@ -130,8 +137,9 @@ export function SubmitBidModal({
             <div className="mt-6 space-y-5">
               {!onChainReady && (
                 <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200">
-                  The job has not been indexed on-chain yet. Wait for the indexer to assign an
-                  on-chain job id before requesting a wallet signature.
+                  The job has not been indexed on-chain yet. Wait for the
+                  indexer to assign an on-chain job id before requesting a
+                  wallet signature.
                 </div>
               )}
 
@@ -151,11 +159,16 @@ export function SubmitBidModal({
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="rounded-2xl border border-zinc-800 bg-black/30 p-4">
                     <div className="mb-3 flex items-center justify-between text-xs text-zinc-500">
-                      <span className="font-mono uppercase tracking-[0.18em]">Proposal Payload</span>
+                      <span className="font-mono uppercase tracking-[0.18em]">
+                        Proposal Payload
+                      </span>
                       <span>{proposal.trim().length}/2000</span>
                     </div>
 
-                    <label htmlFor="bid-proposal" className="block text-sm font-medium text-zinc-100">
+                    <label
+                      htmlFor="bid-proposal"
+                      className="block text-sm font-medium text-zinc-100"
+                    >
                       Proposal
                     </label>
                     <textarea
@@ -165,7 +178,9 @@ export function SubmitBidModal({
                       className="mt-3 min-h-[180px] w-full rounded-2xl border border-zinc-800 bg-zinc-950/90 px-4 py-3 text-sm text-zinc-100 outline-none transition duration-150 placeholder:text-zinc-500 hover:border-zinc-700 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30"
                       placeholder="Describe your milestones, delivery cadence, and contract-safe execution plan."
                       aria-invalid={Boolean(proposalError)}
-                      aria-describedby={proposalError ? "bid-proposal-error" : undefined}
+                      aria-describedby={
+                        proposalError ? "bid-proposal-error" : undefined
+                      }
                       required
                     />
 
@@ -180,10 +195,13 @@ export function SubmitBidModal({
                         </span>
                       ) : (
                         <span className="text-emerald-400">
-                          The wallet simulation step will estimate fees before signature.
+                          The wallet simulation step will estimate fees before
+                          signature.
                         </span>
                       )}
-                      <span className="font-mono text-zinc-500">UTF-8 bytes → Soroban args</span>
+                      <span className="font-mono text-zinc-500">
+                        UTF-8 bytes → Soroban args
+                      </span>
                     </div>
                   </div>
 
@@ -198,7 +216,9 @@ export function SubmitBidModal({
                     </button>
                     <button
                       type="submit"
-                      disabled={isPending || !validation.success || !onChainReady}
+                      disabled={
+                        isPending || !validation.success || !onChainReady
+                      }
                       className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-zinc-950 transition duration-150 hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isSubmitting ? (

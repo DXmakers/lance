@@ -9,7 +9,11 @@ import {
   xdr,
   Transaction,
 } from "@stellar/stellar-sdk";
-import { StellarWalletsKit, SwkAppDarkTheme, Networks as WalletNetworks } from "@creit.tech/stellar-wallets-kit";
+import {
+  StellarWalletsKit,
+  SwkAppDarkTheme,
+  Networks as WalletNetworks,
+} from "@creit.tech/stellar-wallets-kit";
 
 export type StellarNetwork = "public" | "testnet";
 
@@ -130,7 +134,7 @@ export async function buildAndSimulateTransaction({
     if (process.env.NODE_ENV === "development") {
       console.error(
         "Raw Simulation Error:",
-        JSON.stringify(simulation, null, 2)
+        JSON.stringify(simulation, null, 2),
       );
     }
     throw new Error(`Simulation failed: ${simulation.error}`);
@@ -143,52 +147,49 @@ export async function buildAndSimulateTransaction({
 
   // 5. Assemble transaction with dynamic resource limits and fees from simulation
   try {
-    const assembledTx = SorobanRpc.assembleTransaction(
-      tx,
-      simulation
-    ).build();
+    const assembledTx = SorobanRpc.assembleTransaction(tx, simulation).build();
     return { transaction: assembledTx as Transaction, simulation };
   } catch (error) {
     throw new Error(
-      `Failed to assemble transaction with simulation results: ${error}`
+      `Failed to assemble transaction with simulation results: ${error}`,
     );
   }
 }
 
 export async function submitTransaction(
-  signedTx: Transaction
+  signedTx: Transaction,
 ): Promise<SorobanRpc.Api.SendTransactionResponse> {
-  const response = await sorobanServer.sendTransaction(signedTx)
+  const response = await sorobanServer.sendTransaction(signedTx);
 
-  if (response.status === 'ERROR') {
-    let isSeqMismatch = false
+  if (response.status === "ERROR") {
+    let isSeqMismatch = false;
     try {
       if (response.errorResult) {
         // response.errorResult is already an xdr.TransactionResult object in v12+
         isSeqMismatch =
-          response.errorResult.result().switch().name === 'txBadSeq'
+          response.errorResult.result().switch().name === "txBadSeq";
       }
     } catch {
       // Ignore parsing errors fallback to generic error
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Transaction Submit Error:', response.errorResult)
+    if (process.env.NODE_ENV === "development") {
+      console.error("Transaction Submit Error:", response.errorResult);
     }
 
     if (isSeqMismatch) {
-      throw new Error('SEQUENCE_MISMATCH')
+      throw new Error("SEQUENCE_MISMATCH");
     }
 
-    throw new Error('Transaction submission failed with network status ERROR.')
+    throw new Error("Transaction submission failed with network status ERROR.");
   }
 
-  return response
+  return response;
 }
 
 export async function pollTransactionStatus(
   txHash: string,
-  maxWaitSeconds = 60
+  maxWaitSeconds = 60,
 ): Promise<SorobanRpc.Api.GetTransactionResponse> {
   let waited = 0;
   const pollInterval = 3000;
@@ -198,7 +199,10 @@ export async function pollTransactionStatus(
 
     if (response.status !== SorobanRpc.Api.GetTransactionStatus.NOT_FOUND) {
       if (process.env.NODE_ENV === "development") {
-        console.log(`Transaction ${txHash} updated to status:`, response.status);
+        console.log(
+          `Transaction ${txHash} updated to status:`,
+          response.status,
+        );
       }
       return response;
     }
@@ -208,7 +212,7 @@ export async function pollTransactionStatus(
   }
 
   throw new Error(
-    `Transaction polling timed out after ${maxWaitSeconds} seconds.`
+    `Transaction polling timed out after ${maxWaitSeconds} seconds.`,
   );
 }
 
@@ -258,14 +262,14 @@ async function initializeWalletsKit(): Promise<void> {
   });
   StellarWalletsKit.setTheme({
     ...SwkAppDarkTheme,
-    "background": "#18181b",
+    background: "#18181b",
     "background-secondary": "#09090b",
     "foreground-strong": "#fafafa",
-    "foreground": "#e4e4e7",
+    foreground: "#e4e4e7",
     "foreground-secondary": "#a1a1aa",
-    "primary": "#6366f1",
+    primary: "#6366f1",
     "primary-foreground": "#ffffff",
-    "border": "rgba(255,255,255,0.06)",
+    border: "rgba(255,255,255,0.06)",
     "border-radius": "0.75rem",
     "font-family": "Inter, ui-sans-serif, system-ui, sans-serif",
   });

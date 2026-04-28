@@ -1,12 +1,15 @@
 "use client";
 
-import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
+import {
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, type Job } from "@/lib/api";
-import {
-  getReputationMetrics,
-  type ReputationMetrics,
-} from "@/lib/reputation";
+import { getReputationMetrics, type ReputationMetrics } from "@/lib/reputation";
 
 export type JobSort = "budget" | "chronological" | "reputation";
 
@@ -81,13 +84,19 @@ function createMockJobs(): Job[] {
 }
 
 async function buildBoardJobs(sourceJobs: Job[]): Promise<BoardJob[]> {
-  const uniqueClients = [...new Set(sourceJobs.map((job) => job.client_address))];
-  const reputationEntries: Array<[string, ReputationMetrics]> = await Promise.all(
-    uniqueClients.map(async (address) => [
-      address,
-      await getReputationMetrics(address, "client"),
-    ] as [string, ReputationMetrics]),
-  );
+  const uniqueClients = [
+    ...new Set(sourceJobs.map((job) => job.client_address)),
+  ];
+  const reputationEntries: Array<[string, ReputationMetrics]> =
+    await Promise.all(
+      uniqueClients.map(
+        async (address) =>
+          [address, await getReputationMetrics(address, "client")] as [
+            string,
+            ReputationMetrics,
+          ],
+      ),
+    );
   const reputationMap = new Map<string, ReputationMetrics>(reputationEntries);
 
   return sourceJobs.map((job, index) => ({
@@ -126,14 +135,17 @@ export function useJobBoard(options: UseJobBoardOptions = {}) {
     queryFn: async () => {
       try {
         const jobsFromApi = await api.jobs.list();
-        const sourceJobs = jobsFromApi.length > 0 ? jobsFromApi : createMockJobs();
+        const sourceJobs =
+          jobsFromApi.length > 0 ? jobsFromApi : createMockJobs();
         const result = await buildBoardJobs(sourceJobs);
         setApiError(null);
         return result;
       } catch (err) {
         const fallback = await buildBoardJobs(createMockJobs());
         const message =
-          err instanceof Error ? err.message : "Unable to load live jobs right now.";
+          err instanceof Error
+            ? err.message
+            : "Unable to load live jobs right now.";
         setApiError(message);
         return fallback;
       }
@@ -143,7 +155,7 @@ export function useJobBoard(options: UseJobBoardOptions = {}) {
     retry: 1,
   });
 
- useEffect(() => {
+  useEffect(() => {
     startTransition(() => {
       setPage(1);
     });
@@ -179,7 +191,8 @@ export function useJobBoard(options: UseJobBoardOptions = {}) {
         return right.clientReputation.scoreBps - left.clientReputation.scoreBps;
       }
       return (
-        new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+        new Date(right.created_at).getTime() -
+        new Date(left.created_at).getTime()
       );
     });
 

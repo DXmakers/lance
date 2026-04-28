@@ -17,7 +17,9 @@ export default function ApiDocsPage() {
       <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-8">
         <div className="animate-pulse flex flex-col items-center gap-4">
           <div className="w-12 h-12 rounded-full border-4 border-zinc-800 border-t-emerald-500 animate-spin" />
-          <p className="text-zinc-500 font-mono text-sm tracking-widest">LOADING API METADATA...</p>
+          <p className="text-zinc-500 font-mono text-sm tracking-widest">
+            LOADING API METADATA...
+          </p>
         </div>
       </div>
     );
@@ -28,7 +30,10 @@ export default function ApiDocsPage() {
       <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-8">
         <div className="p-6 rounded-xl border border-red-500/20 bg-red-500/5 backdrop-blur-md max-w-md text-center">
           <h1 className="text-red-400 font-bold mb-2">Simulation Failed</h1>
-          <p className="text-zinc-400 text-sm">Failed to retrieve API documentation metadata. Please verify your connection to the decentralized network.</p>
+          <p className="text-zinc-400 text-sm">
+            Failed to retrieve API documentation metadata. Please verify your
+            connection to the decentralized network.
+          </p>
         </div>
       </div>
     );
@@ -37,7 +42,6 @@ export default function ApiDocsPage() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 selection:bg-emerald-500/30 selection:text-emerald-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col lg:flex-row gap-12">
-        
         {/* Sticky Sidebar */}
         <aside className="lg:w-64 shrink-0">
           <div className="sticky top-12">
@@ -68,8 +72,9 @@ export default function ApiDocsPage() {
               Developer Reference
             </h2>
             <p className="text-lg text-zinc-400 leading-relaxed max-w-2xl">
-              Build robust applications on top of our decentralized marketplace protocol. 
-              Our APIs provide real-time access to jobs, milestones, and on-chain state.
+              Build robust applications on top of our decentralized marketplace
+              protocol. Our APIs provide real-time access to jobs, milestones,
+              and on-chain state.
             </p>
           </header>
 

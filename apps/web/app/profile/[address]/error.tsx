@@ -24,8 +24,8 @@ export default function ProfileRouteError({
           This profile page hit an unexpected failure.
         </h1>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-300">
-          Retry the route to rebuild the profile workspace without reloading the rest
-          of the application shell.
+          Retry the route to rebuild the profile workspace without reloading the
+          rest of the application shell.
         </p>
         <Button
           type="button"

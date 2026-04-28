@@ -34,31 +34,29 @@ interface ContractWorkspace {
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 
-const JOB_STATUS_CONFIG: Record<
-  string,
-  { label: string; className: string }
-> = {
-  funded: {
-    label: "Funded",
-    className: "bg-sky-500/15 text-sky-400 border-sky-500/25",
-  },
-  active: {
-    label: "Active",
-    className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
-  },
-  deliverable_submitted: {
-    label: "Under Review",
-    className: "bg-amber-500/15 text-amber-400 border-amber-500/25",
-  },
-  completed: {
-    label: "Completed",
-    className: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-  },
-  disputed: {
-    label: "Disputed",
-    className: "bg-red-500/15 text-red-400 border-red-500/25",
-  },
-};
+const JOB_STATUS_CONFIG: Record<string, { label: string; className: string }> =
+  {
+    funded: {
+      label: "Funded",
+      className: "bg-sky-500/15 text-sky-400 border-sky-500/25",
+    },
+    active: {
+      label: "Active",
+      className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
+    },
+    deliverable_submitted: {
+      label: "Under Review",
+      className: "bg-amber-500/15 text-amber-400 border-amber-500/25",
+    },
+    completed: {
+      label: "Completed",
+      className: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    },
+    disputed: {
+      label: "Disputed",
+      className: "bg-red-500/15 text-red-400 border-red-500/25",
+    },
+  };
 
 function JobStatusBadge({ status }: { status: string }) {
   const config = JOB_STATUS_CONFIG[status] ?? {
@@ -172,9 +170,12 @@ function EmptyContracts() {
         <Briefcase className="h-6 w-6 text-zinc-500" aria-hidden="true" />
       </div>
       <div>
-        <p className="text-sm font-semibold text-zinc-300">No active contracts</p>
+        <p className="text-sm font-semibold text-zinc-300">
+          No active contracts
+        </p>
         <p className="mt-1 max-w-xs text-[12px] leading-5 text-zinc-600">
-          When a client accepts your bid and funds the escrow, your milestones will appear here.
+          When a client accepts your bid and funds the escrow, your milestones
+          will appear here.
         </p>
       </div>
       <Link
@@ -190,17 +191,14 @@ function EmptyContracts() {
 
 // ── Summary strip ─────────────────────────────────────────────────────────────
 
-function SummaryStrip({
-  workspaces,
-}: {
-  workspaces: ContractWorkspace[];
-}) {
+function SummaryStrip({ workspaces }: { workspaces: ContractWorkspace[] }) {
   const totalMilestones = workspaces.reduce(
     (sum, w) => sum + w.milestones.length,
     0,
   );
   const releasedMilestones = workspaces.reduce(
-    (sum, w) => sum + w.milestones.filter((m) => m.status === "released").length,
+    (sum, w) =>
+      sum + w.milestones.filter((m) => m.status === "released").length,
     0,
   );
   const totalEarned = workspaces.reduce(
@@ -289,7 +287,9 @@ export default function MilestonesPage() {
         setWorkspaces(workspaceData);
         setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load contracts");
+        setError(
+          err instanceof Error ? err.message : "Failed to load contracts",
+        );
       } finally {
         setLoading(false);
       }
@@ -317,9 +317,7 @@ export default function MilestonesPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {workspaces.length > 0 && (
-            <SummaryStrip workspaces={workspaces} />
-          )}
+          {workspaces.length > 0 && <SummaryStrip workspaces={workspaces} />}
 
           {workspaces.length === 0 ? (
             <EmptyContracts />

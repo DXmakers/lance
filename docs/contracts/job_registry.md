@@ -88,6 +88,7 @@ This implementation strengthens trustlessness by ensuring bid acceptance can onl
 ### Errors
 
 - `JobNotFound` (1): The specified job ID does not exist.
+
 ## `submit_deliverable`
 
 ### Purpose

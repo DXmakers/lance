@@ -45,7 +45,8 @@ export function SessionSwitcher() {
           className="h-10 rounded-full border-border/70 bg-card/70 px-4 backdrop-blur"
         >
           <UserRound className="mr-2 h-4 w-4" />
-          {SESSION_OPTIONS.find((option) => option.role === role)?.label ?? "Visitor"}
+          {SESSION_OPTIONS.find((option) => option.role === role)?.label ??
+            "Visitor"}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
@@ -58,7 +59,9 @@ export function SessionSwitcher() {
             className="flex flex-col items-start gap-1"
           >
             <span>{option.label}</span>
-            <span className="text-xs text-muted-foreground">{option.description}</span>
+            <span className="text-xs text-muted-foreground">
+              {option.description}
+            </span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

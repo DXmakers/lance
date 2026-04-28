@@ -54,7 +54,7 @@ export function TransactionExample() {
         onError: (error) => {
           console.error("Transaction failed:", error);
         },
-      }
+      },
     );
   };
 
@@ -62,7 +62,7 @@ export function TransactionExample() {
     await executeTransaction(
       async () => {
         await new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("tx_insufficient_balance")), 2000)
+          setTimeout(() => reject(new Error("tx_insufficient_balance")), 2000),
         );
         return { txHash: "" };
       },
@@ -70,14 +70,14 @@ export function TransactionExample() {
         loadingMessage: "Processing payment...",
         successMessage: "Payment completed!",
         errorMessage: "Payment failed",
-      }
+      },
     );
   };
 
   const handleManualFlow = async () => {
     const loadingToast = showLoading(
       "Submitting job...",
-      "Please wait while we process your job posting"
+      "Please wait while we process your job posting",
     );
 
     try {
@@ -87,13 +87,13 @@ export function TransactionExample() {
         loadingToast,
         "Job Posted!",
         "Your job has been successfully posted to the marketplace",
-        "job_tx_abc123"
+        "job_tx_abc123",
       );
     } catch {
       updateToError(
         loadingToast,
         "Failed to Post Job",
-        "There was an error posting your job. Please try again."
+        "There was an error posting your job. Please try again.",
       );
     }
   };
@@ -162,7 +162,9 @@ export function TransactionExample() {
         <ul className="list-disc ml-5 mt-2 space-y-1">
           <li>Five toast types: info, success, error, warning, loading</li>
           <li>Automatic transaction hash linking to Stellar Explorer</li>
-          <li>Error code mapping from Stellar SDK to human-readable messages</li>
+          <li>
+            Error code mapping from Stellar SDK to human-readable messages
+          </li>
           <li>Async toast updates (loading → success/error)</li>
           <li>Auto-timeout with appropriate durations per toast type</li>
         </ul>

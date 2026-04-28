@@ -43,13 +43,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       user:
         role === "logged-out"
           ? null
-          : state.user ?? {
+          : (state.user ?? {
               name: role === "client" ? "Amina O." : "Tolu A.",
               email:
-                role === "client"
-                  ? "client@lance.so"
-                  : "freelancer@lance.so",
-            },
+                role === "client" ? "client@lance.so" : "freelancer@lance.so",
+            }),
     })),
 
   login: (user, role) =>

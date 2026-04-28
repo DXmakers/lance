@@ -11,7 +11,9 @@ describe("Pagination", () => {
 
   it("renders navigation with correct aria-label", () => {
     render(<Pagination {...defaultProps} />);
-    expect(screen.getByRole("navigation", { name: /pagination navigation/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: /pagination navigation/i }),
+    ).toBeInTheDocument();
   });
 
   it("displays current page and total pages", () => {
@@ -24,7 +26,9 @@ describe("Pagination", () => {
   it("renders correct number of page buttons (excluding ellipsis)", () => {
     render(<Pagination {...defaultProps} />);
     // Pages: 1,2,3,4,5 (since totalPages=5 and current=1, all fit within delta=2)
-    const pageButtons = screen.getAllByRole("button", { name: /go to page \d/i });
+    const pageButtons = screen.getAllByRole("button", {
+      name: /go to page \d/i,
+    });
     expect(pageButtons.length).toBe(5);
   });
 
@@ -54,7 +58,13 @@ describe("Pagination", () => {
 
   it("calls onPageChange when next button is clicked", () => {
     const onPageChange = vi.fn();
-    render(<Pagination {...defaultProps} currentPage={2} onPageChange={onPageChange} />);
+    render(
+      <Pagination
+        {...defaultProps}
+        currentPage={2}
+        onPageChange={onPageChange}
+      />,
+    );
 
     fireEvent.click(screen.getByLabelText(/go to next page/i));
     expect(onPageChange).toHaveBeenCalledWith(3);
@@ -62,7 +72,13 @@ describe("Pagination", () => {
 
   it("calls onPageChange when previous button is clicked", () => {
     const onPageChange = vi.fn();
-    render(<Pagination {...defaultProps} currentPage={3} onPageChange={onPageChange} />);
+    render(
+      <Pagination
+        {...defaultProps}
+        currentPage={3}
+        onPageChange={onPageChange}
+      />,
+    );
 
     fireEvent.click(screen.getByLabelText(/go to previous page/i));
     expect(onPageChange).toHaveBeenCalledWith(2);
@@ -70,7 +86,13 @@ describe("Pagination", () => {
 
   it("calls onPageChange when first/last buttons are clicked", () => {
     const onPageChange = vi.fn();
-    render(<Pagination {...defaultProps} currentPage={3} onPageChange={onPageChange} />);
+    render(
+      <Pagination
+        {...defaultProps}
+        currentPage={3}
+        onPageChange={onPageChange}
+      />,
+    );
 
     fireEvent.click(screen.getByLabelText(/go to first page/i));
     expect(onPageChange).toHaveBeenCalledWith(1);
@@ -101,11 +123,13 @@ describe("Pagination", () => {
         pageSize={6}
         onPageSizeChange={onPageSizeChange}
         showPageSizeSelector
-      />
+      />,
     );
 
     expect(screen.getByText("Show")).toBeInTheDocument();
-    const options = screen.getAllByRole("button", { name: /show \d+ jobs per page/i });
+    const options = screen.getAllByRole("button", {
+      name: /show \d+ jobs per page/i,
+    });
     expect(options).toHaveLength(4); // default options: 6,12,18,24
 
     fireEvent.click(screen.getByLabelText(/show 12 jobs per page/i));
@@ -120,10 +144,14 @@ describe("Pagination", () => {
   });
 
   it("does not render when totalPages is 0 or 1", () => {
-    const { container: container0 } = render(<Pagination {...defaultProps} totalPages={0} />);
+    const { container: container0 } = render(
+      <Pagination {...defaultProps} totalPages={0} />,
+    );
     expect(container0.firstChild).toBeNull();
 
-    const { container: container1 } = render(<Pagination {...defaultProps} totalPages={1} />);
+    const { container: container1 } = render(
+      <Pagination {...defaultProps} totalPages={1} />,
+    );
     expect(container1.firstChild).toBeNull();
   });
 

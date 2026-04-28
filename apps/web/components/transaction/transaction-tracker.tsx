@@ -74,7 +74,9 @@ export function TransactionTracker() {
   const isFailed = step === "failed";
   const isConfirmed = step === "confirmed";
   const elapsed =
-    startedAt && finishedAt ? ((finishedAt - startedAt) / 1000).toFixed(1) : null;
+    startedAt && finishedAt
+      ? ((finishedAt - startedAt) / 1000).toFixed(1)
+      : null;
 
   return (
     <div className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_25px_80px_-48px_rgba(15,23,42,0.5)]">
@@ -128,7 +130,11 @@ export function TransactionTracker() {
         <div className="mt-3 h-1.5 w-full rounded-full bg-slate-100">
           <div
             className={`h-1.5 rounded-full transition-all duration-500 ${
-              isFailed ? "bg-red-500" : isConfirmed ? "bg-emerald-500" : "bg-amber-400"
+              isFailed
+                ? "bg-red-500"
+                : isConfirmed
+                  ? "bg-emerald-500"
+                  : "bg-amber-400"
             }`}
             style={{
               width: `${Math.min(100, ((currentIdx + (isConfirmed ? 1 : 0)) / STEPS.length) * 100)}%`,
@@ -172,9 +178,7 @@ export function TransactionTracker() {
               Transaction Failed
             </span>
           </div>
-          {detail && (
-            <p className="mt-2 text-sm text-red-700">{detail}</p>
-          )}
+          {detail && <p className="mt-2 text-sm text-red-700">{detail}</p>}
         </div>
       )}
 
@@ -239,7 +243,8 @@ export function TransactionTracker() {
             </div>
           </div>
           <p className="mt-2 text-[10px] text-slate-500">
-            This XDR represents the exact operations being sent to the Stellar network.
+            This XDR represents the exact operations being sent to the Stellar
+            network.
           </p>
         </div>
       )}

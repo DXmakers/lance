@@ -37,7 +37,9 @@ export function useAcceptBid() {
 
       try {
         if (!JOB_REGISTRY_CONTRACT_ID) {
-          throw new Error("NEXT_PUBLIC_JOB_REGISTRY_CONTRACT_ID is not configured.");
+          throw new Error(
+            "NEXT_PUBLIC_JOB_REGISTRY_CONTRACT_ID is not configured.",
+          );
         }
 
         if (params.onChainJobId <= 0n) {
@@ -69,18 +71,15 @@ export function useAcceptBid() {
             },
             onError: (error) => {
               transactionErrorHandled = true;
-              updateToError(
-                toastId,
-                "Acceptance Failed",
-                error.message,
-              );
+              updateToError(toastId, "Acceptance Failed", error.message);
             },
           },
         );
 
         if (!result) {
           throw new Error(
-            transaction.error ?? "Blockchain acceptance transaction did not complete.",
+            transaction.error ??
+              "Blockchain acceptance transaction did not complete.",
           );
         }
 
@@ -94,7 +93,9 @@ export function useAcceptBid() {
           updateToError(
             toastId,
             "Acceptance Failed",
-            error instanceof Error ? error.message : "Unable to accept the bid.",
+            error instanceof Error
+              ? error.message
+              : "Unable to accept the bid.",
           );
         }
 

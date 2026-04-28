@@ -24,7 +24,8 @@ const bids = [
     id: "bid-2",
     job_id: "job-123",
     freelancer_address: "GZXYW9876ABCDEFGHIJKLMN",
-    proposal: "I can ship a tighter timeline with stronger on-chain guarantees.",
+    proposal:
+      "I can ship a tighter timeline with stronger on-chain guarantees.",
     status: "pending",
     created_at: "2026-04-28T00:02:00Z",
     freelancerReputation: {
@@ -91,6 +92,8 @@ describe("BidList", () => {
       />,
     );
 
-    expect(screen.queryByRole("button", { name: /Accept bid from/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Accept bid from/ }),
+    ).not.toBeInTheDocument();
   });
 });

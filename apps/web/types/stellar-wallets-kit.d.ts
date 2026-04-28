@@ -33,30 +33,42 @@ declare module "@creit.tech/stellar-wallets-kit" {
     productUrl: string;
     productIcon: string;
     isAvailable(): Promise<boolean>;
-    getAddress(params?: { path?: string; skipRequestAccess?: boolean }): Promise<{ address: string }>;
-    signTransaction(xdr: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedTxXdr: string; signerAddress?: string }>;
-    signAuthEntry(authEntry: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedAuthEntry: string; signerAddress?: string }>;
-    signMessage(message: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedMessage: string; signerAddress?: string }>;
+    getAddress(params?: {
+      path?: string;
+      skipRequestAccess?: boolean;
+    }): Promise<{ address: string }>;
+    signTransaction(
+      xdr: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedTxXdr: string; signerAddress?: string }>;
+    signAuthEntry(
+      authEntry: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedAuthEntry: string; signerAddress?: string }>;
+    signMessage(
+      message: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedMessage: string; signerAddress?: string }>;
     getNetwork(): Promise<{ network: string; networkPassphrase: string }>;
     disconnect?(): Promise<void>;
   }
 
   export interface SwkAppTheme {
-    "background": string;
+    background: string;
     "background-secondary": string;
     "foreground-strong": string;
-    "foreground": string;
+    foreground: string;
     "foreground-secondary": string;
-    "primary": string;
+    primary: string;
     "primary-foreground": string;
-    "transparent": string;
-    "lighter": string;
-    "light": string;
+    transparent: string;
+    lighter: string;
+    light: string;
     "light-gray": string;
-    "gray": string;
-    "danger": string;
-    "border": string;
-    "shadow": string;
+    gray: string;
+    danger: string;
+    border: string;
+    shadow: string;
     "border-radius": string;
     "font-family": string;
   }
@@ -91,17 +103,40 @@ declare module "@creit.tech/stellar-wallets-kit" {
     static setNetwork(network: Networks): void;
     static setTheme(theme?: SwkAppTheme): void;
     static getAddress(): Promise<{ address: string }>;
-    static getNetwork(): Promise<{ network: string; networkPassphrase: string }>;
-    static signTransaction(xdr: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedTxXdr: string; signerAddress?: string }>;
-    static signAuthEntry(authEntry: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedAuthEntry: string; signerAddress?: string }>;
-    static signMessage(message: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedMessage: string; signerAddress?: string }>;
+    static getNetwork(): Promise<{
+      network: string;
+      networkPassphrase: string;
+    }>;
+    static signTransaction(
+      xdr: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedTxXdr: string; signerAddress?: string }>;
+    static signAuthEntry(
+      authEntry: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedAuthEntry: string; signerAddress?: string }>;
+    static signMessage(
+      message: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedMessage: string; signerAddress?: string }>;
     static disconnect(): Promise<void>;
     static refreshSupportedWallets(): Promise<ISupportedWallet[]>;
-    static authModal(params?: { container?: HTMLElement }): Promise<{ address: string }>;
+    static authModal(params?: {
+      container?: HTMLElement;
+    }): Promise<{ address: string }>;
     static profileModal(params?: { container?: HTMLElement }): Promise<void>;
-    static on(type: KitEventType.STATE_UPDATED, callback: (event: KitEventStateUpdated) => void): () => void;
-    static on(type: KitEventType.WALLET_SELECTED, callback: (event: KitEventWalletSelected) => void): () => void;
-    static on(type: KitEventType.DISCONNECT, callback: (event: KitEventDisconnected) => void): () => void;
+    static on(
+      type: KitEventType.STATE_UPDATED,
+      callback: (event: KitEventStateUpdated) => void,
+    ): () => void;
+    static on(
+      type: KitEventType.WALLET_SELECTED,
+      callback: (event: KitEventWalletSelected) => void,
+    ): () => void;
+    static on(
+      type: KitEventType.DISCONNECT,
+      callback: (event: KitEventDisconnected) => void,
+    ): () => void;
   }
 }
 
@@ -115,10 +150,22 @@ declare module "@creit.tech/stellar-wallets-kit/modules/freighter" {
     productUrl: string;
     productIcon: string;
     isAvailable(): Promise<boolean>;
-    getAddress(params?: { path?: string; skipRequestAccess?: boolean }): Promise<{ address: string }>;
-    signTransaction(xdr: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedTxXdr: string; signerAddress?: string }>;
-    signAuthEntry(authEntry: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedAuthEntry: string; signerAddress?: string }>;
-    signMessage(message: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedMessage: string; signerAddress?: string }>;
+    getAddress(params?: {
+      path?: string;
+      skipRequestAccess?: boolean;
+    }): Promise<{ address: string }>;
+    signTransaction(
+      xdr: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedTxXdr: string; signerAddress?: string }>;
+    signAuthEntry(
+      authEntry: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedAuthEntry: string; signerAddress?: string }>;
+    signMessage(
+      message: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedMessage: string; signerAddress?: string }>;
     getNetwork(): Promise<{ network: string; networkPassphrase: string }>;
     disconnect?(): Promise<void>;
   }
@@ -134,10 +181,22 @@ declare module "@creit.tech/stellar-wallets-kit/modules/albedo" {
     productUrl: string;
     productIcon: string;
     isAvailable(): Promise<boolean>;
-    getAddress(params?: { path?: string; skipRequestAccess?: boolean }): Promise<{ address: string }>;
-    signTransaction(xdr: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedTxXdr: string; signerAddress?: string }>;
-    signAuthEntry(authEntry: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedAuthEntry: string; signerAddress?: string }>;
-    signMessage(message: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedMessage: string; signerAddress?: string }>;
+    getAddress(params?: {
+      path?: string;
+      skipRequestAccess?: boolean;
+    }): Promise<{ address: string }>;
+    signTransaction(
+      xdr: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedTxXdr: string; signerAddress?: string }>;
+    signAuthEntry(
+      authEntry: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedAuthEntry: string; signerAddress?: string }>;
+    signMessage(
+      message: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedMessage: string; signerAddress?: string }>;
     getNetwork(): Promise<{ network: string; networkPassphrase: string }>;
     disconnect?(): Promise<void>;
   }
@@ -153,10 +212,22 @@ declare module "@creit.tech/stellar-wallets-kit/modules/xbull" {
     productUrl: string;
     productIcon: string;
     isAvailable(): Promise<boolean>;
-    getAddress(params?: { path?: string; skipRequestAccess?: boolean }): Promise<{ address: string }>;
-    signTransaction(xdr: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedTxXdr: string; signerAddress?: string }>;
-    signAuthEntry(authEntry: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedAuthEntry: string; signerAddress?: string }>;
-    signMessage(message: string, opts?: { networkPassphrase?: string; address?: string; path?: string }): Promise<{ signedMessage: string; signerAddress?: string }>;
+    getAddress(params?: {
+      path?: string;
+      skipRequestAccess?: boolean;
+    }): Promise<{ address: string }>;
+    signTransaction(
+      xdr: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedTxXdr: string; signerAddress?: string }>;
+    signAuthEntry(
+      authEntry: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedAuthEntry: string; signerAddress?: string }>;
+    signMessage(
+      message: string,
+      opts?: { networkPassphrase?: string; address?: string; path?: string },
+    ): Promise<{ signedMessage: string; signerAddress?: string }>;
     getNetwork(): Promise<{ network: string; networkPassphrase: string }>;
     disconnect?(): Promise<void>;
   }

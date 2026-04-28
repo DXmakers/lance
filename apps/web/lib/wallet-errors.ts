@@ -1,20 +1,20 @@
 /**
  * Wallet Error Handling Utilities
- * 
+ *
  * Centralized error handling for Stellar wallet operations
  * Provides consistent error messages and categorization
  */
 
 export enum WalletErrorType {
-  USER_REJECTION = 'USER_REJECTION',
-  WALLET_NOT_FOUND = 'WALLET_NOT_FOUND',
-  WALLET_LOCKED = 'WALLET_LOCKED',
-  NETWORK_MISMATCH = 'NETWORK_MISMATCH',
-  INVALID_ADDRESS = 'INVALID_ADDRESS',
-  INVALID_TRANSACTION = 'INVALID_TRANSACTION',
-  CONNECTION_FAILED = 'CONNECTION_FAILED',
-  SIGNING_FAILED = 'SIGNING_FAILED',
-  UNKNOWN_ERROR = 'UNKNOWN_ERROR'
+  USER_REJECTION = "USER_REJECTION",
+  WALLET_NOT_FOUND = "WALLET_NOT_FOUND",
+  WALLET_LOCKED = "WALLET_LOCKED",
+  NETWORK_MISMATCH = "NETWORK_MISMATCH",
+  INVALID_ADDRESS = "INVALID_ADDRESS",
+  INVALID_TRANSACTION = "INVALID_TRANSACTION",
+  CONNECTION_FAILED = "CONNECTION_FAILED",
+  SIGNING_FAILED = "SIGNING_FAILED",
+  UNKNOWN_ERROR = "UNKNOWN_ERROR",
 }
 
 export interface WalletError {
@@ -25,34 +25,43 @@ export interface WalletError {
   recoveryAction?: string;
 }
 
-export function categorizeWalletError(error: Error | string | unknown): WalletError {
+export function categorizeWalletError(
+  error: Error | string | unknown,
+): WalletError {
   const errorMessage = error instanceof Error ? error.message : String(error);
-  const originalError = error instanceof Error ? error : new Error(String(error));
+  const originalError =
+    error instanceof Error ? error : new Error(String(error));
 
   // User rejection errors
-  if (errorMessage.includes("User rejected") || 
-      errorMessage.includes("rejected") ||
-      errorMessage.includes("denied") ||
-      errorMessage.includes("cancelled")) {
+  if (
+    errorMessage.includes("User rejected") ||
+    errorMessage.includes("rejected") ||
+    errorMessage.includes("denied") ||
+    errorMessage.includes("cancelled")
+  ) {
     return {
       type: WalletErrorType.USER_REJECTION,
       message: errorMessage,
       originalError,
       userFriendlyMessage: "Wallet connection was rejected.",
-      recoveryAction: "Please try again and approve the connection in your wallet."
+      recoveryAction:
+        "Please try again and approve the connection in your wallet.",
     };
   }
 
   // Wallet not installed/available
-  if (errorMessage.includes("not installed") || 
-      errorMessage.includes("not available") ||
-      errorMessage.includes("not found")) {
+  if (
+    errorMessage.includes("not installed") ||
+    errorMessage.includes("not available") ||
+    errorMessage.includes("not found")
+  ) {
     return {
       type: WalletErrorType.WALLET_NOT_FOUND,
       message: errorMessage,
       originalError,
       userFriendlyMessage: "Wallet extension not found.",
-      recoveryAction: "Please install a supported wallet (Freighter, Albedo, or xBull)."
+      recoveryAction:
+        "Please install a supported wallet (Freighter, Albedo, or xBull).",
     };
   }
 
@@ -63,51 +72,60 @@ export function categorizeWalletError(error: Error | string | unknown): WalletEr
       message: errorMessage,
       originalError,
       userFriendlyMessage: "Wallet is locked.",
-      recoveryAction: "Please unlock your wallet and try again."
+      recoveryAction: "Please unlock your wallet and try again.",
     };
   }
 
   // Invalid address
-  if (errorMessage.includes("Invalid Stellar account address") ||
-      errorMessage.includes("address")) {
+  if (
+    errorMessage.includes("Invalid Stellar account address") ||
+    errorMessage.includes("address")
+  ) {
     return {
       type: WalletErrorType.INVALID_ADDRESS,
       message: errorMessage,
       originalError,
       userFriendlyMessage: "Invalid wallet address received.",
-      recoveryAction: "Please try connecting again or contact support if the issue persists."
+      recoveryAction:
+        "Please try connecting again or contact support if the issue persists.",
     };
   }
 
   // Invalid transaction
-  if (errorMessage.includes("Invalid Stellar transaction") ||
-      errorMessage.includes("transaction XDR")) {
+  if (
+    errorMessage.includes("Invalid Stellar transaction") ||
+    errorMessage.includes("transaction XDR")
+  ) {
     return {
       type: WalletErrorType.INVALID_TRANSACTION,
       message: errorMessage,
       originalError,
       userFriendlyMessage: "Invalid transaction format.",
-      recoveryAction: "Please check the transaction details and try again."
+      recoveryAction: "Please check the transaction details and try again.",
     };
   }
 
   // Connection/Signing failures
-  if (errorMessage.includes("connection") || 
-      errorMessage.includes("Connection") ||
-      errorMessage.includes("signing") ||
-      errorMessage.includes("Signing")) {
-    const type = errorMessage.includes("signing") || errorMessage.includes("Signing") 
-      ? WalletErrorType.SIGNING_FAILED 
-      : WalletErrorType.CONNECTION_FAILED;
-    
+  if (
+    errorMessage.includes("connection") ||
+    errorMessage.includes("Connection") ||
+    errorMessage.includes("signing") ||
+    errorMessage.includes("Signing")
+  ) {
+    const type =
+      errorMessage.includes("signing") || errorMessage.includes("Signing")
+        ? WalletErrorType.SIGNING_FAILED
+        : WalletErrorType.CONNECTION_FAILED;
+
     return {
       type,
       message: errorMessage,
       originalError,
-      userFriendlyMessage: type === WalletErrorType.SIGNING_FAILED 
-        ? "Transaction signing failed."
-        : "Wallet connection failed.",
-      recoveryAction: "Please check your wallet connection and try again."
+      userFriendlyMessage:
+        type === WalletErrorType.SIGNING_FAILED
+          ? "Transaction signing failed."
+          : "Wallet connection failed.",
+      recoveryAction: "Please check your wallet connection and try again.",
     };
   }
 
@@ -117,7 +135,7 @@ export function categorizeWalletError(error: Error | string | unknown): WalletEr
     message: errorMessage,
     originalError,
     userFriendlyMessage: "An unexpected error occurred.",
-    recoveryAction: "Please try again. If the issue persists, contact support."
+    recoveryAction: "Please try again. If the issue persists, contact support.",
   };
 }
 
@@ -175,32 +193,32 @@ export function formatErrorForDisplay(error: WalletError): {
   title: string;
   description: string;
   recoverySteps: string[];
-  severity: 'low' | 'medium' | 'high';
+  severity: "low" | "medium" | "high";
 } {
   const recoverySteps = getErrorRecoverySteps(error);
-  
-  let severity: 'low' | 'medium' | 'high' = 'medium';
-  
+
+  let severity: "low" | "medium" | "high" = "medium";
+
   switch (error.type) {
     case WalletErrorType.USER_REJECTION:
-      severity = 'low';
+      severity = "low";
       break;
     case WalletErrorType.WALLET_NOT_FOUND:
     case WalletErrorType.WALLET_LOCKED:
-      severity = 'medium';
+      severity = "medium";
       break;
     case WalletErrorType.INVALID_ADDRESS:
     case WalletErrorType.INVALID_TRANSACTION:
-      severity = 'high';
+      severity = "high";
       break;
     default:
-      severity = 'medium';
+      severity = "medium";
   }
 
   return {
     title: error.userFriendlyMessage,
     description: error.recoveryAction || error.message,
     recoverySteps,
-    severity
+    severity,
   };
 }

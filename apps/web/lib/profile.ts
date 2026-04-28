@@ -10,7 +10,9 @@ export interface ProfileFormValues {
   portfolioLinks: string;
 }
 
-export type ProfileFormErrors = Partial<Record<keyof ProfileFormValues, string>>;
+export type ProfileFormErrors = Partial<
+  Record<keyof ProfileFormValues, string>
+>;
 
 const displayNameSchema = z
   .string()
@@ -61,7 +63,9 @@ export const profileFormSchema = z
     });
   });
 
-export function createProfileFormValues(profile: PublicProfile): ProfileFormValues {
+export function createProfileFormValues(
+  profile: PublicProfile,
+): ProfileFormValues {
   return {
     displayName: profile.display_name ?? "",
     headline: profile.headline ?? "",

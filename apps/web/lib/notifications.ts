@@ -1,7 +1,12 @@
 import { z } from "zod";
 import type { Job } from "@/lib/api";
 
-export const NotificationStatusSchema = z.enum(["success", "pending", "warning", "info"]);
+export const NotificationStatusSchema = z.enum([
+  "success",
+  "pending",
+  "warning",
+  "info",
+]);
 export type NotificationStatus = z.infer<typeof NotificationStatusSchema>;
 
 export const RealtimeNotificationSchema = z.object({
@@ -16,13 +21,16 @@ export const RealtimeNotificationSchema = z.object({
 
 export type RealtimeNotification = z.infer<typeof RealtimeNotificationSchema>;
 
-export function parseRealtimeNotifications(data: unknown): RealtimeNotification[] {
+export function parseRealtimeNotifications(
+  data: unknown,
+): RealtimeNotification[] {
   return z.array(RealtimeNotificationSchema).parse(data);
 }
 
 function mapJobStatus(status: string): NotificationStatus {
   if (status === "funded" || status === "in_progress") return "success";
-  if (status === "awaiting_funding" || status === "deliverable_submitted") return "pending";
+  if (status === "awaiting_funding" || status === "deliverable_submitted")
+    return "pending";
   if (status === "disputed") return "warning";
   return "info";
 }

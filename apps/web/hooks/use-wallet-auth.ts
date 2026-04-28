@@ -26,9 +26,7 @@ export const useWalletAuth = (): UseWalletAuthReturn => {
       }
 
       const domain =
-        typeof window !== "undefined"
-          ? window.location.host
-          : "localhost";
+        typeof window !== "undefined" ? window.location.host : "localhost";
 
       const message = buildSiwsMessage({
         address,

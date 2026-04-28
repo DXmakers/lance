@@ -3,7 +3,13 @@
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiActivity, ActivityLog } from "@/lib/api";
-import { CheckCircle2, Clock, AlertCircle, Info, LucideIcon } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Info,
+  LucideIcon,
+} from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -63,7 +69,7 @@ const ActivityItem = ({ activity }: ActivityItemProps) => {
   const message = useMemo(() => {
     if (activity.details?.message) {
       const msg = activity.details.message;
-      return typeof msg === 'string' ? msg : JSON.stringify(msg);
+      return typeof msg === "string" ? msg : JSON.stringify(msg);
     }
     if (typeof activity.details === "string") return activity.details;
     return activity.event_type.replace(/_/g, " ");
@@ -111,7 +117,13 @@ const ActivityItem = ({ activity }: ActivityItemProps) => {
   );
 };
 
-export function ActivityLogList({ jobId, userAddress }: { jobId?: string; userAddress?: string }) {
+export function ActivityLogList({
+  jobId,
+  userAddress,
+}: {
+  jobId?: string;
+  userAddress?: string;
+}) {
   const {
     data = [],
     isLoading,
@@ -126,7 +138,10 @@ export function ActivityLogList({ jobId, userAddress }: { jobId?: string; userAd
     return (
       <div className="space-y-3 animate-pulse">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-20 bg-zinc-900/50 rounded-xl border border-white/5" />
+          <div
+            key={i}
+            className="h-20 bg-zinc-900/50 rounded-xl border border-white/5"
+          />
         ))}
       </div>
     );
@@ -136,7 +151,9 @@ export function ActivityLogList({ jobId, userAddress }: { jobId?: string; userAd
     return (
       <div className="p-8 rounded-xl bg-red-500/5 border border-red-500/10 text-center">
         <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-3" />
-        <p className="text-sm font-medium text-red-400">Failed to sync activity</p>
+        <p className="text-sm font-medium text-red-400">
+          Failed to sync activity
+        </p>
         <button
           onClick={() => window.location.reload()}
           className="mt-4 text-xs font-semibold text-zinc-100 hover:underline"
@@ -153,7 +170,9 @@ export function ActivityLogList({ jobId, userAddress }: { jobId?: string; userAd
         <div className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4">
           <Info className="w-6 h-6 text-zinc-500" />
         </div>
-        <p className="text-sm font-medium text-zinc-400">No activity recorded yet</p>
+        <p className="text-sm font-medium text-zinc-400">
+          No activity recorded yet
+        </p>
       </div>
     );
   }
@@ -168,4 +187,3 @@ export function ActivityLogList({ jobId, userAddress }: { jobId?: string; userAd
 }
 
 export default ActivityLogList;
-

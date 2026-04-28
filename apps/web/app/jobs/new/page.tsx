@@ -25,10 +25,11 @@ const jobFormSchema = z.object({
   milestones: z.number().min(1, "At least one milestone is required."),
   tags: z.array(z.string().min(1)).min(1, "Add at least one tag."),
   skills: z.array(z.string().min(1)).min(1, "Add at least one required skill."),
-  estimatedCompletionDate: z.string().refine(
-    (value) => new Date(value) >= new Date(today),
-    { message: "Estimated completion date cannot be in the past." },
-  ),
+  estimatedCompletionDate: z
+    .string()
+    .refine((value) => new Date(value) >= new Date(today), {
+      message: "Estimated completion date cannot be in the past.",
+    }),
   estimatedDurationDays: z.number().min(1).optional(),
   memo: z.string().max(100).optional(),
 });
@@ -74,7 +75,9 @@ export default function NewJobPage() {
       },
       {
         label: "Duration target",
-        value: estimatedDurationDays ? `${estimatedDurationDays} days` : "Not specified",
+        value: estimatedDurationDays
+          ? `${estimatedDurationDays} days`
+          : "Not specified",
       },
       {
         label: "Tags",
@@ -85,7 +88,15 @@ export default function NewJobPage() {
         value: skills.length ? skills.join(", ") : "None",
       },
     ],
-    [title, budget, milestones, estimatedCompletionDate, estimatedDurationDays, tags, skills],
+    [
+      title,
+      budget,
+      milestones,
+      estimatedCompletionDate,
+      estimatedDurationDays,
+      tags,
+      skills,
+    ],
   );
 
   async function ensureWallet() {
@@ -138,7 +149,9 @@ export default function NewJobPage() {
           budget,
           milestones,
           estimatedCompletionDate,
-          estimatedDurationDays: estimatedDurationDays ? Number(estimatedDurationDays) : undefined,
+          estimatedDurationDays: estimatedDurationDays
+            ? Number(estimatedDurationDays)
+            : undefined,
           memo: memo || undefined,
         });
 
@@ -159,7 +172,9 @@ export default function NewJobPage() {
       tags,
       skills,
       estimatedCompletionDate,
-      estimatedDurationDays: estimatedDurationDays ? Number(estimatedDurationDays) : undefined,
+      estimatedDurationDays: estimatedDurationDays
+        ? Number(estimatedDurationDays)
+        : undefined,
       memo: memo || undefined,
     });
 
@@ -202,7 +217,9 @@ export default function NewJobPage() {
         estimatedCompletionDate,
         tags,
         skillsRequired: skills,
-        estimatedDurationDays: estimatedDurationDays ? Number(estimatedDurationDays) : undefined,
+        estimatedDurationDays: estimatedDurationDays
+          ? Number(estimatedDurationDays)
+          : undefined,
       });
     } catch {
       // Error handling is managed by usePostJob + toast system
@@ -229,7 +246,8 @@ export default function NewJobPage() {
                 Create an IPFS-backed job brief.
               </h1>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Use clear scope, budget, and milestone guidance so freelancers can respond with confidence.
+                Use clear scope, budget, and milestone guidance so freelancers
+                can respond with confidence.
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
@@ -260,7 +278,11 @@ export default function NewJobPage() {
                   <label className="mb-2 block text-sm font-semibold text-slate-700">
                     Scope
                   </label>
-                  <RichTextEditor id="job-description" value={description} onChange={setDescription} />
+                  <RichTextEditor
+                    id="job-description"
+                    value={description}
+                    onChange={setDescription}
+                  />
                 </div>
 
                 <div className="grid gap-5 sm:grid-cols-2">
@@ -278,7 +300,8 @@ export default function NewJobPage() {
                       id="job-tags"
                     />
                     <p className="mt-2 text-xs text-slate-500">
-                      Enter comma-separated tags to make the job easier to discover.
+                      Enter comma-separated tags to make the job easier to
+                      discover.
                     </p>
                   </div>
                   <div>
@@ -312,7 +335,9 @@ export default function NewJobPage() {
                     <input
                       type="number"
                       value={budget}
-                      onChange={(event) => setBudget(Number(event.target.value))}
+                      onChange={(event) =>
+                        setBudget(Number(event.target.value))
+                      }
                       className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
                       min={100}
                       disabled={isSubmitting || isTxInProgress}
@@ -326,7 +351,9 @@ export default function NewJobPage() {
                     <input
                       type="number"
                       value={milestones}
-                      onChange={(event) => setMilestones(Number(event.target.value))}
+                      onChange={(event) =>
+                        setMilestones(Number(event.target.value))
+                      }
                       className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
                       min={1}
                       disabled={isSubmitting || isTxInProgress}
@@ -345,7 +372,9 @@ export default function NewJobPage() {
                       <input
                         type="date"
                         value={estimatedCompletionDate}
-                        onChange={(event) => setEstimatedCompletionDate(event.target.value)}
+                        onChange={(event) =>
+                          setEstimatedCompletionDate(event.target.value)
+                        }
                         className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-950 outline-none transition focus:border-amber-400"
                         min={today}
                         disabled={isSubmitting || isTxInProgress}
@@ -360,14 +389,17 @@ export default function NewJobPage() {
                     <input
                       type="number"
                       value={estimatedDurationDays}
-                      onChange={(event) => setEstimatedDurationDays(event.target.value)}
+                      onChange={(event) =>
+                        setEstimatedDurationDays(event.target.value)
+                      }
                       className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
                       min={1}
                       disabled={isSubmitting || isTxInProgress}
                       id="job-estimated-duration"
                     />
                     <p className="mt-2 text-xs text-slate-500">
-                      A target duration helps freelancers align estimates with your timeline.
+                      A target duration helps freelancers align estimates with
+                      your timeline.
                     </p>
                   </div>
                 </div>
@@ -395,9 +427,12 @@ export default function NewJobPage() {
                 <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
                   <div className="mb-4 flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">Review job metadata</p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        Review job metadata
+                      </p>
                       <p className="text-sm text-slate-500">
-                        This structured metadata will be pinned to IPFS and referenced by the on-chain job record.
+                        This structured metadata will be pinned to IPFS and
+                        referenced by the on-chain job record.
                       </p>
                     </div>
                     <span className="rounded-full bg-slate-200 px-3 py-1 text-xs uppercase tracking-[0.22em] text-slate-600">
@@ -407,9 +442,16 @@ export default function NewJobPage() {
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     {reviewBody.map((item) => (
-                      <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
-                        <p className="mt-2 text-sm text-slate-700">{item.value}</p>
+                      <div
+                        key={item.label}
+                        className="rounded-2xl border border-slate-200 bg-white p-4"
+                      >
+                        <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                          {item.label}
+                        </p>
+                        <p className="mt-2 text-sm text-slate-700">
+                          {item.value}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -470,19 +512,24 @@ export default function NewJobPage() {
           </h2>
           <ul className="mt-6 space-y-4 text-sm leading-6 text-slate-300">
             <li>
-              Job metadata is pinned to IPFS before the job is posted to the Soroban job registry.
+              Job metadata is pinned to IPFS before the job is posted to the
+              Soroban job registry.
             </li>
             <li>
-              The transaction lifecycle is: Build → Simulate → Sign → Submit → Confirm.
+              The transaction lifecycle is: Build → Simulate → Sign → Submit →
+              Confirm.
             </li>
             <li>
-              If the metadata upload fails, the on-chain post_job step is blocked to avoid stale references.
+              If the metadata upload fails, the on-chain post_job step is
+              blocked to avoid stale references.
             </li>
             <li>
-              On confirmation, your dashboard will show the new job and the associated IPFS metadata hash.
+              On confirmation, your dashboard will show the new job and the
+              associated IPFS metadata hash.
             </li>
             <li>
-              Use tags and skills so the right freelancers can self-select quickly.
+              Use tags and skills so the right freelancers can self-select
+              quickly.
             </li>
           </ul>
 
@@ -492,23 +539,33 @@ export default function NewJobPage() {
             </h3>
             <ol className="space-y-2 text-xs text-slate-300">
               <li className="flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">1</span>
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
+                  1
+                </span>
                 Build – Construct XDR with contract arguments
               </li>
               <li className="flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">2</span>
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
+                  2
+                </span>
                 Simulate – Estimate fees and validate success
               </li>
               <li className="flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">3</span>
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
+                  3
+                </span>
                 Sign – Approve via your connected wallet
               </li>
               <li className="flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">4</span>
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
+                  4
+                </span>
                 Submit – Broadcast to Soroban RPC
               </li>
               <li className="flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-300">5</span>
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-300">
+                  5
+                </span>
                 Confirm – Verify on-chain finality
               </li>
             </ol>

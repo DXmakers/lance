@@ -3,26 +3,25 @@
 import Link from "next/link";
 import { useAuthStore } from "@/lib/store/use-auth-store";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  Briefcase, 
-  MessageSquare, 
-  FileText, 
-  Settings, 
-  PlusCircle, 
-  Users, 
-  Zap, 
-  ShieldCheck, 
+import {
+  LayoutDashboard,
+  Briefcase,
+  MessageSquare,
+  FileText,
+  Settings,
+  PlusCircle,
+  Users,
+  Zap,
+  ShieldCheck,
   Home,
   TrendingUp,
   BarChart2,
-  Search as SearchIcon
+  Search as SearchIcon,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-
 
 interface NavItemProps {
   href: string;
@@ -40,20 +39,27 @@ function NavItem({ href, icon, label, badge }: NavItemProps) {
       href={href}
       className={cn(
         "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all group",
-        isActive 
-          ? "bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20" 
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        isActive
+          ? "bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20"
+          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
       )}
     >
-      <div className={cn(
-        "flex h-8 w-8 items-center justify-center rounded-lg transition-all",
-        isActive ? "bg-primary text-primary-foreground" : "bg-muted group-hover:bg-accent-foreground/5"
-      )}>
+      <div
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-lg transition-all",
+          isActive
+            ? "bg-primary text-primary-foreground"
+            : "bg-muted group-hover:bg-accent-foreground/5",
+        )}
+      >
         {icon}
       </div>
       <span className="flex-1">{label}</span>
       {badge ? (
-        <Badge variant={isActive ? "default" : "secondary"} className="rounded-full">
+        <Badge
+          variant={isActive ? "default" : "secondary"}
+          className="rounded-full"
+        >
           {badge}
         </Badge>
       ) : null}
@@ -64,37 +70,102 @@ function NavItem({ href, icon, label, badge }: NavItemProps) {
 
 const DASHBOARD_LINKS: Record<string, NavItemProps[]> = {
   client: [
-    { href: "/", icon: <LayoutDashboard className="h-4 w-4" />, label: "Overview" },
-    { href: "/jobs/new", icon: <PlusCircle className="h-4 w-4" />, label: "Post a Job" },
-    { href: "/jobs", icon: <Briefcase className="h-4 w-4" />, label: "My Jobs", badge: "12" },
-    { href: "/profile/GD...CLIENT", icon: <Users className="h-4 w-4" />, label: "Find Talent" },
-    { href: "/disputes/1", icon: <MessageSquare className="h-4 w-4" />, label: "Disputes" },
-    { href: "/jobs/1", icon: <BarChart2 className="h-4 w-4" />, label: "Escrow Analytics" },
-    { href: "/profile/GD...CLIENT", icon: <Settings className="h-4 w-4" />, label: "Settings" },
+    {
+      href: "/",
+      icon: <LayoutDashboard className="h-4 w-4" />,
+      label: "Overview",
+    },
+    {
+      href: "/jobs/new",
+      icon: <PlusCircle className="h-4 w-4" />,
+      label: "Post a Job",
+    },
+    {
+      href: "/jobs",
+      icon: <Briefcase className="h-4 w-4" />,
+      label: "My Jobs",
+      badge: "12",
+    },
+    {
+      href: "/profile/GD...CLIENT",
+      icon: <Users className="h-4 w-4" />,
+      label: "Find Talent",
+    },
+    {
+      href: "/disputes/1",
+      icon: <MessageSquare className="h-4 w-4" />,
+      label: "Disputes",
+    },
+    {
+      href: "/jobs/1",
+      icon: <BarChart2 className="h-4 w-4" />,
+      label: "Escrow Analytics",
+    },
+    {
+      href: "/profile/GD...CLIENT",
+      icon: <Settings className="h-4 w-4" />,
+      label: "Settings",
+    },
   ],
   freelancer: [
-    { href: "/", icon: <LayoutDashboard className="h-4 w-4" />, label: "Overview" },
-    { href: "/jobs", icon: <SearchIcon className="h-4 w-4" />, label: "Find Work", badge: "24" },
-    { href: "/jobs/1", icon: <FileText className="h-4 w-4" />, label: "Active Contracts" },
-    { href: "/milestones", icon: <TrendingUp className="h-4 w-4" />, label: "Milestones" },
-    { href: "/disputes/1", icon: <MessageSquare className="h-4 w-4" />, label: "Disputes" },
-    { href: "/profile/GD...CLIENT", icon: <Settings className="h-4 w-4" />, label: "Profile Settings" },
+    {
+      href: "/",
+      icon: <LayoutDashboard className="h-4 w-4" />,
+      label: "Overview",
+    },
+    {
+      href: "/jobs",
+      icon: <SearchIcon className="h-4 w-4" />,
+      label: "Find Work",
+      badge: "24",
+    },
+    {
+      href: "/jobs/1",
+      icon: <FileText className="h-4 w-4" />,
+      label: "Active Contracts",
+    },
+    {
+      href: "/milestones",
+      icon: <TrendingUp className="h-4 w-4" />,
+      label: "Milestones",
+    },
+    {
+      href: "/disputes/1",
+      icon: <MessageSquare className="h-4 w-4" />,
+      label: "Disputes",
+    },
+    {
+      href: "/profile/GD...CLIENT",
+      icon: <Settings className="h-4 w-4" />,
+      label: "Profile Settings",
+    },
   ],
-  'logged-out': [
+  "logged-out": [
     { href: "/", icon: <Home className="h-4 w-4" />, label: "Home" },
-    { href: "/jobs", icon: <Zap className="h-4 w-4" />, label: "Explore Lance" },
-    { href: "/disputes/1", icon: <ShieldCheck className="h-4 w-4" />, label: "Trust & Safety" },
+    {
+      href: "/jobs",
+      icon: <Zap className="h-4 w-4" />,
+      label: "Explore Lance",
+    },
+    {
+      href: "/disputes/1",
+      icon: <ShieldCheck className="h-4 w-4" />,
+      label: "Trust & Safety",
+    },
   ],
 };
 
-
-
 export function Sidebar({ className }: { className?: string }) {
   const { role, isLoggedIn, user } = useAuthStore();
-  const links = DASHBOARD_LINKS[role] || DASHBOARD_LINKS['logged-out'];
+  const links = DASHBOARD_LINKS[role] || DASHBOARD_LINKS["logged-out"];
 
   return (
-    <aside className={cn("hidden h-[calc(100vh-6rem)] w-64 flex-col rounded-[2rem] border border-border/60 glass-surface px-4 py-5 md:flex", className)}>
+    <aside
+      className={cn(
+        "hidden h-[calc(100vh-6rem)] w-64 flex-col rounded-[2rem] border border-border/60 glass-surface px-4 py-5 md:flex",
+        className,
+      )}
+    >
       <div className="rounded-[1.5rem] border border-border/60 bg-background/40 p-4">
         <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-muted-foreground">
           Workspace mode
@@ -132,7 +203,11 @@ export function Sidebar({ className }: { className?: string }) {
         <p className="text-[11px] text-muted-foreground leading-relaxed mb-4">
           Enable Soroban-powered instant settlements and cross-border payments.
         </p>
-        <Button size="sm" variant="default" className="w-full h-8 text-xs font-bold tracking-tight bg-primary hover:bg-primary/90">
+        <Button
+          size="sm"
+          variant="default"
+          className="w-full h-8 text-xs font-bold tracking-tight bg-primary hover:bg-primary/90"
+        >
           Upgrade Now
         </Button>
       </div>

@@ -27,7 +27,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       parsedMessage = undefined;
     }
 
-    throw new Error(parsedMessage || body || `Request failed with status ${res.status}`);
+    throw new Error(
+      parsedMessage || body || `Request failed with status ${res.status}`,
+    );
   }
 
   return res.json() as Promise<T>;
@@ -56,15 +58,19 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    milestones: (id: string) => request<Milestone[]>(`/v1/jobs/${id}/milestones`),
+    milestones: (id: string) =>
+      request<Milestone[]>(`/v1/jobs/${id}/milestones`),
     releaseMilestone: (id: string, milestoneId: string) =>
       request<Milestone>(`/v1/jobs/${id}/milestones/${milestoneId}/release`, {
         method: "POST",
       }),
     milestoneEvents: (id: string, milestoneId: string) =>
-      request<MilestoneEvent[]>(`/v1/jobs/${id}/milestones/${milestoneId}/events`),
+      request<MilestoneEvent[]>(
+        `/v1/jobs/${id}/milestones/${milestoneId}/events`,
+      ),
     deliverables: {
-      list: (jobId: string) => request<Deliverable[]>(`/v1/jobs/${jobId}/deliverables`),
+      list: (jobId: string) =>
+        request<Deliverable[]>(`/v1/jobs/${jobId}/deliverables`),
       submit: (jobId: string, body: SubmitDeliverableBody) =>
         request<Deliverable>(`/v1/jobs/${jobId}/deliverables`, {
           method: "POST",
@@ -124,7 +130,11 @@ export const api = {
   users: {
     getProfile: (address: string) =>
       request<PublicProfile>(`/v1/users/${address}/profile`),
-    updateProfile: (address: string, walletAddress: string, body: UpdateProfileBody) =>
+    updateProfile: (
+      address: string,
+      walletAddress: string,
+      body: UpdateProfileBody,
+    ) =>
       request<PublicProfile>(`/v1/users/${address}/profile`, {
         method: "PUT",
         headers: {
@@ -336,7 +346,10 @@ export const apiAdmin = {
     rescan: (fromLedger?: number) =>
       request<{ ok: boolean; rescan_from_ledger?: number; error?: string }>(
         "/v1/admin/indexer/rescan",
-        { method: "POST", body: JSON.stringify({ from_ledger: fromLedger ?? null }) }
+        {
+          method: "POST",
+          body: JSON.stringify({ from_ledger: fromLedger ?? null }),
+        },
       ),
     restart: () =>
       request<{ ok: boolean; message: string }>("/v1/admin/indexer/restart", {
@@ -347,7 +360,12 @@ export const apiAdmin = {
 };
 
 export const apiActivity = {
-  list: (params?: { jobId?: string; userAddress?: string; limit?: number; offset?: number }) => {
+  list: (params?: {
+    jobId?: string;
+    userAddress?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.jobId) qs.set("job_id", params.jobId);
     if (params?.userAddress) qs.set("user_address", params.userAddress);
@@ -356,6 +374,15 @@ export const apiActivity = {
     const path = `/v1/activity/logs${qs.toString() ? `?${qs.toString()}` : ""}`;
     return request<ActivityLog[]>(path);
   },
-  create: (body: { user_address?: string; job_id?: string; event_type: string; level?: string; details?: Record<string, unknown> }) =>
-    request<ActivityLog>(`/v1/activity/logs`, { method: "POST", body: JSON.stringify(body) }),
+  create: (body: {
+    user_address?: string;
+    job_id?: string;
+    event_type: string;
+    level?: string;
+    details?: Record<string, unknown>;
+  }) =>
+    request<ActivityLog>(`/v1/activity/logs`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };

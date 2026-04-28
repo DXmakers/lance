@@ -41,7 +41,12 @@ export function EmptyState({
           {icon}
         </div>
       ) : null}
-      <p className={cn("text-base font-semibold text-slate-700", isDark && "text-zinc-100")}>
+      <p
+        className={cn(
+          "text-base font-semibold text-slate-700",
+          isDark && "text-zinc-100",
+        )}
+      >
         {title}
       </p>
       <p

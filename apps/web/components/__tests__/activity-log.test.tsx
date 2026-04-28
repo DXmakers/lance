@@ -36,19 +36,16 @@ describe("ActivityLogList", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <ActivityLogList />
-      </QueryClientProvider>
+      </QueryClientProvider>,
     );
 
     // Use screen.debug() if it fails, but let's try a more specific query
     const title = await screen.findByRole("heading", { name: /job created/i });
     expect(title).toBeInTheDocument();
-    
+
     // Use findByText for the message, but since there are multiple "job created" texts,
     // we should check that at least two exist or be more specific.
     const messages = await screen.findAllByText(/job created/i);
     expect(messages.length).toBeGreaterThanOrEqual(1);
   });
 });
-
-
-

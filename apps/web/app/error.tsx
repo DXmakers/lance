@@ -22,7 +22,8 @@ export default function GlobalError({
         We hit an unexpected error
       </h1>
       <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-        The page failed to render. Try again without losing your current session.
+        The page failed to render. Try again without losing your current
+        session.
       </p>
       <div>
         <button

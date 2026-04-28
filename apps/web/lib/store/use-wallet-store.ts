@@ -2,7 +2,11 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { Networks } from "@creit.tech/stellar-wallets-kit";
 
-export type WalletStatus = "disconnected" | "connecting" | "connected" | "error";
+export type WalletStatus =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "error";
 
 interface WalletState {
   address: string | null;
@@ -29,7 +33,9 @@ export const useWalletStore = create<WalletState>()(
       address: null,
       walletId: null,
       status: "disconnected",
-      network: (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET,
+      network:
+        (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ??
+        Networks.TESTNET,
       error: null,
 
       setConnection: (address, walletId) =>
@@ -37,12 +43,18 @@ export const useWalletStore = create<WalletState>()(
 
       setStatus: (status) => set({ status }),
 
-      setError: (error) => set({ error, status: error ? "error" : "disconnected" }),
+      setError: (error) =>
+        set({ error, status: error ? "error" : "disconnected" }),
 
       setNetwork: (network) => set({ network }),
 
       disconnect: () =>
-        set({ address: null, walletId: null, status: "disconnected", error: null }),
+        set({
+          address: null,
+          walletId: null,
+          status: "disconnected",
+          error: null,
+        }),
     }),
     {
       name: "lance-wallet-session",
@@ -61,6 +73,6 @@ export const useWalletStore = create<WalletState>()(
         walletId: state.walletId,
         network: state.network,
       }),
-    }
-  )
+    },
+  ),
 );

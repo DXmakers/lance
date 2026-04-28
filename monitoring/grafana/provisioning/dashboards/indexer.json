@@ -28,14 +28,18 @@
       "type": "stat",
       "title": "Last Processed Ledger",
       "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
-      "targets": [{ "expr": "indexer_last_processed_ledger", "legendFormat": "ledger" }]
+      "targets": [
+        { "expr": "indexer_last_processed_ledger", "legendFormat": "ledger" }
+      ]
     },
     {
       "id": 3,
       "type": "stat",
       "title": "Total Events Processed",
       "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
-      "targets": [{ "expr": "indexer_total_events_processed", "legendFormat": "events" }]
+      "targets": [
+        { "expr": "indexer_total_events_processed", "legendFormat": "events" }
+      ]
     },
     {
       "id": 4,
@@ -59,7 +63,9 @@
       "type": "timeseries",
       "title": "Event Throughput (events/sec)",
       "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
-      "targets": [{ "expr": "indexer_last_batch_rate_per_second", "legendFormat": "eps" }]
+      "targets": [
+        { "expr": "indexer_last_batch_rate_per_second", "legendFormat": "eps" }
+      ]
     },
     {
       "id": 6,
@@ -67,8 +73,14 @@
       "title": "RPC Latency (ms)",
       "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
       "targets": [
-        { "expr": "indexer_last_rpc_latency_ms", "legendFormat": "rpc latency" },
-        { "expr": "indexer_last_loop_duration_ms", "legendFormat": "loop duration" }
+        {
+          "expr": "indexer_last_rpc_latency_ms",
+          "legendFormat": "rpc latency"
+        },
+        {
+          "expr": "indexer_last_loop_duration_ms",
+          "legendFormat": "loop duration"
+        }
       ]
     },
     {
@@ -76,14 +88,24 @@
       "type": "timeseries",
       "title": "RPC Retries",
       "gridPos": { "x": 0, "y": 12, "w": 12, "h": 6 },
-      "targets": [{ "expr": "rate(indexer_rpc_retries_total[1m])", "legendFormat": "retries/min" }]
+      "targets": [
+        {
+          "expr": "rate(indexer_rpc_retries_total[1m])",
+          "legendFormat": "retries/min"
+        }
+      ]
     },
     {
       "id": 8,
       "type": "timeseries",
       "title": "Error Rate",
       "gridPos": { "x": 12, "y": 12, "w": 12, "h": 6 },
-      "targets": [{ "expr": "rate(indexer_total_errors[1m])", "legendFormat": "errors/min" }]
+      "targets": [
+        {
+          "expr": "rate(indexer_total_errors[1m])",
+          "legendFormat": "errors/min"
+        }
+      ]
     }
   ]
 }

@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BriefcaseBusiness, Gavel, ShieldCheck, Star } from "lucide-react";
+import {
+  ArrowRight,
+  BriefcaseBusiness,
+  Gavel,
+  ShieldCheck,
+  Star,
+} from "lucide-react";
 import { useAuthStore } from "@/lib/store/use-auth-store";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,22 +22,19 @@ const ROLE_COPY = {
   "logged-out": {
     pill: "Visitor mode",
     title: "Explore the marketplace before you commit to a role.",
-    body:
-      "Preview public job discovery, trust signals, and dispute explainability from the same shell the product uses after sign-in.",
+    body: "Preview public job discovery, trust signals, and dispute explainability from the same shell the product uses after sign-in.",
     cta: { label: "Browse live jobs", href: "/jobs" },
   },
   client: {
     pill: "Client mode",
     title: "Run hiring, escrow, and milestone approvals from one surface.",
-    body:
-      "The client cockpit keeps brief intake, active registries, and payout confidence checks within a single operational flow.",
+    body: "The client cockpit keeps brief intake, active registries, and payout confidence checks within a single operational flow.",
     cta: { label: "Launch a new brief", href: "/jobs/new" },
   },
   freelancer: {
     pill: "Freelancer mode",
     title: "Scan better work and keep proof-of-work close to payouts.",
-    body:
-      "The freelancer workspace prioritizes opportunity discovery, active contracts, and legible dispute evidence without sacrificing speed.",
+    body: "The freelancer workspace prioritizes opportunity discovery, active contracts, and legible dispute evidence without sacrificing speed.",
     cta: { label: "Open the job registry", href: "/jobs" },
   },
 } as const;
@@ -72,7 +75,9 @@ export function RoleOverview() {
             <Badge variant="secondary" className="w-fit rounded-full">
               {copy.pill}
             </Badge>
-            <CardTitle className="max-w-2xl text-3xl sm:text-4xl">{copy.title}</CardTitle>
+            <CardTitle className="max-w-2xl text-3xl sm:text-4xl">
+              {copy.title}
+            </CardTitle>
             <CardDescription className="max-w-2xl text-base leading-7">
               {copy.body}
             </CardDescription>
@@ -101,7 +106,8 @@ export function RoleOverview() {
             </Badge>
             <CardTitle className="text-4xl">4</CardTitle>
             <CardDescription className="text-slate-300 dark:text-muted-foreground">
-              Core surfaces aligned: profiles, marketplace, job overview, and dispute resolution.
+              Core surfaces aligned: profiles, marketplace, job overview, and
+              dispute resolution.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -111,7 +117,8 @@ export function RoleOverview() {
                 <p className="text-sm font-medium">Escrow-first workflow</p>
               </div>
               <p className="mt-3 text-sm leading-6 text-slate-300 dark:text-muted-foreground">
-                Fund milestones, upload proof, approve releases, or escalate into a locked dispute flow with on-chain receipts.
+                Fund milestones, upload proof, approve releases, or escalate
+                into a locked dispute flow with on-chain receipts.
               </p>
             </div>
           </CardContent>
@@ -128,8 +135,12 @@ export function RoleOverview() {
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <h3 className="mt-5 text-xl font-semibold text-card-foreground">{item.title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.description}</p>
+                  <h3 className="mt-5 text-xl font-semibold text-card-foreground">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {item.description}
+                  </p>
                   <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-card-foreground">
                     Open surface
                     <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
