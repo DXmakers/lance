@@ -133,7 +133,7 @@ pub struct DisputeRaisedEvent {
 }
 
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DepositEvent {
     pub job_id: u64,
     pub amount: i128,
@@ -141,7 +141,7 @@ pub struct DepositEvent {
 }
 
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ReleaseMilestoneEvent {
     pub job_id: u64,
     pub milestone_index: u32,
@@ -150,7 +150,7 @@ pub struct ReleaseMilestoneEvent {
 }
 
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ReleaseEvent {
     pub job_id: u64,
     pub released_by: Address,
@@ -162,7 +162,7 @@ pub struct ReleaseEvent {
 }
 
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct OpenDisputeEvent {
     pub job_id: u64,
     pub initiator: Address,
@@ -170,7 +170,7 @@ pub struct OpenDisputeEvent {
 }
 
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct JobRegistryConfiguredEvent {
     pub configured_by: Address,
     pub registry_contract: Address,
@@ -1244,8 +1244,9 @@ mod test {
         let release_event = events.get(events.len() - 1).unwrap();
         assert_eq!(release_event.0, contract_id);
         assert_eq!(release_event.1, ("escrow", "ReleaseEvent").into_val(&env));
+        let actual_event: ReleaseEvent = release_event.2.into_val(&env);
         assert_eq!(
-            release_event.2,
+            actual_event,
             ReleaseEvent {
                 job_id: 88,
                 released_by: client,
@@ -1255,7 +1256,6 @@ mod test {
                 total_released: 2500,
                 released_at: env.ledger().timestamp(),
             }
-            .into_val(&env)
         );
     }
 
