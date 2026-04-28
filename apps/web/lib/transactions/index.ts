@@ -2,7 +2,7 @@
  * index.ts
  *
  * Main export file for Soroban transaction building functionality.
- * Provides convenient access to transaction builder and XDR encoding utilities.
+ * Provides convenient access to transaction builder, XDR encoding, simulation, and fee estimation.
  */
 
 export {
@@ -42,3 +42,34 @@ export {
 } from "./xdr-encoder";
 
 export type { SorobanArgument as SorobanArgumentType } from "./xdr-encoder";
+
+export {
+  simulateTransaction,
+  clearSimulationCache,
+  getSimulationCacheSize,
+  isSimulationCached,
+  getSimulationErrorMessage,
+} from "./simulator";
+
+export type { SimulationResult, SimulationError } from "./simulator";
+
+export {
+  calculateAdjustedFee,
+  calculateResourceLimits,
+  prepareTransactionWithFees,
+  adjustTransactionFees,
+  formatFeeEstimate,
+  formatResourceLimits,
+  validateResourceLimits,
+  stroopsToXlm,
+  xlmToStroops,
+  formatFeeInStroops,
+  getBufferPercentage,
+  getMaxResourceLimits,
+} from "./fee-estimator";
+
+export type {
+  FeeEstimate,
+  ResourceLimits,
+  AdjustedTransaction,
+} from "./fee-estimator";
