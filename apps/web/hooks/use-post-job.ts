@@ -31,13 +31,16 @@ export interface PostJobInput {
   milestones: number;
   memo?: string;
   estimatedCompletionDate: string;
+  tags: string[];
+  skillsRequired: string[];
+  estimatedDurationDays?: number;
 }
 
 export function usePostJob() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { setStep, setTxHash, setRawXdr, setSimulation, reset } = useTxStatusStore();
+  const { setStep, setTxHash, setUnsignedXdr, setSignedXdr, setSimulation, reset } = useTxStatusStore();
   const { showLoading, updateToSuccess, updateToError } = useTransactionToast();
 
   const submit = useCallback(
@@ -70,17 +73,47 @@ export function usePostJob() {
             .join(" | "),
         });
 
-        // ── Step B: Submit on-chain post_job transaction ────────────────
+        // ── Step B: Persist metadata to IPFS and attach hash to the job record ─
         updateToSuccess(
           loadingToast,
           "Job record created",
-          "Now posting to the Stellar blockchain...",
+          "Uploading structured job metadata to IPFS...",
+        );
+
+        const metadataResponse = await api.jobs.storeMetadata(job.id, {
+          job_id: job.id,
+          title: input.title,
+          description: input.description,
+          budget_usdc: input.budgetUsdc,
+          milestones: input.milestones,
+          client_address: clientAddress,
+          tags: input.tags,
+          skills_required: input.skillsRequired,
+          estimated_duration_days: input.estimatedDurationDays ?? null,
+        });
+
+        const metadataHash = metadataResponse.metadata_hash;
+        if (!metadataHash) {
+          throw new Error("Failed to resolve job metadata CID before posting on-chain.");
+        }
+
+        updateToSuccess(
+          loadingToast,
+          "Job metadata pinned",
+          "Now posting the job to the Stellar blockchain...",
         );
 
         // Build lifecycle listener that updates store + toasts
         const onStep: LifecycleListener = (step, detail, metadata) => {
           setStep(step, detail);
-          if (metadata?.rawXdr) setRawXdr(metadata.rawXdr);
+          
+          if (metadata?.rawXdr) {
+            if (step === "building" || step === "simulating") {
+              setUnsignedXdr(metadata.rawXdr);
+            } else if (step === "signing" || step === "submitting" || step === "confirming" || step === "confirmed") {
+              setSignedXdr(metadata.rawXdr);
+            }
+          }
 
           // Capture tx hash when available
           if (step === "confirming" && detail) {
@@ -98,10 +131,6 @@ export function usePostJob() {
 
         // Convert USDC to stroops (1 USDC = 10,000,000 stroops)
         const budgetStroops = BigInt(input.budgetUsdc);
-
-        // Use the metadata_hash as a CID-like identifier from the job record
-        // The contract expects the hash of the off-chain job data
-        const metadataHash = job.metadata_hash ?? `job-${job.id}`;
 
         const result: PostJobResult = await postJobAuto(
           clientAddress,
@@ -152,7 +181,8 @@ export function usePostJob() {
       reset,
       setStep,
       setTxHash,
-      setRawXdr,
+      setUnsignedXdr,
+      setSignedXdr,
       setSimulation,
       showLoading,
       updateToSuccess,

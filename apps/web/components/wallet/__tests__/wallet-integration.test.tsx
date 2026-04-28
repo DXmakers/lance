@@ -7,46 +7,47 @@
 
 import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
 import { ConnectWalletButton } from '../connect-wallet-button';
 import { WalletErrorDisplay } from '../wallet-error-display';
 import { WalletConnectionModal } from '../wallet-connection-modal';
 import { useWalletSession } from '@/hooks/use-wallet-session';
 
 // Mock the wallet session hook
-jest.mock('@/hooks/use-wallet-session');
+vi.mock('@/hooks/use-wallet-session');
 
 // Mock the stellar library
-jest.mock('@/lib/stellar', () => ({
+vi.mock('@/lib/stellar', () => ({
   APP_STELLAR_NETWORK: 'TESTNET',
-  connectWallet: jest.fn(),
-  disconnectWallet: jest.fn(),
-  getConnectedWalletAddress: jest.fn(),
-  getWalletNetwork: jest.fn(),
-  signTransaction: jest.fn(),
+  connectWallet: vi.fn(),
+  disconnectWallet: vi.fn(),
+  getConnectedWalletAddress: vi.fn(),
+  getWalletNetwork: vi.fn(),
+  signTransaction: vi.fn(),
 }));
 
 // Mock the SIWS library
-jest.mock('@/lib/siws', () => ({
+vi.mock('@/lib/siws', () => ({
   SIWSService: {
-    signIn: jest.fn(),
-    verify: jest.fn(),
+    signIn: vi.fn(),
+    verify: vi.fn(),
   },
 }));
 
 // Mock localStorage
 const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
 };
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
 describe('Wallet Integration', () => {
-  const mockUseWalletSession = useWalletSession as jest.MockedFunction<typeof useWalletSession>;
+  const mockUseWalletSession = vi.mocked(useWalletSession);
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     localStorageMock.clear();
   });
 
@@ -65,10 +66,10 @@ describe('Wallet Integration', () => {
         error: null,
         connectionStep: '',
         siwsResponse: null,
-        connect: jest.fn(),
-        authenticate: jest.fn(),
-        disconnect: jest.fn(),
-        refreshWalletState: jest.fn(),
+        connect: vi.fn(),
+        authenticate: vi.fn(),
+        disconnect: vi.fn(),
+        refreshWalletState: vi.fn(),
       });
 
       render(<ConnectWalletButton />);
@@ -92,10 +93,10 @@ describe('Wallet Integration', () => {
         error: null,
         connectionStep: 'Checking wallet connection...',
         siwsResponse: null,
-        connect: jest.fn(),
-        authenticate: jest.fn(),
-        disconnect: jest.fn(),
-        refreshWalletState: jest.fn(),
+        connect: vi.fn(),
+        authenticate: vi.fn(),
+        disconnect: vi.fn(),
+        refreshWalletState: vi.fn(),
       });
 
       render(<ConnectWalletButton />);
@@ -118,10 +119,10 @@ describe('Wallet Integration', () => {
         error: null,
         connectionStep: '',
         siwsResponse: null,
-        connect: jest.fn(),
-        authenticate: jest.fn(),
-        disconnect: jest.fn(),
-        refreshWalletState: jest.fn(),
+        connect: vi.fn(),
+        authenticate: vi.fn(),
+        disconnect: vi.fn(),
+        refreshWalletState: vi.fn(),
       });
 
       render(<ConnectWalletButton />);
@@ -144,10 +145,10 @@ describe('Wallet Integration', () => {
         error: null,
         connectionStep: '',
         siwsResponse: null,
-        connect: jest.fn(),
-        authenticate: jest.fn(),
-        disconnect: jest.fn(),
-        refreshWalletState: jest.fn(),
+        connect: vi.fn(),
+        authenticate: vi.fn(),
+        disconnect: vi.fn(),
+        refreshWalletState: vi.fn(),
       });
 
       render(<ConnectWalletButton />);
@@ -158,7 +159,7 @@ describe('Wallet Integration', () => {
     });
 
     it('displays error banner when connection fails', async () => {
-      const mockConnect = jest.fn();
+      const mockConnect = vi.fn();
       mockUseWalletSession.mockReturnValue({
         address: null,
         walletNetwork: null,
@@ -173,9 +174,9 @@ describe('Wallet Integration', () => {
         connectionStep: 'Connection cancelled - ready to retry',
         siwsResponse: null,
         connect: mockConnect,
-        authenticate: jest.fn(),
-        disconnect: jest.fn(),
-        refreshWalletState: jest.fn(),
+        authenticate: vi.fn(),
+        disconnect: vi.fn(),
+        refreshWalletState: vi.fn(),
       });
 
       render(<ConnectWalletButton />);
@@ -191,7 +192,7 @@ describe('Wallet Integration', () => {
   describe('WalletErrorDisplay', () => {
     it('displays user rejection error with recovery steps', () => {
       const error = 'Wallet connection was rejected. Please try again and approve the connection.';
-      const onRetry = jest.fn();
+      const onRetry = vi.fn();
 
       render(<WalletErrorDisplay error={error} onRetry={onRetry} />);
       
@@ -220,7 +221,7 @@ describe('Wallet Integration', () => {
 
     it('can dismiss error display', () => {
       const error = 'Test error';
-      const onDismiss = jest.fn();
+      const onDismiss = vi.fn();
 
       render(<WalletErrorDisplay error={error} onDismiss={onDismiss} />);
       
@@ -232,8 +233,8 @@ describe('Wallet Integration', () => {
 
   describe('WalletConnectionModal', () => {
     it('renders wallet selection modal', () => {
-      const onConnect = jest.fn();
-      const onClose = jest.fn();
+      const onConnect = vi.fn();
+      const onClose = vi.fn();
 
       render(
         <WalletConnectionModal
@@ -255,8 +256,8 @@ describe('Wallet Integration', () => {
       render(
         <WalletConnectionModal
           isOpen={true}
-          onClose={jest.fn()}
-          onConnect={jest.fn()}
+          onClose={vi.fn()}
+          onConnect={vi.fn()}
         />
       );
       
@@ -264,12 +265,12 @@ describe('Wallet Integration', () => {
     });
 
     it('handles wallet selection', async () => {
-      const onConnect = jest.fn();
+      const onConnect = vi.fn();
 
       render(
         <WalletConnectionModal
           isOpen={true}
-          onClose={jest.fn()}
+          onClose={vi.fn()}
           onConnect={onConnect}
         />
       );
@@ -283,8 +284,8 @@ describe('Wallet Integration', () => {
       render(
         <WalletConnectionModal
           isOpen={true}
-          onClose={jest.fn()}
-          onConnect={jest.fn()}
+          onClose={vi.fn()}
+          onConnect={vi.fn()}
           isConnecting={true}
         />
       );
@@ -298,8 +299,8 @@ describe('Wallet Integration', () => {
       render(
         <WalletConnectionModal
           isOpen={true}
-          onClose={jest.fn()}
-          onConnect={jest.fn()}
+          onClose={vi.fn()}
+          onConnect={vi.fn()}
           error={error}
         />
       );
@@ -309,13 +310,13 @@ describe('Wallet Integration', () => {
     });
 
     it('can close modal', async () => {
-      const onClose = jest.fn();
+      const onClose = vi.fn();
 
       render(
         <WalletConnectionModal
           isOpen={true}
           onClose={onClose}
-          onConnect={jest.fn()}
+          onConnect={vi.fn()}
         />
       );
       
@@ -352,10 +353,10 @@ describe('Wallet Integration', () => {
         error: null,
         connectionStep: '',
         siwsResponse: null,
-        connect: jest.fn(),
-        authenticate: jest.fn(),
-        disconnect: jest.fn(),
-        refreshWalletState: jest.fn(),
+        connect: vi.fn(),
+        authenticate: vi.fn(),
+        disconnect: vi.fn(),
+        refreshWalletState: vi.fn(),
       });
 
       render(<ConnectWalletButton />);
@@ -382,10 +383,10 @@ describe('Wallet Integration', () => {
         error: null,
         connectionStep: '',
         siwsResponse: null,
-        connect: jest.fn(),
-        authenticate: jest.fn(),
-        disconnect: jest.fn(),
-        refreshWalletState: jest.fn(),
+        connect: vi.fn(),
+        authenticate: vi.fn(),
+        disconnect: vi.fn(),
+        refreshWalletState: vi.fn(),
       });
 
       render(<ConnectWalletButton />);
@@ -409,10 +410,10 @@ describe('Wallet Integration', () => {
         error: null,
         connectionStep: 'Checking wallet connection...',
         siwsResponse: null,
-        connect: jest.fn(),
-        authenticate: jest.fn(),
-        disconnect: jest.fn(),
-        refreshWalletState: jest.fn(),
+        connect: vi.fn(),
+        authenticate: vi.fn(),
+        disconnect: vi.fn(),
+        refreshWalletState: vi.fn(),
       });
 
       render(<ConnectWalletButton />);
@@ -435,10 +436,10 @@ describe('Wallet Integration', () => {
         error: 'Connection failed',
         connectionStep: '',
         siwsResponse: null,
-        connect: jest.fn(),
-        authenticate: jest.fn(),
-        disconnect: jest.fn(),
-        refreshWalletState: jest.fn(),
+        connect: vi.fn(),
+        authenticate: vi.fn(),
+        disconnect: vi.fn(),
+        refreshWalletState: vi.fn(),
       });
 
       render(<ConnectWalletButton />);
@@ -451,8 +452,8 @@ describe('Wallet Integration', () => {
       render(
         <WalletConnectionModal
           isOpen={true}
-          onClose={jest.fn()}
-          onConnect={jest.fn()}
+          onClose={vi.fn()}
+          onConnect={vi.fn()}
         />
       );
       
@@ -463,12 +464,12 @@ describe('Wallet Integration', () => {
     });
 
     it('supports keyboard navigation', async () => {
-      const onConnect = jest.fn();
+      const onConnect = vi.fn();
 
       render(
         <WalletConnectionModal
           isOpen={true}
-          onClose={jest.fn()}
+          onClose={vi.fn()}
           onConnect={onConnect}
         />
       );
@@ -484,7 +485,7 @@ describe('Wallet Integration', () => {
 
   describe('Error Handling Edge Cases', () => {
     it('handles multiple rapid connection attempts', async () => {
-      const mockConnect = jest.fn();
+      const mockConnect = vi.fn();
       mockUseWalletSession.mockReturnValue({
         address: null,
         walletNetwork: null,
@@ -499,9 +500,9 @@ describe('Wallet Integration', () => {
         connectionStep: 'Connecting...',
         siwsResponse: null,
         connect: mockConnect,
-        authenticate: jest.fn(),
-        disconnect: jest.fn(),
-        refreshWalletState: jest.fn(),
+        authenticate: vi.fn(),
+        disconnect: vi.fn(),
+        refreshWalletState: vi.fn(),
       });
 
       render(<ConnectWalletButton />);
@@ -527,10 +528,10 @@ describe('Wallet Integration', () => {
         error: null,
         connectionStep: '',
         siwsResponse: null,
-        connect: jest.fn(),
-        authenticate: jest.fn(),
-        disconnect: jest.fn(),
-        refreshWalletState: jest.fn(),
+        connect: vi.fn(),
+        authenticate: vi.fn(),
+        disconnect: vi.fn(),
+        refreshWalletState: vi.fn(),
       };
 
       mockUseWalletSession.mockReturnValue(mockReturnValue);
@@ -556,8 +557,8 @@ describe('Wallet Integration', () => {
 
 describe('Wallet Integration E2E Scenarios', () => {
   it('completes full connection flow with authentication', async () => {
-    const mockConnect = jest.fn().mockResolvedValue('GD5T2P2Q7F3X4Y6Z8R1W3E5T6Y7U8I9O0P1Q2R3S4T5U6V7W8X9Y0Z1A2B3C4D5');
-    const mockAuthenticate = jest.fn().mockResolvedValue({
+    const mockConnect = vi.fn().mockResolvedValue('GD5T2P2Q7F3X4Y6Z8R1W3E5T6Y7U8I9O0P1Q2R3S4T5U6V7W8X9Y0Z1A2B3C4D5');
+    const mockAuthenticate = vi.fn().mockResolvedValue({
       message: { address: 'GD5T2P2Q7F3X4Y6Z8R1W3E5T6Y7U8I9O0P1Q2R3S4T5U6V7W8X9Y0Z1A2B3C4D5' },
       signature: 'abc123',
       publicKey: 'GD5T2P2Q7F3X4Y6Z8R1W3E5T6Y7U8I9O0P1Q2R3S4T5U6V7W8X9Y0Z1A2B3C4D5'
@@ -578,8 +579,8 @@ describe('Wallet Integration E2E Scenarios', () => {
       siwsResponse: null,
       connect: mockConnect,
       authenticate: mockAuthenticate,
-      disconnect: jest.fn(),
-      refreshWalletState: jest.fn(),
+      disconnect: vi.fn(),
+      refreshWalletState: vi.fn(),
     };
 
     mockUseWalletSession.mockReturnValue(mockReturnValue);
@@ -624,7 +625,7 @@ describe('Wallet Integration E2E Scenarios', () => {
   });
 
   it('handles network mismatch gracefully', async () => {
-    const mockConnect = jest.fn().mockResolvedValue('GD5T2P2Q7F3X4Y6Z8R1W3E5T6Y7U8I9O0P1Q2R3S4T5U6V7W8X9Y0Z1A2B3C4D5');
+    const mockConnect = vi.fn().mockResolvedValue('GD5T2P2Q7F3X4Y6Z8R1W3E5T6Y7U8I9O0P1Q2R3S4T5U6V7W8X9Y0Z1A2B3C4D5');
 
     let mockReturnValue = {
       address: null,
@@ -640,9 +641,9 @@ describe('Wallet Integration E2E Scenarios', () => {
       connectionStep: '',
       siwsResponse: null,
       connect: mockConnect,
-      authenticate: jest.fn(),
-      disconnect: jest.fn(),
-      refreshWalletState: jest.fn(),
+      authenticate: vi.fn(),
+      disconnect: vi.fn(),
+      refreshWalletState: vi.fn(),
     };
 
     mockUseWalletSession.mockReturnValue(mockReturnValue);

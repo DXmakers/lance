@@ -15,6 +15,30 @@ import {
   type ReputationMetrics,
 } from "@/lib/reputation";
 
+const bidReputationCache = new Map<string, ReputationMetrics>();
+
+async function enrichBidReputations(bids: Bid[]): Promise<Bid[]> {
+  const uniqueAddresses = [...new Set(bids.map((bid) => bid.freelancer_address))];
+  const reputationEntries = await Promise.all(
+    uniqueAddresses.map(async (address) => {
+      const cached = bidReputationCache.get(address);
+      if (cached) {
+        return [address, cached] as const;
+      }
+      const metrics = await getReputationMetrics(address, "freelancer");
+      bidReputationCache.set(address, metrics);
+      return [address, metrics] as const;
+    }),
+  );
+
+  const reputationMap = new Map(reputationEntries);
+
+  return bids.map((bid) => ({
+    ...bid,
+    freelancerReputation: reputationMap.get(bid.freelancer_address),
+  }));
+}
+
 export interface LiveJobWorkspace {
   job: Job | null;
   bids: Bid[];
@@ -60,8 +84,16 @@ export function useLiveJobWorkspace(jobId: string): LiveJobWorkspace {
           safeLoadDispute(jobId),
         ]);
 
+      const enrichedBids = await enrichBidReputations(nextBids);
+      enrichedBids.sort((left, right) => {
+        const leftScore = left.freelancerReputation?.scoreBps ?? 0;
+        const rightScore = right.freelancerReputation?.scoreBps ?? 0;
+        if (rightScore !== leftScore) return rightScore - leftScore;
+        return new Date(left.created_at).getTime() - new Date(right.created_at).getTime();
+      });
+
       setJob(nextJob);
-      setBids(nextBids);
+      setBids(enrichedBids);
       setMilestones(nextMilestones);
       setDeliverables(nextDeliverables);
       setDispute(nextDispute);
@@ -87,9 +119,14 @@ export function useLiveJobWorkspace(jobId: string): LiveJobWorkspace {
     }
   }, [jobId]);
 
-  useEffect(() => {
+  const [prevJobId, setPrevJobId] = useState(jobId);
+  if (jobId !== prevJobId) {
+    setPrevJobId(jobId);
     setLoading(true);
-    void refresh();
+  }
+
+  useEffect(() => {
+    setTimeout(() => void refresh(), 0);
 
     const interval = window.setInterval(() => {
       void refresh();

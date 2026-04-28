@@ -11,12 +11,14 @@ import type { TxLifecycleStep, SimulationResult } from "@/lib/job-registry";
 export interface TxStatusState {
   /** Current lifecycle step. */
   step: TxLifecycleStep;
-  /** Human-readable detail for the current step (e.g. error message or tx hash). */
+  /** Human-readable detail for the current step (e.g. error message). */
   detail: string | null;
   /** On-chain transaction hash once available. */
   txHash: string | null;
-  /** Raw XDR of the transaction (base64). */
-  rawXdr: string | null;
+  /** Unsigned XDR of the transaction (base64). */
+  unsignedXdr: string | null;
+  /** Signed XDR of the transaction (base64). */
+  signedXdr: string | null;
   /** Simulation diagnostics (fee, resources). */
   simulation: SimulationResult | null;
   /** Timestamp (ms) when the current transaction started. */
@@ -27,8 +29,9 @@ export interface TxStatusState {
   // ── Actions ────────────────────────────────────────────────────────────
   setStep: (step: TxLifecycleStep, detail?: string) => void;
   setTxHash: (hash: string) => void;
-  setRawXdr: (xdr: string) => void;
-  setSimulation: (simulation: SimulationResult) => void;
+  setUnsignedXdr: (xdr: string | null) => void;
+  setSignedXdr: (xdr: string | null) => void;
+  setSimulation: (simulation: SimulationResult | null) => void;
   reset: () => void;
 }
 
@@ -36,7 +39,8 @@ const INITIAL = {
   step: "idle" as TxLifecycleStep,
   detail: null as string | null,
   txHash: null as string | null,
-  rawXdr: null as string | null,
+  unsignedXdr: null as string | null,
+  signedXdr: null as string | null,
   simulation: null as SimulationResult | null,
   startedAt: null as number | null,
   finishedAt: null as number | null,
@@ -54,11 +58,12 @@ export const useTxStatusStore = create<TxStatusState>()((set) => ({
           ? Date.now()
           : state.startedAt,
       finishedAt:
-        step === "building" ? null : (step === "confirmed" || step === "failed" ? Date.now() : state.finishedAt),
+        step === "confirmed" || step === "failed" ? Date.now() : state.finishedAt,
     })),
 
   setTxHash: (hash: string) => set({ txHash: hash }),
-  setRawXdr: (xdr: string) => set({ rawXdr: xdr }),
-  setSimulation: (simulation: SimulationResult) => set({ simulation }),
+  setUnsignedXdr: (xdr: string | null) => set({ unsignedXdr: xdr }),
+  setSignedXdr: (xdr: string | null) => set({ signedXdr: xdr }),
+  setSimulation: (simulation: SimulationResult | null) => set({ simulation }),
   reset: () => set(INITIAL),
 }));

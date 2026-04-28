@@ -45,6 +45,10 @@ pub fn router() -> Router<AppState> {
             "/:id/milestones/:mid/release",
             post(milestones::release_milestone),
         )
+        .route(
+            "/:id/milestones/:mid/events",
+            get(milestones::list_milestone_events),
+        )
 }
 
 async fn list_jobs(State(state): State<AppState>) -> Result<Json<Vec<Job>>> {
