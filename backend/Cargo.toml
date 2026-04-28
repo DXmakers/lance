@@ -7,6 +7,10 @@ edition = "2021"
 name = "backend"
 path = "src/main.rs"
 
+[[bin]]
+name = "worker"
+path = "src/bin/worker.rs"
+
 [dependencies]
 tokio              = { workspace = true }
 axum               = { workspace = true }
