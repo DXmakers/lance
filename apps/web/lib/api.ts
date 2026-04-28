@@ -46,6 +46,11 @@ export const api = {
     get: (id: string) => request<Job>(`/v1/jobs/${id}`),
     create: (body: CreateJobBody) =>
       request<Job>("/v1/jobs", { method: "POST", body: JSON.stringify(body) }),
+    storeMetadata: (jobId: string, body: JobMetadata) =>
+      request<MetadataUploadResponse>(`/v1/jobs/${jobId}/metadata`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     markFunded: (id: string, body: MarkFundedBody) =>
       request<Job>(`/v1/jobs/${id}/fund`, {
         method: "POST",
@@ -152,6 +157,24 @@ export interface CreateJobBody {
   milestones: number;
   client_address: string;
   memo?: string;
+}
+
+export interface JobMetadata {
+  job_id: string;
+  title: string;
+  description: string;
+  budget_usdc: number;
+  milestones: number;
+  client_address: string;
+  tags: string[];
+  skills_required: string[];
+  estimated_duration_days?: number | null;
+}
+
+export interface MetadataUploadResponse {
+  cid: string;
+  metadata_hash: string;
+  job_id: string;
 }
 
 export interface MarkFundedBody {
