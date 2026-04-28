@@ -103,25 +103,9 @@ export function useTransaction(options: UseTransactionOptions): UseTransactionRe
 
   const store = useTransactionStore();
 
-  /**
-   * Initializes a new transaction lifecycle.
-   */
-  const initializeLifecycle = useCallback(() => {
-    lifecycleRef.current = createTransactionLifecycle(sourceAddress, contractId, method);
-    setTxId(lifecycleRef.current.getId());
-
-    // Subscribe to lifecycle events
-    unsubscribeRef.current = lifecycleRef.current.subscribe((event) => {
-      handleTransactionEvent(event);
-    });
-
-    // Also emit to global event bus
-    transactionEventBus.subscribe((event) => {
-      if (event.metadata.id === lifecycleRef.current?.getId()) {
-        handleTransactionEvent(event);
-      }
-    });
-  }, [sourceAddress, contractId, method]);
+  // ============================================================
+  // ✅ MOVED: handleTransactionEvent declared FIRST (was at line 129)
+  // ============================================================
 
   /**
    * Handles transaction events and updates UI state.
@@ -208,6 +192,10 @@ export function useTransaction(options: UseTransactionOptions): UseTransactionRe
     [store, onStateChange, onSuccess, onError],
   );
 
+  // ============================================================
+  // ✅ MOVED: triggerSuccessUpdates declared SECOND (was at line 214)
+  // ============================================================
+
   /**
    * Triggers UI updates on successful transaction confirmation.
    */
@@ -231,6 +219,34 @@ export function useTransaction(options: UseTransactionOptions): UseTransactionRe
       console.error("[useTransaction] Error triggering success updates:", err);
     }
   }, [onRefreshBalance, onUpdateEscrow, onUpdateMilestones]);
+
+  // ============================================================
+  // ✅ NOW subscribe to events (was using handleTransactionEvent before declaration)
+  // ============================================================
+
+  /**
+   * Initializes a new transaction lifecycle.
+   */
+  const initializeLifecycle = useCallback(() => {
+    lifecycleRef.current = createTransactionLifecycle(sourceAddress, contractId, method);
+    setTxId(lifecycleRef.current.getId());
+
+    // Subscribe to lifecycle events (NOW safe because handleTransactionEvent is defined)
+    unsubscribeRef.current = lifecycleRef.current.subscribe((event) => {
+      handleTransactionEvent(event);
+    });
+
+    // Also emit to global event bus
+    transactionEventBus.subscribe((event) => {
+      if (event.metadata.id === lifecycleRef.current?.getId()) {
+        handleTransactionEvent(event);
+      }
+    });
+  }, [sourceAddress, contractId, method, handleTransactionEvent]);
+
+  // ============================================================
+  // All other functions remain the same (no changes needed)
+  // ============================================================
 
   /**
    * Builds and simulates a transaction.

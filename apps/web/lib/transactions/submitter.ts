@@ -6,7 +6,7 @@
  * Implements comprehensive retry logic with max 3 attempts for network failures.
  */
 
-import { Transaction, Account } from "@stellar/stellar-sdk";
+import { Transaction, Account, TransactionBuilder } from "@stellar/stellar-sdk";
 import { rpc as SorobanRpc } from "@stellar/stellar-sdk";
 import { sorobanServer, getAccountState } from "../stellar";
 import { submitToHorizon } from "./horizon-fallback";
@@ -229,8 +229,8 @@ function rebuildTransaction(
   originalTx: Transaction,
   freshAccount: Account,
 ): Transaction {
-  // Create a new transaction with the same operations but fresh sequence number
-  const txBuilder = new (require("@stellar/stellar-sdk")).TransactionBuilder(
+  // ✅ FIXED: Changed require() to direct import (TransactionBuilder already imported at top)
+  const txBuilder = new TransactionBuilder(
     freshAccount,
     {
       fee: originalTx.fee,

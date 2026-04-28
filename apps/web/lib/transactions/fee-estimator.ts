@@ -140,8 +140,8 @@ export function calculateResourceLimits(simulation: SimulationResult): ResourceL
   // Apply 10% buffer to memory bytes
   const bufferedMemBytes = memBytes + (memBytes / BigInt(10));
 
-  // Parse read bytes
-  let readBytes = simulation.readBytes || 0;
+  // ✅ FIXED: Changed 'let' to 'const' (line 144 was 'let readBytes')
+  const readBytes = simulation.readBytes || 0;
   const bufferedReadBytes = Math.ceil(readBytes * (1 + BUFFER_PERCENTAGE));
 
   // Validate read bytes don't exceed maximum
@@ -151,8 +151,8 @@ export function calculateResourceLimits(simulation: SimulationResult): ResourceL
     );
   }
 
-  // Parse write bytes
-  let writeBytes = simulation.writeBytes || 0;
+  // ✅ FIXED: Changed 'let' to 'const' (line 155 was 'let writeBytes')
+  const writeBytes = simulation.writeBytes || 0;
   const bufferedWriteBytes = Math.ceil(writeBytes * (1 + BUFFER_PERCENTAGE));
 
   // Validate write bytes don't exceed maximum
