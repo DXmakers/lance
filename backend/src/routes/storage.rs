@@ -10,8 +10,8 @@ use std::sync::atomic::Ordering;
 
 use crate::db::AppState;
 use crate::storage_audit::{
-    metrics, StorageAuditConfig, StorageAuditReport, StorageAuditSummary,
-    StorageAuditor, StorageAnomaly,
+    metrics, StorageAnomaly, StorageAuditConfig, StorageAuditReport, StorageAuditSummary,
+    StorageAuditor,
 };
 
 pub fn router() -> Router<AppState> {
@@ -45,10 +45,7 @@ pub async fn get_latest_audit(State(state): State<AppState>) -> (StatusCode, Jso
     let auditor = StorageAuditor::new(state.pool, config);
 
     match auditor.get_latest_audit().await {
-        Ok(Some(report)) => (
-            StatusCode::OK,
-            Json(json!(report)),
-        ),
+        Ok(Some(report)) => (StatusCode::OK, Json(json!(report))),
         Ok(None) => (
             StatusCode::NOT_FOUND,
             Json(json!({
@@ -72,7 +69,10 @@ pub async fn get_audit_history(
     let config = StorageAuditConfig::from_env();
     let auditor = StorageAuditor::new(state.pool, config);
 
-    match auditor.get_audit_history(params.limit.min(100), params.offset).await {
+    match auditor
+        .get_audit_history(params.limit.min(100), params.offset)
+        .await
+    {
         Ok(audits) => (
             StatusCode::OK,
             Json(json!({
@@ -122,10 +122,7 @@ pub async fn get_audit_by_id(
     let auditor = StorageAuditor::new(state.pool, config);
 
     match auditor.get_latest_audit().await {
-        Ok(Some(report)) if report.id == id => (
-            StatusCode::OK,
-            Json(json!(report)),
-        ),
+        Ok(Some(report)) if report.id == id => (StatusCode::OK, Json(json!(report))),
         Ok(_) => (
             StatusCode::NOT_FOUND,
             Json(json!({
@@ -254,7 +251,7 @@ pub async fn get_storage_summary(State(state): State<AppState>) -> (StatusCode, 
 
     // Get trend data
     let trends: Vec<(chrono::NaiveDate, i64, i64)> = sqlx::query_as(
-        "SELECT audit_date, peak_bytes, avg_bytes FROM storage_trend_summary LIMIT 7"
+        "SELECT audit_date, peak_bytes, avg_bytes FROM storage_trend_summary LIMIT 7",
     )
     .fetch_all(&state.pool)
     .await
@@ -287,10 +284,7 @@ pub async fn get_storage_summary(State(state): State<AppState>) -> (StatusCode, 
 /// Prometheus metrics endpoint for storage auditing
 pub async fn storage_prometheus_metrics() -> (StatusCode, String) {
     let metrics_output = crate::storage_audit::prometheus_metrics();
-    (
-        StatusCode::OK,
-        metrics_output,
-    )
+    (StatusCode::OK, metrics_output)
 }
 
 #[cfg(test)]
@@ -306,7 +300,8 @@ mod tests {
 
     #[test]
     fn test_audit_history_params_custom() {
-        let params: AuditHistoryParams = serde_json::from_str(r#"{"limit": 50, "offset": 100}"#).unwrap();
+        let params: AuditHistoryParams =
+            serde_json::from_str(r#"{"limit": 50, "offset": 100}"#).unwrap();
         assert_eq!(params.limit, 50);
         assert_eq!(params.offset, 100);
     }

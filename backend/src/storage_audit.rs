@@ -138,17 +138,22 @@ impl StorageAuditor {
             .into_iter()
             .map(|mut t| {
                 if total_database_bytes > 0 {
-                    t.percent_of_total = (t.total_bytes as f64 / total_database_bytes as f64) * 100.0;
+                    t.percent_of_total =
+                        (t.total_bytes as f64 / total_database_bytes as f64) * 100.0;
                 }
                 t
             })
             .collect();
 
         // Detect anomalies
-        let anomalies = self.detect_anomalies(&table_footprints, total_database_bytes).await?;
+        let anomalies = self
+            .detect_anomalies(&table_footprints, total_database_bytes)
+            .await?;
 
         // Calculate growth stats
-        let growth_stats = self.calculate_growth_stats(total_database_bytes, &table_footprints).await?;
+        let growth_stats = self
+            .calculate_growth_stats(total_database_bytes, &table_footprints)
+            .await?;
 
         // Store audit results
         let audit_id = self
@@ -165,9 +170,7 @@ impl StorageAuditor {
         let duration_ms = start.elapsed().as_millis() as i64;
 
         // Update metrics
-        metrics()
-            .total_audits_run
-            .fetch_add(1, Ordering::Relaxed);
+        metrics().total_audits_run.fetch_add(1, Ordering::Relaxed);
         metrics()
             .total_anomalies_detected
             .fetch_add(anomalies.len() as u64, Ordering::Relaxed);
@@ -367,7 +370,7 @@ impl StorageAuditor {
         _footprints: &[TableFootprint],
     ) -> Result<Option<StorageGrowthStats>> {
         let previous_total: Option<i64> = sqlx::query_scalar(
-            "SELECT total_database_bytes FROM storage_audits ORDER BY id DESC LIMIT 1 OFFSET 1"
+            "SELECT total_database_bytes FROM storage_audits ORDER BY id DESC LIMIT 1 OFFSET 1",
         )
         .fetch_optional(&self.pool)
         .await?;
@@ -412,7 +415,10 @@ impl StorageAuditor {
                 return Ok(Some(StorageGrowthStats {
                     bytes_growth,
                     percent_growth,
-                    fastest_growing_table: fastest.as_ref().map(|(n, _)| n.clone()).unwrap_or_default(),
+                    fastest_growing_table: fastest
+                        .as_ref()
+                        .map(|(n, _)| n.clone())
+                        .unwrap_or_default(),
                     fastest_growth_percent: fastest.map(|(_, g)| g).unwrap_or(0.0),
                 }));
             }
@@ -498,7 +504,7 @@ impl StorageAuditor {
         let audit_row = sqlx::query(
             "SELECT id, created_at, total_database_bytes, total_row_count, audit_duration_ms 
              FROM storage_audits 
-             ORDER BY id DESC LIMIT 1"
+             ORDER BY id DESC LIMIT 1",
         )
         .fetch_optional(&self.pool)
         .await?;
@@ -515,7 +521,7 @@ impl StorageAuditor {
 
         let footprints: Vec<TableFootprint> = sqlx::query_as(
             "SELECT table_name, total_bytes, row_count, index_bytes, toast_bytes, percent_of_total
-             FROM storage_audit_tables WHERE audit_id = $1"
+             FROM storage_audit_tables WHERE audit_id = $1",
         )
         .bind(audit_id)
         .fetch_all(&self.pool)
@@ -542,7 +548,11 @@ impl StorageAuditor {
     }
 
     /// Get audit history with pagination
-    pub async fn get_audit_history(&self, limit: i64, offset: i64) -> Result<Vec<StorageAuditSummary>> {
+    pub async fn get_audit_history(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<StorageAuditSummary>> {
         let summaries: Vec<StorageAuditSummary> = sqlx::query_as(
             r#"
             SELECT 
@@ -595,15 +605,19 @@ impl StorageAuditor {
                 FROM storage_anomalies 
                 WHERE resolved_at IS NULL
             )
-            "#
+            "#,
         )
         .bind(keep_days)
         .execute(&self.pool)
         .await?;
 
         let deleted = result.rows_affected();
-        info!(deleted, days = keep_days, "old storage audit records cleaned up");
-        
+        info!(
+            deleted,
+            days = keep_days,
+            "old storage audit records cleaned up"
+        );
+
         Ok(deleted)
     }
 }
@@ -648,7 +662,8 @@ pub async fn run_storage_audit_worker(pool: PgPool) {
         // Cleanup old audits monthly (approximately)
         if config.audit_interval.as_secs() >= 3600 {
             let hour = Utc::now().hour();
-            if hour == 2 { // Run cleanup at 2 AM
+            if hour == 2 {
+                // Run cleanup at 2 AM
                 if let Err(e) = auditor.cleanup_old_audits(90).await {
                     warn!(error = %e, "storage audit cleanup failed");
                 }

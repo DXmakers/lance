@@ -222,8 +222,12 @@ pub async fn prometheus_metrics() -> String {
     // Storage audit metrics
     let storage_metrics = crate::storage_audit::metrics();
     let total_audits = storage_metrics.total_audits_run.load(Ordering::Relaxed);
-    let total_anomalies = storage_metrics.total_anomalies_detected.load(Ordering::Relaxed);
-    let last_audit_duration = storage_metrics.last_audit_duration_ms.load(Ordering::Relaxed);
+    let total_anomalies = storage_metrics
+        .total_anomalies_detected
+        .load(Ordering::Relaxed);
+    let last_audit_duration = storage_metrics
+        .last_audit_duration_ms
+        .load(Ordering::Relaxed);
     let last_audit_timestamp = storage_metrics.last_audit_timestamp.load(Ordering::Relaxed);
     let total_storage_bytes = storage_metrics.total_storage_bytes.load(Ordering::Relaxed);
 
