@@ -68,25 +68,25 @@ pub async fn readiness(State(state): State<AppState>) -> (StatusCode, Json<Value
 #[instrument(skip(state))]
 pub async fn health(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
     debug!("comprehensive health check requested");
-    
+
     match sqlx::query("SELECT 1").execute(&state.pool).await {
         Ok(_) => {
             let (code, Json(sync_status_payload)) = sync_status(State(state.clone())).await;
             let (_, Json(indexer_health_payload)) = indexer_health(State(state.clone())).await;
-            
+
             let overall_status = if code == StatusCode::OK {
                 "healthy"
             } else {
                 "degraded"
             };
-            
+
             debug!(
                 status = overall_status,
                 sync_status = ?sync_status_payload["status"],
                 indexer_status = ?indexer_health_payload["status"],
                 "health check completed"
             );
-            
+
             (
                 code,
                 Json(json!({
@@ -102,8 +102,8 @@ pub async fn health(State(state): State<AppState>) -> (StatusCode, Json<Value>) 
             tracing::error!(error = %e, "health check failed: database unavailable");
             (
                 StatusCode::SERVICE_UNAVAILABLE,
-                Json(json!({ 
-                    "status": "degraded", 
+                Json(json!({
+                    "status": "degraded",
                     "db": e.to_string(),
                     "timestamp": Utc::now().to_rfc3339()
                 })),
@@ -115,7 +115,7 @@ pub async fn health(State(state): State<AppState>) -> (StatusCode, Json<Value>) 
 #[instrument(skip(state))]
 pub async fn sync_status(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
     debug!("sync status check requested");
-    
+
     let row = match sqlx::query(
         "SELECT last_processed_ledger, updated_at FROM indexer_state WHERE id = 1",
     )
@@ -132,7 +132,7 @@ pub async fn sync_status(State(state): State<AppState>) -> (StatusCode, Json<Val
                     "reason": "indexer_state row missing",
                     "timestamp": Utc::now().to_rfc3339()
                 })),
-            )
+            );
         }
         Err(e) => {
             tracing::error!(error = %e, "failed to query indexer_state");
@@ -144,7 +144,7 @@ pub async fn sync_status(State(state): State<AppState>) -> (StatusCode, Json<Val
                     "error": e.to_string(),
                     "timestamp": Utc::now().to_rfc3339()
                 })),
-            )
+            );
         }
     };
 
@@ -174,7 +174,7 @@ pub async fn sync_status(State(state): State<AppState>) -> (StatusCode, Json<Val
     } else {
         fetch_latest_network_ledger(&rpc_url).await
     };
-    
+
     let lag = latest_network
         .as_ref()
         .ok()
@@ -188,7 +188,7 @@ pub async fn sync_status(State(state): State<AppState>) -> (StatusCode, Json<Val
     } else {
         StatusCode::SERVICE_UNAVAILABLE
     };
-    
+
     // Calculate time since last update
     let seconds_since_update = (Utc::now() - updated_at).num_seconds();
     let is_stale = seconds_since_update > 300; // 5 minutes
@@ -236,7 +236,7 @@ pub async fn sync_status(State(state): State<AppState>) -> (StatusCode, Json<Val
                 json!(0.0)
             };
             payload["rpc"]["reachable"] = json!(true);
-            
+
             debug!(
                 latest_network_ledger = latest,
                 ledger_lag = current_lag,
@@ -289,7 +289,7 @@ async fn fetch_latest_network_ledger(rpc_url: &str) -> Result<i64, String> {
 #[instrument(skip(state))]
 pub async fn indexer_health(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
     debug!("indexer health check requested");
-    
+
     #[derive(sqlx::FromRow)]
     struct IndexerHealthRow {
         last_processed_ledger: i64,
@@ -306,11 +306,9 @@ pub async fn indexer_health(State(state): State<AppState>) -> (StatusCode, Json<
         failed_ledgers_count: i64,
     }
 
-    let health_row = match sqlx::query_as::<_, IndexerHealthRow>(
-        "SELECT * FROM indexer_health"
-    )
-    .fetch_optional(&state.pool)
-    .await
+    let health_row = match sqlx::query_as::<_, IndexerHealthRow>("SELECT * FROM indexer_health")
+        .fetch_optional(&state.pool)
+        .await
     {
         Ok(Some(row)) => row,
         Ok(None) => {
@@ -322,7 +320,7 @@ pub async fn indexer_health(State(state): State<AppState>) -> (StatusCode, Json<
                     "reason": "indexer_health view returned no data",
                     "timestamp": Utc::now().to_rfc3339()
                 })),
-            )
+            );
         }
         Err(e) => {
             tracing::error!(error = %e, "failed to query indexer_health view");
@@ -334,7 +332,7 @@ pub async fn indexer_health(State(state): State<AppState>) -> (StatusCode, Json<
                     "error": e.to_string(),
                     "timestamp": Utc::now().to_rfc3339()
                 })),
-            )
+            );
         }
     };
 
@@ -376,24 +374,24 @@ pub async fn indexer_health(State(state): State<AppState>) -> (StatusCode, Json<
 
 pub async fn prometheus_metrics() -> String {
     let m = metrics();
-    
+
     // Ledger metrics
     let last_ledger = m.last_processed_ledger.load(Ordering::Relaxed);
     let latest_network_ledger = m.last_network_ledger.load(Ordering::Relaxed);
     let ledger_lag = std::cmp::max(latest_network_ledger - last_ledger, 0);
-    
+
     // Event processing metrics
     let events = m.total_events_processed.load(Ordering::Relaxed);
     let batch_events = m.last_batch_events_processed.load(Ordering::Relaxed);
     let batch_rate = m.last_batch_rate_per_second.load(Ordering::Relaxed);
-    
+
     // Error metrics
     let errors = m.total_errors.load(Ordering::Relaxed);
     let rpc_errors = m.rpc_errors.load(Ordering::Relaxed);
     let db_errors = m.database_errors.load(Ordering::Relaxed);
     let processing_errors = m.processing_errors.load(Ordering::Relaxed);
     let rpc_retries = m.total_rpc_retries.load(Ordering::Relaxed);
-    
+
     // Latency metrics
     let latency = m.last_loop_duration_ms.load(Ordering::Relaxed);
     let rpc_latency = m.last_rpc_latency_ms.load(Ordering::Relaxed);
@@ -401,17 +399,17 @@ pub async fn prometheus_metrics() -> String {
     let event_latency = m.last_event_processing_latency_ms.load(Ordering::Relaxed);
     let avg_latency = m.avg_loop_duration_ms.load(Ordering::Relaxed);
     let max_latency = m.max_loop_duration_ms.load(Ordering::Relaxed);
-    
+
     // Cycle metrics
     let cycles_completed = m.cycles_completed.load(Ordering::Relaxed);
     let cycles_failed = m.cycles_failed.load(Ordering::Relaxed);
     let total_processing_time = m.total_processing_time_ms.load(Ordering::Relaxed);
-    
+
     // Recovery metrics
     let recovery_attempts = m.recovery_attempts.load(Ordering::Relaxed);
     let successful_recoveries = m.successful_recoveries.load(Ordering::Relaxed);
     let checkpoint_updates = m.checkpoint_updates.load(Ordering::Relaxed);
-    
+
     // Calculate success rate
     let total_cycles = cycles_completed + cycles_failed;
     let success_rate = if total_cycles > 0 {
@@ -419,7 +417,7 @@ pub async fn prometheus_metrics() -> String {
     } else {
         100.0
     };
-    
+
     // Calculate recovery rate
     let recovery_rate = if recovery_attempts > 0 {
         (successful_recoveries as f64 / recovery_attempts as f64) * 100.0

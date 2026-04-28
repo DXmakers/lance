@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use anyhow::{anyhow, Context, Result};
 use reqwest::{Client, StatusCode};
 use serde_json::{json, Value};
-use tracing::{debug, info, warn, instrument};
+use tracing::{debug, info, instrument, warn};
 
 use crate::indexer_metrics::metrics;
 
@@ -51,14 +51,15 @@ impl RetryPolicy {
         let factor = 2u128.saturating_pow(attempt);
         let raw_ms = self.initial_backoff.as_millis().saturating_mul(factor);
         let capped_ms = raw_ms.min(self.max_backoff.as_millis()) as u64;
-        
+
         if self.jitter_enabled {
             // Add jitter: random value between 0% and 25% of the delay
             let jitter_range = capped_ms / 4;
             let jitter = (std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos() as u64) % jitter_range;
+                .as_nanos() as u64)
+                % jitter_range;
             Duration::from_millis(capped_ms + jitter)
         } else {
             Duration::from_millis(capped_ms)
@@ -122,7 +123,7 @@ impl CircuitBreaker {
         }
 
         self.consecutive_failures += 1;
-        
+
         if self.consecutive_failures >= self.config.failure_threshold {
             self.state = CircuitBreakerState::Open {
                 opened_at: Instant::now(),
@@ -259,10 +260,7 @@ impl SorobanRpcClient {
             .last_network_ledger
             .store(sequence, Ordering::Relaxed);
 
-        debug!(
-            sequence,
-            "fetched latest ledger from network"
-        );
+        debug!(sequence, "fetched latest ledger from network");
 
         Ok(sequence)
     }
@@ -334,7 +332,7 @@ impl SorobanRpcClient {
                 self.client
                     .post(&self.config.url)
                     .json(&request_body)
-                    .send()
+                    .send(),
             )
             .await;
 
@@ -351,14 +349,14 @@ impl SorobanRpcClient {
                     if !status.is_success() {
                         let message = format!("RPC {method} HTTP {status}: {body}");
                         last_error = Some(anyhow!(message.clone()));
-                        
+
                         if should_retry_http_status(status)
                             && attempt + 1 < self.config.retry_policy.max_attempts
                         {
                             self.sleep_before_retry(method, attempt, &message).await;
                             continue;
                         }
-                        
+
                         self.metrics.record_failure();
                         self.circuit_breaker.record_failure();
                         crate::indexer_metrics::metrics().record_rpc_error();
@@ -370,12 +368,12 @@ impl SorobanRpcClient {
                         Err(e) => {
                             let message = format!("failed to decode RPC {method} response: {e}");
                             last_error = Some(anyhow!(message.clone()));
-                            
+
                             if attempt + 1 < self.config.retry_policy.max_attempts {
                                 self.sleep_before_retry(method, attempt, &message).await;
                                 continue;
                             }
-                            
+
                             self.metrics.record_failure();
                             self.circuit_breaker.record_failure();
                             crate::indexer_metrics::metrics().record_rpc_error();
@@ -386,14 +384,14 @@ impl SorobanRpcClient {
                     if let Some(rpc_error) = payload.get("error") {
                         let message = rpc_error.to_string();
                         last_error = Some(anyhow!(message.clone()));
-                        
+
                         if should_retry_rpc_error(rpc_error)
                             && attempt + 1 < self.config.retry_policy.max_attempts
                         {
                             self.sleep_before_retry(method, attempt, &message).await;
                             continue;
                         }
-                        
+
                         self.metrics.record_failure();
                         self.circuit_breaker.record_failure();
                         crate::indexer_metrics::metrics().record_rpc_error();
@@ -407,39 +405,42 @@ impl SorobanRpcClient {
 
                     self.metrics.record_success();
                     self.circuit_breaker.record_success();
-                    
+
                     debug!(
                         method,
                         attempt = attempt + 1,
                         latency_ms,
                         "RPC request succeeded"
                     );
-                    
+
                     return Ok(result);
                 }
                 Ok(Err(err)) => {
                     let message = err.to_string();
                     last_error = Some(anyhow!(message.clone()));
-                    
+
                     if attempt + 1 < self.config.retry_policy.max_attempts {
                         self.sleep_before_retry(method, attempt, &message).await;
                         continue;
                     }
-                    
+
                     self.metrics.record_failure();
                     self.circuit_breaker.record_failure();
                     crate::indexer_metrics::metrics().record_rpc_error();
                     return Err(anyhow!(err).context(format!("RPC request failed for {method}")));
                 }
                 Err(_timeout) => {
-                    let message = format!("RPC {method} request timed out after {}ms", self.config.request_timeout.as_millis());
+                    let message = format!(
+                        "RPC {method} request timed out after {}ms",
+                        self.config.request_timeout.as_millis()
+                    );
                     last_error = Some(anyhow!(message.clone()));
-                    
+
                     if attempt + 1 < self.config.retry_policy.max_attempts {
                         self.sleep_before_retry(method, attempt, &message).await;
                         continue;
                     }
-                    
+
                     self.metrics.record_failure();
                     self.circuit_breaker.record_failure();
                     crate::indexer_metrics::metrics().record_rpc_error();
@@ -451,8 +452,9 @@ impl SorobanRpcClient {
         self.metrics.record_failure();
         self.circuit_breaker.record_failure();
         crate::indexer_metrics::metrics().record_rpc_error();
-        
-        Err(last_error.unwrap_or_else(|| anyhow!("RPC request exhausted retries for method {method}")))
+
+        Err(last_error
+            .unwrap_or_else(|| anyhow!("RPC request exhausted retries for method {method}")))
     }
 
     async fn enforce_rate_limit(&mut self) {
@@ -520,7 +522,7 @@ fn read_env_bool(key: &str, default: bool) -> bool {
 }
 
 fn should_retry_http_status(status: StatusCode) -> bool {
-    status == StatusCode::TOO_MANY_REQUESTS 
+    status == StatusCode::TOO_MANY_REQUESTS
         || status == StatusCode::REQUEST_TIMEOUT
         || status == StatusCode::SERVICE_UNAVAILABLE
         || status == StatusCode::GATEWAY_TIMEOUT

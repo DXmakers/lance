@@ -1,13 +1,17 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+// Add these imports at the top
 import {
   Activity, Database, RefreshCw, Terminal, AlertCircle,
-  CheckCircle2, TrendingUp, Cpu, Clock,
+  CheckCircle2, TrendingUp, Cpu, Clock, AlertTriangle,
 } from "lucide-react";
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area,
+  ComposedChart, Line,
 } from "recharts";
+
+// Add this state variable near other useState declarations (around line 102)
+const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +101,7 @@ function ConfirmDialog({
 }
 
 export default function MonitoringDashboard() {
+  const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
   const { data: status, isLoading } = useIndexerStatus();
   const [chartData, setChartData] = useState(generateInitialData);
   const [logs, setLogs] = useState<{ id: string; msg: string; type: "info" | "error" | "warn" }[]>([]);
@@ -149,6 +154,7 @@ export default function MonitoringDashboard() {
       }
     }, 0);
     return () => clearTimeout(id);
+    setEventLogs([]);
   }, [status, addLog]);
 
   if (isLoading)

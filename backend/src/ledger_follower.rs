@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result};
 use serde_json::Value;
 use sqlx::{PgPool, Postgres, Transaction};
-use tracing::{debug, error, info, warn, instrument, Span};
+use tracing::{debug, error, info, instrument, warn, Span};
 
 use crate::indexer_metrics::metrics;
 use crate::soroban_rpc::{parse_i64, CircuitBreakerConfig, RetryPolicy, SorobanRpcClient};
@@ -91,10 +91,7 @@ impl LedgerFollower {
 
         loop {
             let loop_started_at = Instant::now();
-            let cycle_span = tracing::info_span!(
-                "indexer_cycle",
-                attempt = worker_retry_attempt
-            );
+            let cycle_span = tracing::info_span!("indexer_cycle", attempt = worker_retry_attempt);
             let _enter = cycle_span.enter();
 
             match self.next_cycle().await {
@@ -171,10 +168,10 @@ impl LedgerFollower {
                 }
                 Err(err) => {
                     worker_retry_attempt = worker_retry_attempt.saturating_add(1);
-                    
+
                     // Record failure metrics
                     metrics().record_cycle_failure();
-                    
+
                     // Record recovery attempt
                     if worker_retry_attempt > 1 {
                         metrics().record_recovery_attempt();
@@ -221,7 +218,7 @@ impl LedgerFollower {
     pub async fn next_cycle(&mut self) -> Result<LedgerCycle> {
         let cycle_started_at = Instant::now();
         Span::current().record("cycle_id", format!("{:?}", cycle_started_at));
-        
+
         let mut last_processed_ledger: i64 =
             sqlx::query_scalar("SELECT last_processed_ledger FROM indexer_state WHERE id = 1")
                 .fetch_optional(&self.pool)
@@ -260,13 +257,12 @@ impl LedgerFollower {
         }
 
         let start_ledger = last_processed_ledger + 1;
-        
+
         debug!(
             start_ledger,
-            last_processed_ledger,
-            "fetching events from RPC"
+            last_processed_ledger, "fetching events from RPC"
         );
-        
+
         let events_response = self.rpc.get_events(start_ledger).await?;
 
         debug!(
@@ -297,7 +293,9 @@ impl LedgerFollower {
         }
 
         // Create ledger processing log entry
-        let log_id = self.create_processing_log(start_ledger, events_response.events.len()).await?;
+        let log_id = self
+            .create_processing_log(start_ledger, events_response.events.len())
+            .await?;
 
         debug!(
             log_id,
@@ -328,11 +326,7 @@ impl LedgerFollower {
                 .unwrap_or_default();
 
             if event_id.is_empty() {
-                warn!(
-                    ledger,
-                    contract_id,
-                    "skipping event with empty id"
-                );
+                warn!(ledger, contract_id, "skipping event with empty id");
                 continue;
             }
 
@@ -386,7 +380,8 @@ impl LedgerFollower {
 
         // Mark processing log as completed
         let processing_duration_ms = cycle_started_at.elapsed().as_millis() as i64;
-        self.complete_processing_log(&mut transaction, log_id, processing_duration_ms).await?;
+        self.complete_processing_log(&mut transaction, log_id, processing_duration_ms)
+            .await?;
 
         transaction.commit().await?;
 
@@ -413,7 +408,11 @@ impl LedgerFollower {
     }
 
     /// Creates a processing log entry for audit trail
-    async fn create_processing_log(&self, ledger_sequence: i64, events_count: usize) -> Result<i64> {
+    async fn create_processing_log(
+        &self,
+        ledger_sequence: i64,
+        events_count: usize,
+    ) -> Result<i64> {
         let log_id: i64 = sqlx::query_scalar(
             "INSERT INTO ledger_processing_log (ledger_sequence, events_count, processing_started_at, status)
              VALUES ($1, $2, NOW(), 'processing')
@@ -439,7 +438,7 @@ impl LedgerFollower {
              SET status = 'completed', 
                  processing_completed_at = NOW(),
                  processing_duration_ms = $2
-             WHERE id = $1"
+             WHERE id = $1",
         )
         .bind(log_id)
         .bind(duration_ms)
