@@ -297,7 +297,7 @@ export function TransactionDashboard({
             <div className="flex justify-between">
               <span className="text-amber-700">Resource Fee:</span>
               <code className="font-mono text-amber-900">
-                {event.feeEstimate.resourceFee} stroops
+                {event.feeEstimate.baseResourceFee} stroops
               </code>
             </div>
 
