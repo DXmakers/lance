@@ -1,21 +1,13 @@
 "use client";
 
 import { useCallback, useId, useMemo, useState } from "react";
-import { LoaderCircle, AlertCircle, Plus, X, Calendar } from "lucide-react";
-import { z } from "zod";
+import { LoaderCircle, Plus, X, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePostJob } from "@/hooks/use-post-job";
 import { useTxStatusStore } from "@/lib/store/use-tx-status-store";
 import RichTextEditor from "@/components/ui/rich-text-editor";
-import { Button } from "@/components/ui/button";
 import { TransactionTracker } from "@/components/transaction/transaction-tracker";
 import { postJobSchema, type PostJobFormData } from "@/lib/validations/post-job-schema";
-
-const INPUT_FIELDS = [
-  { name: "title", label: "Job Title", placeholder: "Build a Soroban Smart Contract", type: "text" },
-  { name: "budgetUsdc", label: "Budget (USDC)", placeholder: "5000", type: "number" },
-  { name: "milestones", label: "Number of Milestones", placeholder: "1", type: "number" },
-] as const;
 
 export interface PostJobFormProps {
   onSuccess?: () => void;

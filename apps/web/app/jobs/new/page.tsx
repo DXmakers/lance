@@ -3,6 +3,7 @@
 import { SiteShell } from "@/components/site-shell";
 import { PostJobForm } from "@/components/jobs/post-job-form";
 import { PostJobErrorBoundary } from "@/components/jobs/post-job-error-boundary";
+import { Wallet } from "lucide-react";
 
 export default function NewJobPage() {
   return (

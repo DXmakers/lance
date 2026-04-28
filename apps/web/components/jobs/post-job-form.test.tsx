@@ -33,7 +33,7 @@ vi.mock("@/hooks/use-post-job", () => ({
 
 vi.mock("@/lib/store/use-tx-status-store", () => {
   return {
-    useTxStatusStore: (selector?: (state: ReturnType<typeof buildMockTxStore>) => any) => {
+    useTxStatusStore: (selector?: (state: unknown) => unknown) => {
       const store = buildMockTxStore();
       if (typeof selector === "function") {
         return selector(store);
@@ -373,7 +373,7 @@ describe("PostJobForm edge cases", () => {
 
     for (let i = 0; i < 10; i++) {
       fireEvent.change(skillInput, { target: { value: `skill${i}` } });
-      let addBtn = screen.getByTestId("add-skill-btn");
+      const addBtn = screen.getByTestId("add-skill-btn");
       // Ensure button enabled before clicking? It should be enabled after input has value.
       await waitFor(() => {
         expect(addBtn).not.toBeDisabled();
