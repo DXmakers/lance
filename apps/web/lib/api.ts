@@ -306,6 +306,21 @@ export interface ActivityLog {
   created_at: string;
 }
 
+export const apiAdmin = {
+  indexer: {
+    rescan: (fromLedger?: number) =>
+      request<{ ok: boolean; rescan_from_ledger?: number; error?: string }>(
+        "/v1/admin/indexer/rescan",
+        { method: "POST", body: JSON.stringify({ from_ledger: fromLedger ?? null }) }
+      ),
+    restart: () =>
+      request<{ ok: boolean; message: string }>("/v1/admin/indexer/restart", {
+        method: "POST",
+        body: "{}",
+      }),
+  },
+};
+
 export const apiActivity = {
   list: (params?: { jobId?: string; userAddress?: string; limit?: number; offset?: number }) => {
     const qs = new URLSearchParams();
