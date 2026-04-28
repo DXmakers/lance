@@ -615,7 +615,13 @@ impl EscrowContract {
         job.milestones.set(milestone_index, milestone.clone());
 
         job.released_amount = job.released_amount.saturating_add(milestone.amount);
-        job.status = EscrowStatus::WorkInProgress;
+        
+        let next_status = if job.released_amount == job.total_amount {
+            EscrowStatus::Completed
+        } else {
+            EscrowStatus::WorkInProgress
+        };
+        job.status = next_status;
 
         let token_client = token::Client::new(&env, &job.token);
         token_client.transfer(
