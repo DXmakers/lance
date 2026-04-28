@@ -4,6 +4,34 @@
 
 The `JobRegistry` contract manages job postings, bid submissions, bid acceptance, deliverable submission, and dispute status updates for the Lance protocol.
 
+## `post_job` and `post_job_auto`
+
+### Purpose
+
+These functions allow a client to post a new job to the Lance protocol, making it available for freelancers to bid on. `post_job` allows the client to explicitly define the job ID, while `post_job_auto` automatically assigns the next available sequential ID.
+
+### Behavior
+
+- Authenticates the caller with `client.require_auth()`.
+- Validates inputs: checks for invalid (zero) budget, validates the deliverable IPFS hash size, and checks for zero job ID.
+- Stores the job data (`client`, `metadata_hash`, `budget_stroops`, `status = Open`) in persistent storage.
+- Automatically increments the internal `NextJobId` counter.
+- Emits a `jobpost` (or `jobauto`) event for on-chain tracking and off-chain indexing.
+
+### Errors
+
+These functions use `JobRegistryError` to return structured error information:
+
+- `InvalidJobId` (3): job ID cannot be zero.
+- `InvalidBudget` (4): budget must be greater than zero.
+- `InvalidHash` (5): metadata hash must not be empty or exceed maximum length.
+- `JobAlreadyExists` (6): the explicitly requested job ID is already taken.
+- `Overflow` (14): the next job ID counter overflowed.
+
+### Security
+
+These functions perform strict validation on inputs to prevent issues like overflow and garbage data (e.g. invalid IPFS hashes). All inputs are bounded, ensuring minimal on-chain footprint and deterministic behavior.
+
 ## `accept_bid`
 
 ### Purpose

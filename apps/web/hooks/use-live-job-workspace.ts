@@ -11,6 +11,7 @@ import {
 } from "@/lib/api";
 import {
   getReputationMetrics,
+  getReputationView,
   type ReputationMetrics,
 } from "@/lib/reputation";
 
@@ -65,14 +66,14 @@ export function useLiveJobWorkspace(jobId: string): LiveJobWorkspace {
       setDeliverables(nextDeliverables);
       setDispute(nextDispute);
 
-      const [nextClientRep, nextFreelancerRep] = await Promise.all([
-        getReputationMetrics(nextJob.client_address, "client"),
+      const [nextClientView, nextFreelancerRep] = await Promise.all([
+        getReputationView(nextJob.client_address),
         nextJob.freelancer_address
           ? getReputationMetrics(nextJob.freelancer_address, "freelancer")
           : Promise.resolve(null),
       ]);
 
-      setClientReputation(nextClientRep);
+      setClientReputation(nextClientView.client);
       setFreelancerReputation(nextFreelancerRep);
       setError(null);
     } catch (loadError) {
@@ -86,9 +87,14 @@ export function useLiveJobWorkspace(jobId: string): LiveJobWorkspace {
     }
   }, [jobId]);
 
-  useEffect(() => {
+  const [prevJobId, setPrevJobId] = useState(jobId);
+  if (jobId !== prevJobId) {
+    setPrevJobId(jobId);
     setLoading(true);
-    void refresh();
+  }
+
+  useEffect(() => {
+    setTimeout(() => void refresh(), 0);
 
     const interval = window.setInterval(() => {
       void refresh();

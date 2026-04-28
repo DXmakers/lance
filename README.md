@@ -73,7 +73,15 @@ cp apps/web/.env.example apps/web/.env.local
 
 # backend
 cp backend/.env.example backend/.env
+# optional per-environment overrides
+cp backend/.env.example backend/.env.development
 ```
+
+Backend env loading precedence:
+
+1. Existing process environment variables
+2. `backend/.env.<APP_ENV>` (or `.env.<RUST_ENV>`)
+3. `backend/.env`
 
 ### Run Locally
 
@@ -116,6 +124,13 @@ cargo test -p backend
 # E2E (requires running frontend + backend)
 cd tests/e2e && npx playwright test
 ```
+
+---
+
+## User guides
+
+- [Connecting a Stellar wallet](./docs/user-guide/stellar-wallets.md) — supported wallets, signing flow, network setup, and troubleshooting.
+- [Running the stack](./docs/running-the-stack.md) — local startup, health checks, sync status, metrics, and worker operations.
 
 ---
 

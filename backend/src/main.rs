@@ -1,22 +1,30 @@
 use axum::Router;
-use dotenvy::dotenv;
 use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod db;
+mod env_config;
 mod error;
+mod indexer;
+mod indexer_metrics;
+mod ledger_follower;
+mod middleware;
 mod models;
 mod routes;
 mod services;
+mod soroban_rpc;
+mod tx_metadata_cache;
+mod tx_queue;
 mod worker;
 
 pub use db::AppState;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv().ok();
+    let env_bootstrap = env_config::load_backend_environment()?;
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -25,8 +33,13 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    tracing::info!(
+        app_env = %env_bootstrap.app_env,
+        loaded_env_files = ?env_bootstrap.loaded_files,
+        "backend environment initialized",
+    );
 
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = PgPoolOptions::new()
         .max_connections(10)
         .connect(&database_url)
@@ -35,7 +48,9 @@ async fn main() -> anyhow::Result<()> {
     sqlx::migrate!("./migrations").run(&pool).await?;
 
     let state = AppState::new(pool.clone());
-    tokio::spawn(worker::run_judge_worker(pool));
+    tokio::spawn(worker::run_judge_worker(pool.clone()));
+    tokio::spawn(indexer::run_indexer_worker(pool));
+
     let app = build_router(state);
 
     let port: u16 = std::env::var("PORT")
@@ -45,13 +60,21 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("🚀 Backend listening on {addr}");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
+
     Ok(())
 }
 
 fn build_router(state: AppState) -> Router {
+    let limiter = middleware::build_limiter();
+
     Router::new()
         .nest("/api", routes::api_router())
+        .layer(middleware::RateLimitLayer::new(limiter))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .with_state(state)

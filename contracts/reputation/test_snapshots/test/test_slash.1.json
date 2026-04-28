@@ -86,17 +86,10 @@
             "key": {
               "vec": [
                 {
-                  "symbol": "Score"
+                  "symbol": "Profile"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                },
-                {
-                  "vec": [
-                    {
-                      "symbol": "Client"
-                    }
-                  ]
                 }
               ]
             },
@@ -113,17 +106,10 @@
                 "key": {
                   "vec": [
                     {
-                      "symbol": "Score"
+                      "symbol": "Profile"
                     },
                     {
                       "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                    },
-                    {
-                      "vec": [
-                        {
-                          "symbol": "Client"
-                        }
-                      ]
                     }
                   ]
                 },
@@ -140,19 +126,23 @@
                     },
                     {
                       "key": {
-                        "symbol": "role"
+                        "symbol": "client_jobs"
                       },
                       "val": {
-                        "vec": [
-                          {
-                            "symbol": "Client"
-                          }
-                        ]
+                        "u32": 0
                       }
                     },
                     {
                       "key": {
-                        "symbol": "score"
+                        "symbol": "client_points"
+                      },
+                      "val": {
+                        "i32": 0
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "client_score"
                       },
                       "val": {
                         "i32": 3000
@@ -160,11 +150,33 @@
                     },
                     {
                       "key": {
-                        "symbol": "total_jobs"
+                        "symbol": "freelancer_jobs"
                       },
                       "val": {
                         "u32": 0
                       }
+                    },
+                    {
+                      "key": {
+                        "symbol": "freelancer_points"
+                      },
+                      "val": {
+                        "i32": 0
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "freelancer_score"
+                      },
+                      "val": {
+                        "i32": 5000
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "metadata_hash"
+                      },
+                      "val": "void"
                     }
                   ]
                 }
@@ -172,7 +184,7 @@
             },
             "ext": "v0"
           },
-          4095
+          150000
         ]
       ],
       [
@@ -217,7 +229,7 @@
             },
             "ext": "v0"
           },
-          4095
+          150000
         ]
       ],
       [
@@ -238,7 +250,7 @@
             },
             "ext": "v0"
           },
-          4095
+          150000
         ]
       ]
     ]
@@ -335,6 +347,82 @@
       "event": {
         "ext": "v0",
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
+        "type_": "contract",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "string": "reputation"
+              },
+              {
+                "string": "ScoreAdjusted"
+              }
+            ],
+            "data": {
+              "map": [
+                {
+                  "key": {
+                    "symbol": "address"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "adjusted_at"
+                  },
+                  "val": {
+                    "u64": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "delta"
+                  },
+                  "val": {
+                    "i32": -2000
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "new_score"
+                  },
+                  "val": {
+                    "i32": 3000
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "role"
+                  },
+                  "val": {
+                    "vec": [
+                      {
+                        "symbol": "Client"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "total_jobs"
+                  },
+                  "val": {
+                    "u32": 0
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
         "type_": "diagnostic",
         "body": {
           "v0": {
@@ -416,6 +504,14 @@
                 },
                 {
                   "key": {
+                    "symbol": "reviews"
+                  },
+                  "val": {
+                    "u32": 0
+                  }
+                },
+                {
+                  "key": {
                     "symbol": "role"
                   },
                   "val": {
@@ -440,6 +536,14 @@
                   },
                   "val": {
                     "u32": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "total_points"
+                  },
+                  "val": {
+                    "i32": 0
                   }
                 }
               ]

@@ -1,20 +1,36 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Wallet } from "lucide-react";
+import { CalendarDays, Wallet } from "lucide-react";
 import { SiteShell } from "@/components/site-shell";
-import { api } from "@/lib/api";
+import RichTextEditor from "@/components/ui/rich-text-editor";
+import { TransactionTracker } from "@/components/transaction/transaction-tracker";
+import { usePostJob } from "@/hooks/use-post-job";
+import { useTxStatusStore } from "@/lib/store/use-tx-status-store";
 import { connectWallet, getConnectedWalletAddress } from "@/lib/stellar";
 
+function buildDefaultCompletionDate() {
+  const target = new Date();
+  target.setDate(target.getDate() + 14);
+  return target.toISOString().slice(0, 10);
+}
+
 export default function NewJobPage() {
-  const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [budget, setBudget] = useState(1000);
   const [milestones, setMilestones] = useState(1);
+  const [memo, setMemo] = useState("");
+  const [estimatedCompletionDate, setEstimatedCompletionDate] = useState(
+    buildDefaultCompletionDate(),
+  );
   const [walletAddress, setWalletAddress] = useState("GD...CLIENT");
-  const [loading, setLoading] = useState(false);
+
+  const { submit, isSubmitting } = usePostJob();
+  const txStep = useTxStatusStore((state: { step: string }) => state.step);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const isTxInProgress = !["idle", "confirmed", "failed"].includes(txStep);
 
   async function ensureWallet() {
     const connected = await getConnectedWalletAddress();
@@ -23,29 +39,25 @@ export default function NewJobPage() {
       return connected;
     }
 
-    const newlyConnected = await connectWallet();
-    setWalletAddress(newlyConnected);
-    return newlyConnected;
+    const address = await connectWallet();
+    setWalletAddress(address);
+    return address;
   }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setLoading(true);
-
     try {
-      const clientAddress = await ensureWallet().catch(() => walletAddress);
-      const job = await api.jobs.create({
+      await ensureWallet();
+      await submit({
         title,
         description,
-        budget_usdc: budget * 10_000_000,
+        budgetUsdc: budget * 10_000_000,
         milestones,
-        client_address: clientAddress,
+        memo: memo || undefined,
+        estimatedCompletionDate,
       });
-      router.push(`/jobs/${job.id}`);
     } catch {
-      alert("Failed to create job");
-    } finally {
-      setLoading(false);
+      // Error handling is managed by usePostJob + toast system
     }
   }
 
@@ -73,6 +85,7 @@ export default function NewJobPage() {
                 placeholder="Build a Soroban Smart Contract"
                 required
                 id="job-title"
+                disabled={isSubmitting || isTxInProgress}
               />
             </div>
 
@@ -80,14 +93,7 @@ export default function NewJobPage() {
               <label className="mb-2 block text-sm font-semibold text-slate-700">
                 Scope
               </label>
-              <textarea
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                className="min-h-[180px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
-                placeholder="Describe requirements, acceptance criteria, and what counts as a complete milestone."
-                required
-                id="job-description"
-              />
+              <RichTextEditor id="job-description" value={description} onChange={setDescription} />
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
@@ -103,6 +109,7 @@ export default function NewJobPage() {
                   required
                   min={100}
                   id="job-budget"
+                  disabled={isSubmitting || isTxInProgress}
                 />
               </div>
               <div>
@@ -117,34 +124,128 @@ export default function NewJobPage() {
                   min="1"
                   required
                   id="job-milestones"
+                  disabled={isSubmitting || isTxInProgress}
                 />
               </div>
             </div>
 
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Memo (optional)
+              </label>
+              <input
+                type="text"
+                value={memo}
+                onChange={(event) => setMemo(event.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
+                placeholder="Add a reference or internal note for this job"
+                maxLength={100}
+                id="job-memo"
+                disabled={isSubmitting || isTxInProgress}
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">
+                Estimated Completion Date
+              </label>
+              <div className="relative">
+                <CalendarDays className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="date"
+                  value={estimatedCompletionDate}
+                  onChange={(event) => setEstimatedCompletionDate(event.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-950 outline-none transition focus:border-amber-400"
+                  min={today}
+                  required
+                  id="job-estimated-completion-date"
+                  disabled={isSubmitting || isTxInProgress}
+                />
+              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                This projected date is attached to the brief so freelancers can plan
+                around your expected delivery window.
+              </p>
+            </div>
+
+            {/* Transaction Tracker */}
+            <TransactionTracker />
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={isSubmitting || isTxInProgress}
               className="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
               id="submit-job"
             >
-              {loading ? "Posting..." : "Post Job"}
+              {isSubmitting || isTxInProgress
+                ? txStep === "signing"
+                  ? "Waiting for signature..."
+                  : "Posting on-chain..."
+                : "Post Job On-Chain"}
             </button>
           </div>
         </form>
 
         <aside className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-slate-50 shadow-[0_25px_80px_-48px_rgba(15,23,42,0.75)] sm:p-8">
           <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm">
-            <Wallet className="h-4 w-4 text-amber-300" />
-            Client wallet: {walletAddress}
+            <Wallet size={16} className="text-amber-300" />
+            <span>Client wallet: {walletAddress}</span>
           </div>
           <h2 className="mt-6 text-2xl font-semibold tracking-tight">
-            Better briefs produce smoother milestone releases.
+            Your job goes on-chain.
           </h2>
           <ul className="mt-6 space-y-4 text-sm leading-6 text-slate-300">
-            <li>Explain what success looks like so the freelancer can submit evidence decisively.</li>
-            <li>Split the budget into meaningful milestones to keep approval moments clean.</li>
-            <li>Assume the dispute center may need to read this brief later and write accordingly.</li>
+            <li>
+              The transaction follows a secure pipeline: Build → Simulate → Sign → Submit → Confirm.
+            </li>
+            <li>
+              Simulation estimates fees and resources before you sign, so there are
+              no surprises.
+            </li>
+            <li>
+              If a sequence-number mismatch occurs, the system automatically
+              retries with a fresh account state.
+            </li>
+            <li>
+              On confirmation, the job is posted to the Soroban job registry and
+              your dashboard updates instantly.
+            </li>
+            <li>
+              Split the budget into meaningful milestones to keep approval moments
+              clean.
+            </li>
+            <li>
+              Estimated completion target: <span className="font-semibold text-slate-100">{estimatedCompletionDate}</span>
+            </li>
           </ul>
+
+          <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Transaction Lifecycle
+            </h3>
+            <ol className="space-y-2 text-xs text-slate-300">
+              <li className="flex items-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">1</span>
+                Build – Construct XDR with contract arguments
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">2</span>
+                Simulate – Estimate fees and validate success
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">3</span>
+                Sign – Approve via your connected wallet
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">4</span>
+                Submit – Broadcast to Soroban RPC
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-300">5</span>
+                Confirm – Verify on-chain finality
+              </li>
+            </ol>
+          </div>
         </aside>
       </div>
     </SiteShell>

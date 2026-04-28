@@ -202,7 +202,7 @@
             },
             "ext": "v0"
           },
-          4095
+          150000
         ]
       ],
       [
@@ -309,6 +309,39 @@
           "v0": {
             "topics": [
               {
+                "symbol": "log"
+              }
+            ],
+            "data": {
+              "vec": [
+                {
+                  "string": "create_job: id {} client {} freelancer {}"
+                },
+                {
+                  "u64": 1
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
                 "symbol": "fn_return"
               },
               {
@@ -375,7 +408,7 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'job already exists' from contract function 'Symbol(obj#41)'"
+                  "string": "caught panic 'job already exists' from contract function 'Symbol(obj#45)'"
                 },
                 {
                   "u64": 1
