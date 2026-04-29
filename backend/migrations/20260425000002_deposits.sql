@@ -1,4 +1,4 @@
--- backend/migrations/20260425000001_deposits.sql
+-- backend/migrations/20260425000002_deposits.sql
 
 CREATE TABLE IF NOT EXISTS deposits (
     id VARCHAR(128) PRIMARY KEY, -- Soroban event ID (e.g. "0000000123-0001")

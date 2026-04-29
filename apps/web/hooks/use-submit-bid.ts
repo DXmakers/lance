@@ -1,108 +1,123 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { Address, nativeToScVal } from "@stellar/stellar-sdk";
 
 import { api } from "@/lib/api";
-import {
-  submitBid,
-  type LifecycleListener,
-} from "@/lib/job-registry";
-import { useTxStatusStore } from "@/lib/store/use-tx-status-store";
 import { useTransactionToast } from "@/hooks/use-transaction-toast";
+import { useSorobanTransaction } from "@/hooks/use-soroban-transaction";
 import { connectWallet, getConnectedWalletAddress } from "@/lib/stellar";
 
+const JOB_REGISTRY_CONTRACT_ID =
+  process.env.NEXT_PUBLIC_JOB_REGISTRY_CONTRACT_ID ?? "";
+
+interface SubmitBidParams {
+  jobId: string;
+  onChainJobId: bigint;
+  proposal: string;
+}
+
 /**
- * Hook to manage the lifecycle of submitting a bid to the job registry.
- *
- * Flow:
- * 1. Create off-chain record via API (status: pending)
- * 2. Build, Simulate, Sign, Submit, Confirm on-chain transaction
- * 3. Update UI/Toasts accordingly
+ * Submits a bid through the shared Soroban transaction pipeline so the UI
+ * gets simulation output, fee breakdowns, signature state, and confirmation
+ * updates from one source of truth.
  */
 export function useSubmitBid() {
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const { setStep, setTxHash, setRawXdr, setSimulation, reset } = useTxStatusStore();
+  const transaction = useSorobanTransaction();
   const { showLoading, updateToSuccess, updateToError } = useTransactionToast();
 
   const submit = useCallback(
-    async (params: { jobId: string; onChainJobId: bigint; proposal: string }) => {
+    async (params: SubmitBidParams) => {
       setIsSubmitting(true);
-      reset();
+      transaction.reset();
 
       const toastId = showLoading(
-        "Submitting Bid",
-        "Preparing your proposal for the blockchain...",
+        "Sign & Submit Bid",
+        "Saving your proposal and simulating the Soroban transaction.",
       );
 
+      let transactionErrorHandled = false;
+
       try {
-        // ─── Step 1: Off-chain Record ─────────────────────────────────────
-        // We create the bid record first so internal systems can track it.
-        // If the on-chain TX fails, the record remains in a 'pending' or 'failed' state.
+        if (!JOB_REGISTRY_CONTRACT_ID) {
+          throw new Error("NEXT_PUBLIC_JOB_REGISTRY_CONTRACT_ID is not configured.");
+        }
+
+        if (params.onChainJobId <= 0n) {
+          throw new Error(
+            "This job is not indexed on-chain yet. Wait for the indexer to catch up and try again.",
+          );
+        }
+
+        const freelancerAddress =
+          (await getConnectedWalletAddress()) ?? (await connectWallet());
+
         const bid = await api.bids.create(params.jobId, {
-          freelancer_address: "PENDING_ON_CHAIN", // Will be updated by indexer
+          freelancer_address: freelancerAddress,
           proposal: params.proposal,
         });
 
-        // ─── Step 2: On-chain Transaction ─────────────────────────────────
-        // build lifecycle listener that updates store + toasts
-        const onStep: LifecycleListener = (step, detail, metadata) => {
-          setStep(step, detail);
-          if (metadata?.rawXdr) setRawXdr(metadata.rawXdr);
-
-          // Capture tx hash when available
-          if (step === "confirming" && detail) {
-            setTxHash(detail);
-          }
-        };
-
-        // ── Step 1.5: Wallet Address ─────────────────────────────────────
-        const freelancer = (await getConnectedWalletAddress()) ?? (await connectWallet());
-
-        const result = await submitBid(
+        const result = await transaction.execute(
           {
-            jobId: params.onChainJobId,
-            freelancerAddress: freelancer,
-            proposalHash: params.proposal,
+            callerAddress: freelancerAddress,
+            contractId: JOB_REGISTRY_CONTRACT_ID,
+            method: "submit_bid",
+            args: [
+              nativeToScVal(params.onChainJobId, { type: "u64" }),
+              Address.fromString(freelancerAddress).toScVal(),
+              nativeToScVal(new TextEncoder().encode(params.proposal), {
+                type: "bytes",
+              }),
+            ],
           },
-          onStep,
+          {
+            onSuccess: (pipelineResult) => {
+              updateToSuccess(
+                toastId,
+                "Bid Confirmed",
+                "Your proposal is confirmed on-chain and ready for immediate UI refresh.",
+                pipelineResult.txHash,
+              );
+            },
+            onError: (error) => {
+              transactionErrorHandled = true;
+              updateToError(
+                toastId,
+                "Submission Failed",
+                error.message,
+              );
+            },
+          },
         );
 
-        // ─── Step 3: Success ──────────────────────────────────────────────
-        setSimulation(result.simulation);
-        updateToSuccess(
-          toastId,
-          "Bid Submitted",
-          "Your proposal has been recorded on the Stellar network.",
-        );
+        if (!result) {
+          throw new Error(
+            transaction.error ?? "Blockchain transaction did not complete.",
+          );
+        }
 
         return { bid, txHash: result.txHash };
       } catch (error) {
-        setStep("failed", error instanceof Error ? error.message : "Unknown error");
-        updateToError(
-          toastId,
-          "Submission Failed",
-          error instanceof Error ? error.message : "Blockchain transaction failed.",
-        );
+        if (!transactionErrorHandled) {
+          updateToError(
+            toastId,
+            "Submission Failed",
+            error instanceof Error ? error.message : "Blockchain transaction failed.",
+          );
+        }
+
         throw error;
       } finally {
         setIsSubmitting(false);
       }
     },
-    [
-      reset,
-      setStep,
-      setTxHash,
-      setRawXdr,
-      setSimulation,
-      showLoading,
-      updateToSuccess,
-      updateToError,
-    ],
+    [showLoading, transaction, updateToError, updateToSuccess],
   );
 
   return {
     submit,
     isSubmitting,
+    transaction,
   };
 }

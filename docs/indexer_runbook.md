@@ -1,82 +1,188 @@
-# Runbook: Indexing Worker Deployment & Scaling
+# Runbook: Soroban Indexer Worker
 
 ## Overview
-The Soroban Indexing Worker is a critical backend component that synchronizes on-chain events (primarily `Deposit`) with the Lance application database. It ensures real-time data availability for the frontend with minimal latency.
+The indexer worker keeps Lance synchronized with Stellar/Soroban data by:
+- polling the configured RPC endpoint on Tokio tasks
+- checkpointing the last fully processed ledger in Postgres
+- re-processing safely with idempotent `ON CONFLICT DO NOTHING` writes
+- exposing sync, latency, retry, and throughput metrics for monitoring
 
-## Architecture
-- **Runtime**: Rust (Tokio)
-- **Database**: PostgreSQL (Checkpointing & Event Storage)
-- **RPC**: Soroban Remote Procedure Call via HTTP
-- **Logging**: Tracing (Structured)
-- **Scale**: Horizontal (though typically one instance per network is sufficient due to idempotency)
+The worker is restart-safe. A crash or pod reschedule resumes from `indexer_state.last_processed_ledger`.
 
----
+## Runtime Controls
+Configure these environment variables in the worker container or pod:
 
-## Deployment Configuration
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | required | PostgreSQL connection string |
+| `SOROBAN_RPC_URL` | `https://soroban-testnet.stellar.org` | Soroban RPC endpoint |
+| `INDEXER_MAX_LEDGER_LAG` | `5` | Max lag before `/api/health` and `/api/sync-status` report degraded |
+| `INDEXER_IDLE_POLL_MS` | `2000` | Sleep interval when the worker is caught up |
+| `INDEXER_RPC_RATE_LIMIT_MS` | `250` | Minimum spacing between outbound RPC calls |
+| `INDEXER_RPC_RETRY_MAX_ATTEMPTS` | `4` | Max retries for transient RPC failures / provider rate limits |
+| `INDEXER_RPC_RETRY_INITIAL_BACKOFF_MS` | `500` | Initial exponential backoff delay for RPC retries |
+| `INDEXER_RPC_RETRY_MAX_BACKOFF_MS` | `5000` | Maximum RPC retry backoff |
+| `INDEXER_WORKER_RETRY_MAX_ATTEMPTS` | `4` | Max retries for full worker-loop failures |
+| `INDEXER_WORKER_RETRY_INITIAL_BACKOFF_MS` | `1000` | Initial backoff for worker-loop failures |
+| `INDEXER_WORKER_RETRY_MAX_BACKOFF_MS` | `60000` | Maximum worker-loop backoff |
+| `RUST_LOG` | `backend=debug,tower_http=debug` | Structured tracing filter |
 
-### Environment Variables
-| Variable | Description | Recommended Value |
-|----------|-------------|-------------------|
-| `SOROBAN_RPC_URL` | URL of the Soroban network node | `https://soroban-testnet.stellar.org` |
-| `DATABASE_URL` | PostgreSQL connection string | `postgres://user:pass@db:5432/lance` |
-| `INDEXER_MAX_LEDGER_LAG` | Max allowed lag before health check fails | `5` |
-| `RUST_LOG` | Log verbosity level | `info,backend::indexer=debug` |
+## Health and Monitoring
+Available endpoints:
+- `GET /api/health/live`: process liveness only
+- `GET /api/health/ready`: DB connectivity
+- `GET /api/health`: DB status plus nested indexer sync state
+- `GET /api/sync-status`: checkpoint, lag, retry count, throughput, and RPC reachability
+- `GET /api/metrics`: Prometheus metrics
 
-### Docker Deployment
+Prometheus metrics exported by the worker:
+- `indexer_last_processed_ledger`
+- `indexer_latest_network_ledger`
+- `indexer_ledger_lag`
+- `indexer_total_events_processed`
+- `indexer_last_batch_events_processed`
+- `indexer_last_batch_rate_per_second`
+- `indexer_total_errors`
+- `indexer_rpc_retries_total`
+- `indexer_last_loop_duration_ms`
+- `indexer_last_rpc_latency_ms`
+
+Recommended alerts:
+- `indexer_ledger_lag > INDEXER_MAX_LEDGER_LAG` for 2-5 minutes
+- sustained growth in `indexer_rpc_retries_total`
+- `indexer_last_rpc_latency_ms` above provider SLO
+- repeated non-zero `indexer_total_errors`
+
+The dashboard routes already wired for operators are:
+- `/admin/monitoring`
+- `/admin/monitoring/deposit-indexing`
+
+## Docker
+Example service definition:
+
 ```yaml
 services:
-  indexer:
-    image: lance-backend:latest
-    command: ["./backend"] # Assuming binary is at root
+  backend:
+    image: ghcr.io/dxmakers/lance-backend:latest
+    command: ["./backend"]
     environment:
-      - SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/lance
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 10
-        window: 120s
+      DATABASE_URL: postgresql://lance:lance@postgres:5432/lance
+      SOROBAN_RPC_URL: https://soroban-testnet.stellar.org
+      INDEXER_MAX_LEDGER_LAG: "5"
+      INDEXER_IDLE_POLL_MS: "2000"
+      INDEXER_RPC_RATE_LIMIT_MS: "250"
+      INDEXER_RPC_RETRY_MAX_ATTEMPTS: "4"
+      INDEXER_RPC_RETRY_INITIAL_BACKOFF_MS: "500"
+      INDEXER_RPC_RETRY_MAX_BACKOFF_MS: "5000"
+      RUST_LOG: info,backend::indexer=debug
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
 ```
 
----
+Operational notes:
+- keep Postgres and the worker in the same private network
+- use provider-specific rate limits to tune `INDEXER_RPC_RATE_LIMIT_MS`
+- prefer a dedicated RPC endpoint for production traffic
 
-## Scaling Strategies
+## Kubernetes
+Recommended deployment shape:
+- API + worker in the same binary is acceptable for small clusters
+- for higher isolation, run a dedicated worker deployment using the same image and command
+- keep worker replicas at `1` unless you intentionally want active/active idempotent re-processing
 
-### Horizontal Scaling
-The indexer is **idempotent**. Multiple instances can safely run against the same database:
-1. They will compete for the `indexer_state` update.
-2. The `ON CONFLICT DO NOTHING` in `indexed_events` and `deposits` ensures no data duplication.
-3. **Recommendation**: For production, run 2 instances across different availability zones for high availability, not necessarily for throughput (one instance typically handles testnet/mainnet volume easily).
+Example deployment:
 
-### Database Partitioning
-As the `deposits` table grows, consider partitioning by `ledger` number (range partitioning) to keep query performance high.
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lance-indexer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lance-indexer
+  template:
+    metadata:
+      labels:
+        app: lance-indexer
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/dxmakers/lance-backend:latest
+          command: ["./backend"]
+          envFrom:
+            - secretRef:
+                name: lance-backend-env
+          ports:
+            - containerPort: 3001
+          readinessProbe:
+            httpGet:
+              path: /api/health/ready
+              port: 3001
+          livenessProbe:
+            httpGet:
+              path: /api/health/live
+              port: 3001
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+```
 
----
+Scaling guidance:
+- vertical scale first if the worker lags because of DB or decode pressure
+- horizontal scale the API separately from the worker
+- if you run more than one worker, expect duplicate reads but not duplicate writes because inserts are idempotent
 
-## Troubleshooting & Maintenance
+## Recovery Procedures
+### RPC instability or provider throttling
+Symptoms:
+- rising `indexer_rpc_retries_total`
+- frequent rate-limit warnings in tracing logs
+- growing `indexer_ledger_lag`
 
-### 1. Indexer is Lagging
-**Symptoms**: `Sync_Lag > 5` in dashboard.
-**Checks**:
-- Verify RPC endpoint connectivity (`curl -X POST $SOROBAN_RPC_URL ...`).
-- Check database CPU usage.
-- Look for `Indexer error` in logs (indicates retry backoff).
+Actions:
+1. confirm the provider status page / quota
+2. increase `INDEXER_RPC_RATE_LIMIT_MS` if you are too aggressive
+3. increase `INDEXER_RPC_RETRY_MAX_ATTEMPTS` or backoff ceilings if the provider is flaky but healthy
+4. fail over to a secondary RPC endpoint if available
 
-### 2. Manual Re-scan
-If an event was missed or the contract was updated:
-1. Update `last_processed_ledger` in `indexer_state` to a lower value.
-2. The worker will automatically restart from that checkpoint.
+### Manual re-scan
+To replay from a known ledger:
+
 ```sql
-UPDATE indexer_state SET last_processed_ledger = 45000 WHERE id = 1;
+UPDATE indexer_state
+SET last_processed_ledger = 45000, updated_at = NOW()
+WHERE id = 1;
 ```
 
-### 3. Database Corruption/Duplication
-The system uses the Soroban Event ID (`0000000123-0001`) as a primary key. It is physically impossible to have duplicates if the primary key constraint is active.
+Restart the worker or wait for the next loop. Because event writes are idempotent, replaying already-seen ledgers is safe.
 
----
+### Worker restart
+Typical reasons:
+- deploy a new image
+- force a fresh RPC connection
+- rotate credentials / endpoint config
 
-## Monitoring
-- **Dashboard**: `/admin/monitoring/deposit-indexing`
-- **Prometheus Metrics**: `GET /metrics`
-- **Health Check**: `GET /health` (Reports 503 if lagging)
+Kubernetes:
+```bash
+kubectl rollout restart deployment/lance-indexer
+```
+
+Docker:
+```bash
+docker restart lance-backend
+```
+
+## Verification Checklist
+After deploy:
+1. `GET /api/health/ready` returns `200`
+2. `GET /api/sync-status` shows `in_sync: true`
+3. `indexer_latest_network_ledger - indexer_last_processed_ledger <= INDEXER_MAX_LEDGER_LAG`
+4. `indexer_rpc_retries_total` is stable or low
+5. new ledgers appear in the monitoring dashboard within a few seconds

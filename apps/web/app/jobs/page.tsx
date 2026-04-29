@@ -6,18 +6,16 @@ import {
   Briefcase,
   Clock3,
   DollarSign,
-  Filter,
   Layers,
   Plus,
-  Search,
   Shield,
-  SlidersHorizontal,
   Sparkles,
   TrendingUp,
   Users,
   Zap,
 } from "lucide-react";
 import { ShareJobButton } from "@/components/jobs/share-job-button";
+import { JobFilters } from "@/components/jobs/job-filters";
 import { Stars } from "@/components/stars";
 import { EmptyState } from "@/components/ui/empty-state";
 import { JobCardSkeleton } from "@/components/ui/skeleton";
@@ -25,14 +23,6 @@ import { useJobBoard } from "@/hooks/use-job-board";
 import { formatDate, formatUsdc, shortenAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { BoardJob } from "@/hooks/use-job-board";
-
-// ─── Sort options ────────────────────────────────────────────────────────────
-
-const SORT_OPTIONS = [
-  { id: "chronological", label: "Newest", icon: <Clock3 className="h-3.5 w-3.5" /> },
-  { id: "budget", label: "Top Budget", icon: <TrendingUp className="h-3.5 w-3.5" /> },
-  { id: "reputation", label: "Best Client", icon: <Shield className="h-3.5 w-3.5" /> },
-] as const;
 
 // ─── Status config ───────────────────────────────────────────────────────────
 
@@ -292,15 +282,29 @@ function StatsBar({ total, filtered }: { total: number; filtered: number }) {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function JobsPage() {
-  const { jobs, loading, error, query, activeTag, sortBy, availableTags, actions } =
-    useJobBoard();
+  const {
+    paginatedJobs,
+    loading,
+    error,
+    query,
+    activeTag,
+    sortBy,
+    availableTags,
+    minBudget,
+    maxBudget,
+    filterStatus,
+    actions,
+  } = useJobBoard();
 
-  const totalOpen = jobs.length;
+  const totalOpen = paginatedJobs.length;
 
   function resetFilters() {
     actions.setQuery("");
     actions.setActiveTag("all");
     actions.setSortBy("chronological");
+    actions.setMinBudget(undefined);
+    actions.setMaxBudget(undefined);
+    actions.setFilterStatus("all");
   }
 
   return (
@@ -363,101 +367,21 @@ export default function JobsPage() {
       </header>
 
       {/* ── Filter & sort bar ────────────────────────────────────────────── */}
-      <section
-        aria-label="Filter and sort jobs"
-        className="rounded-3xl border border-zinc-800/80 bg-zinc-900/60 p-4 backdrop-blur-sm sm:p-5"
-      >
-        <div className="flex flex-col gap-4">
-          {/* Search + sort row */}
-          <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-            {/* Search */}
-            <label
-              htmlFor="job-search"
-              className={cn(
-                "flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-3",
-                "transition-all duration-150 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/30",
-              )}
-            >
-              <Search className="h-4 w-4 shrink-0 text-zinc-600" aria-hidden="true" />
-              <input
-                id="job-search"
-                type="search"
-                value={query}
-                onChange={(e) => actions.setQuery(e.target.value)}
-                placeholder="Search by title, stack, or client wallet…"
-                className="w-full bg-transparent text-sm text-zinc-200 outline-none placeholder:text-zinc-600"
-                aria-label="Search jobs"
-              />
-              {query && (
-                <button
-                  type="button"
-                  onClick={() => actions.setQuery("")}
-                  className="text-xs text-zinc-600 transition-colors hover:text-zinc-400"
-                  aria-label="Clear search"
-                >
-                  ✕
-                </button>
-              )}
-            </label>
-
-            {/* Sort pills */}
-            <div
-              role="group"
-              aria-label="Sort jobs"
-              className="flex items-center gap-1.5 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-1.5"
-            >
-              <div className="flex items-center gap-1.5 px-2 text-zinc-600">
-                <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-              </div>
-              {SORT_OPTIONS.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => actions.setSortBy(opt.id)}
-                  aria-pressed={sortBy === opt.id}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-150",
-                    sortBy === opt.id
-                      ? "bg-indigo-600 text-white shadow-[0_0_12px_-2px_rgba(99,102,241,0.5)]"
-                      : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300",
-                  )}
-                >
-                  {opt.icon}
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Tag filter row */}
-          <div
-            role="group"
-            aria-label="Filter by tag"
-            className="flex flex-wrap items-center gap-2"
-          >
-            <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-600">
-              <Filter className="h-3 w-3" aria-hidden="true" />
-              Filter
-            </span>
-            {availableTags.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => actions.setActiveTag(tag)}
-                aria-pressed={activeTag === tag}
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs font-semibold capitalize transition-all duration-150",
-                  activeTag === tag
-                    ? "border-indigo-500/40 bg-indigo-500/15 text-indigo-300 shadow-[0_0_10px_-2px_rgba(99,102,241,0.3)]"
-                    : "border-zinc-800 bg-zinc-900/60 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300",
-                )}
-              >
-                {tag === "all" ? "All Jobs" : tag}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
+      <JobFilters
+        query={query}
+        setQuery={actions.setQuery}
+        activeTag={activeTag}
+        setActiveTag={actions.setActiveTag}
+        sortBy={sortBy}
+        setSortBy={actions.setSortBy}
+        availableTags={availableTags as string[]}
+        minBudget={minBudget}
+        setMinBudget={actions.setMinBudget}
+        maxBudget={maxBudget}
+        setMaxBudget={actions.setMaxBudget}
+        filterStatus={filterStatus}
+        setFilterStatus={actions.setFilterStatus}
+      />
 
       {/* ── Error banner ─────────────────────────────────────────────────── */}
       {error && (
@@ -476,7 +400,7 @@ export default function JobsPage() {
       {/* ── Results header ───────────────────────────────────────────────── */}
       {!loading && (
         <div className="flex items-center justify-between gap-4">
-          <StatsBar total={totalOpen} filtered={jobs.length} />
+          <StatsBar total={totalOpen} filtered={paginatedJobs.length} />
           {(query || activeTag !== "all") && (
             <button
               type="button"
@@ -493,9 +417,9 @@ export default function JobsPage() {
       <main aria-label="Job listings">
         {loading ? (
           <SkeletonGrid />
-        ) : jobs.length > 0 ? (
+        ) : paginatedJobs.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {jobs.map((job) => (
+            {paginatedJobs.map((job: BoardJob) => (
               <JobCard key={job.id} job={job} />
             ))}
           </div>
@@ -523,7 +447,7 @@ export default function JobsPage() {
       </main>
 
       {/* ── Bottom CTA ───────────────────────────────────────────────────── */}
-      {!loading && jobs.length > 0 && (
+      {!loading && paginatedJobs.length > 0 && (
         <footer className="relative overflow-hidden rounded-3xl border border-zinc-800/80 bg-zinc-900/60 p-6 backdrop-blur-sm sm:p-8">
           <div
             className="pointer-events-none absolute inset-0"
