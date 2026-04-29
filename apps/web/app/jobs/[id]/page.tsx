@@ -474,6 +474,8 @@ export default function JobDetailsPage() {
             </div>
           </div>
         </div>
+          ) : null}
+        </div>
       </section>
     </SiteShell>
   );
