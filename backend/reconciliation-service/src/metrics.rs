@@ -14,11 +14,22 @@ impl Metrics {
     pub fn new() -> anyhow::Result<Self> {
         let registry = Registry::new();
 
-        let processed_ledgers_total = IntCounter::new("processed_ledgers_total", "Total number of ledgers processed")?;
-        let processing_errors_total = IntCounter::new("processing_errors_total", "Total number of processing errors")?;
-        let latest_ledger_gauge = IntGauge::new("latest_ledger", "Latest ledger observed from Stellar RPC")?;
-        let checkpoint_ledger_gauge = IntGauge::new("checkpoint_ledger", "Last processed ledger checkpoint")?;
-        let ledger_lag_gauge = IntGauge::new("ledger_lag", "Difference between latest ledger and checkpoint")?;
+        let processed_ledgers_total = IntCounter::new(
+            "processed_ledgers_total",
+            "Total number of ledgers processed",
+        )?;
+        let processing_errors_total = IntCounter::new(
+            "processing_errors_total",
+            "Total number of processing errors",
+        )?;
+        let latest_ledger_gauge =
+            IntGauge::new("latest_ledger", "Latest ledger observed from Stellar RPC")?;
+        let checkpoint_ledger_gauge =
+            IntGauge::new("checkpoint_ledger", "Last processed ledger checkpoint")?;
+        let ledger_lag_gauge = IntGauge::new(
+            "ledger_lag",
+            "Difference between latest ledger and checkpoint",
+        )?;
 
         registry.register(Box::new(processed_ledgers_total.clone()))?;
         registry.register(Box::new(processing_errors_total.clone()))?;
@@ -40,7 +51,8 @@ impl Metrics {
         self.processed_ledgers_total.inc();
         self.checkpoint_ledger_gauge.set(checkpoint_ledger);
         self.latest_ledger_gauge.set(latest_ledger);
-        self.ledger_lag_gauge.set(latest_ledger.saturating_sub(checkpoint_ledger));
+        self.ledger_lag_gauge
+            .set(latest_ledger.saturating_sub(checkpoint_ledger));
     }
 
     pub fn record_error(&self) {

@@ -26,7 +26,9 @@ struct JsonRpcResponse {
 impl StellarRpcClient {
     pub fn new(endpoint: String, retry: RetryConfig) -> anyhow::Result<Self> {
         Ok(Self {
-            http: reqwest::Client::builder().timeout(Duration::from_secs(30)).build()?,
+            http: reqwest::Client::builder()
+                .timeout(Duration::from_secs(30))
+                .build()?,
             endpoint: endpoint.parse()?,
             retry,
         })
@@ -47,11 +49,14 @@ impl StellarRpcClient {
             return Ok(sequence);
         }
 
-        Err(anyhow::anyhow!("unexpected latest ledger response shape: {response}"))
+        Err(anyhow::anyhow!(
+            "unexpected latest ledger response shape: {response}"
+        ))
     }
 
     pub async fn fetch_ledger(&self, sequence: i64) -> anyhow::Result<Value> {
-        self.request("getLedger", json!({ "sequence": sequence })).await
+        self.request("getLedger", json!({ "sequence": sequence }))
+            .await
     }
 
     async fn request(&self, method: &str, params: Value) -> anyhow::Result<Value> {
@@ -66,7 +71,12 @@ impl StellarRpcClient {
                 "params": params.clone(),
             });
 
-            let result = self.http.post(self.endpoint.clone()).json(&body).send().await;
+            let result = self
+                .http
+                .post(self.endpoint.clone())
+                .json(&body)
+                .send()
+                .await;
 
             match result {
                 Ok(response) if response.status().is_success() => {
@@ -82,11 +92,17 @@ impl StellarRpcClient {
                 }
                 Ok(response) if should_retry_status(response.status()) => {
                     if attempt >= self.retry.max_attempts {
-                        return Err(anyhow::anyhow!("rpc request {method} failed after {attempt} attempts with status {}", response.status()));
+                        return Err(anyhow::anyhow!(
+                            "rpc request {method} failed after {attempt} attempts with status {}",
+                            response.status()
+                        ));
                     }
                 }
                 Ok(response) => {
-                    return Err(anyhow::anyhow!("rpc request {method} failed with status {}", response.status()));
+                    return Err(anyhow::anyhow!(
+                        "rpc request {method} failed with status {}",
+                        response.status()
+                    ));
                 }
                 Err(error) => {
                     if attempt >= self.retry.max_attempts {

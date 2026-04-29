@@ -7,7 +7,14 @@ mod routes;
 mod rpc;
 mod worker;
 
-use crate::{config::Config, metrics::Metrics, models::SyncSnapshot, repository::Repository, rpc::{RetryConfig, StellarRpcClient}, worker::{spawn, WorkerContext}};
+use crate::{
+    config::Config,
+    metrics::Metrics,
+    models::SyncSnapshot,
+    repository::Repository,
+    rpc::{RetryConfig, StellarRpcClient},
+    worker::{spawn, WorkerContext},
+};
 use axum::Router;
 use std::sync::Arc;
 use tokio::sync::RwLock;

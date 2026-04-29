@@ -25,7 +25,8 @@ impl Config {
             bind_addr: parse_socket_addr("BIND_ADDR", "0.0.0.0:3000")?,
             database_url: required("DATABASE_URL")?,
             rpc_url: required("STELLAR_RPC_URL")?,
-            service_name: env::var("SERVICE_NAME").unwrap_or_else(|_| "reconciliation-service".to_string()),
+            service_name: env::var("SERVICE_NAME")
+                .unwrap_or_else(|_| "reconciliation-service".to_string()),
             poll_interval: Duration::from_secs(parse_u64("POLL_INTERVAL_SECS", 5)?),
             retry: RetryConfig {
                 max_attempts: parse_u32("RPC_MAX_ATTEMPTS", 5)?,
@@ -37,7 +38,8 @@ impl Config {
 }
 
 fn required(name: &str) -> anyhow::Result<String> {
-    Ok(env::var(name).map_err(|_| anyhow::anyhow!("missing required environment variable: {name}"))?)
+    Ok(env::var(name)
+        .map_err(|_| anyhow::anyhow!("missing required environment variable: {name}"))?)
 }
 
 fn parse_socket_addr(name: &str, default: &str) -> anyhow::Result<SocketAddr> {
@@ -47,14 +49,18 @@ fn parse_socket_addr(name: &str, default: &str) -> anyhow::Result<SocketAddr> {
 
 fn parse_u64(name: &str, default: u64) -> anyhow::Result<u64> {
     match env::var(name) {
-        Ok(raw) => Ok(raw.parse::<u64>().map_err(|error| anyhow::anyhow!("invalid {name}: {error}"))?),
+        Ok(raw) => Ok(raw
+            .parse::<u64>()
+            .map_err(|error| anyhow::anyhow!("invalid {name}: {error}"))?),
         Err(_) => Ok(default),
     }
 }
 
 fn parse_u32(name: &str, default: u32) -> anyhow::Result<u32> {
     match env::var(name) {
-        Ok(raw) => Ok(raw.parse::<u32>().map_err(|error| anyhow::anyhow!("invalid {name}: {error}"))?),
+        Ok(raw) => Ok(raw
+            .parse::<u32>()
+            .map_err(|error| anyhow::anyhow!("invalid {name}: {error}"))?),
         Err(_) => Ok(default),
     }
 }

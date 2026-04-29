@@ -1,4 +1,7 @@
-use crate::{models::{HealthResponse, SyncStatus}, AppState};
+use crate::{
+    models::{HealthResponse, SyncStatus},
+    AppState,
+};
 use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
 use std::sync::Arc;
 
@@ -11,7 +14,10 @@ pub fn router(state: Arc<AppState>) -> Router {
 
 async fn health(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let snapshot = state.snapshot.read().await.clone();
-    let healthy = matches!(snapshot.status, SyncStatus::Synced | SyncStatus::CatchingUp | SyncStatus::Starting);
+    let healthy = matches!(
+        snapshot.status,
+        SyncStatus::Synced | SyncStatus::CatchingUp | SyncStatus::Starting
+    );
 
     let response = HealthResponse {
         status: snapshot.status,
@@ -31,7 +37,11 @@ async fn metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
         Ok(body) => (StatusCode::OK, body).into_response(),
         Err(error) => {
             tracing::error!(error = %error, "failed to render metrics");
-            (StatusCode::INTERNAL_SERVER_ERROR, "failed to render metrics").into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "failed to render metrics",
+            )
+                .into_response()
         }
     }
 }

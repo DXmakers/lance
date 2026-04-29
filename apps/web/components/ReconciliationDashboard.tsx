@@ -18,7 +18,7 @@ type ThroughputPoint = { t: string; indexed: number };
 type ResourcePoint = { t: string; cpu: number; mem: number };
 type EventRow = { id: number; ledger: string; event: string; ts: string };
 
-export default function ReconciliationDashboard(): JSX.Element {
+export default function ReconciliationDashboard(): React.ReactElement {
     const [throughput, setThroughput] = useState<ThroughputPoint[]>(() => seedThroughput());
     const [resources, setResources] = useState<ResourcePoint[]>(() => seedResources());
     const [events, setEvents] = useState<EventRow[]>(() => seedEvents());
