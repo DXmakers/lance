@@ -9,9 +9,7 @@ use serde_json::{json, Value};
 use std::sync::atomic::Ordering;
 
 use crate::db::AppState;
-use crate::storage_audit::{
-    metrics, StorageAnomaly, StorageAuditConfig, StorageAuditor,
-};
+use crate::storage_audit::{metrics, StorageAnomaly, StorageAuditConfig, StorageAuditor};
 
 pub fn router() -> Router<AppState> {
     Router::new()
