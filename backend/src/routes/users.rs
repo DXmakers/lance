@@ -1,8 +1,5 @@
 use axum::{
-    extract::Extension,
-    extract::{Path, State},
-    handler::Handler,
-    middleware,
+    extract::{Extension, Path, State},
     routing::get,
     Json, Router,
 };

@@ -1,7 +1,7 @@
 use axum::http::HeaderMap;
 use axum::{
     extract::{Path, State},
-    routing::{delete, get, post},
+    routing::{get, post},
     Json, Router,
 };
 use uuid::Uuid;
@@ -11,7 +11,7 @@ use crate::{
     error::{AppError, Result},
     models::{CreateJobRequest, Job, MarkJobFundedRequest},
     routes::{bids, deliverables, milestones},
-    services::metadata,
+    services::metadata::{store_bid_metadata, retrieve_bid_metadata},
 };
 
 pub fn router() -> Router<AppState> {

@@ -328,3 +328,28 @@ pub struct SavedJob {
 pub struct SaveJobRequest {
     pub note: Option<String>,
 }
+
+// ── Auth ───────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+pub struct AuthChallengeRequest {
+    pub address: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AuthChallengeResponse {
+    pub address: String,
+    pub challenge: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AuthVerifyRequest {
+    pub address: String,
+    pub signature: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AuthVerifyResponse {
+    pub address: String,
+    pub token: String,
+}

@@ -32,7 +32,7 @@ pub fn api_router(state: AppState) -> Router<AppState> {
                 .nest("/activity", activity::router())
                 .nest("/disputes", disputes::router())
                 .nest("/appeals", appeals::router())
-                .nest("/users", users::router(state))
+                .nest("/users", users::router())
                 .nest("/auth", auth::router())
                 .nest("/uploads", uploads::router())
                 .nest("/admin", admin::router()),
