@@ -152,6 +152,5 @@ pub async fn accept_bid(
 
     // Commit transaction
     tx.commit().await?;
-
     Ok(Json(job))
 }
