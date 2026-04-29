@@ -98,7 +98,7 @@ export function SaveJobButton({ jobId }: { jobId: string }) {
       });
     } catch (e) {
       if (e instanceof z.ZodError) {
-        setValidationError(e.errors[0].message);
+        setValidationError(e.issues[0].message);
       }
     }
   };
