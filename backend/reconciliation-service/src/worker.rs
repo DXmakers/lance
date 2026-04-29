@@ -80,7 +80,6 @@ mod tests {
     use crate::{db, repository::Repository, rpc::RetryConfig};
     use serde_json::json;
     use std::time::Duration;
-    use tokio::time::sleep;
     use wiremock::matchers::{body_string_contains, method};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
