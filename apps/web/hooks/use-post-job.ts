@@ -16,8 +16,8 @@
  *   5. Marks the off-chain job as funded on confirmation
  */
 
-import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useMutation } from "@tanstack/react-query";
 import { postJobAuto, type PostJobResult, type LifecycleListener } from "@/lib/job-registry";
 import { useTxStatusStore } from "@/lib/store/use-tx-status-store";
 import { useTransactionToast } from "@/hooks/use-transaction-toast";
@@ -38,14 +38,11 @@ export interface PostJobInput {
 
 export function usePostJob() {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
   const { setStep, setTxHash, setUnsignedXdr, setSignedXdr, setSimulation, reset } = useTxStatusStore();
   const { showLoading, updateToSuccess, updateToError } = useTransactionToast();
 
-  const submit = useCallback(
-    async (input: PostJobInput) => {
-      setIsSubmitting(true);
+  const mutation = useMutation({
+    mutationFn: async (input: PostJobInput) => {
       reset();
 
       let loadingToast: ReturnType<typeof showLoading> | null = null;
@@ -106,7 +103,7 @@ export function usePostJob() {
         // Build lifecycle listener that updates store + toasts
         const onStep: LifecycleListener = (step, detail, metadata) => {
           setStep(step, detail);
-          
+
           if (metadata?.rawXdr) {
             if (step === "building" || step === "simulating") {
               setUnsignedXdr(metadata.rawXdr);
@@ -173,26 +170,12 @@ export function usePostJob() {
           error instanceof Error ? error.message : "An unexpected error occurred",
         );
         throw error;
-      } finally {
-        setIsSubmitting(false);
       }
     },
-    [
-      reset,
-      setStep,
-      setTxHash,
-      setUnsignedXdr,
-      setSignedXdr,
-      setSimulation,
-      showLoading,
-      updateToSuccess,
-      updateToError,
-      router,
-    ],
-  );
+  });
 
   return {
-    submit,
-    isSubmitting,
+    submit: mutation.mutateAsync,
+    isSubmitting: mutation.isPending,
   };
 }
