@@ -200,7 +200,7 @@ async fn get_saved_jobs(
         r#"SELECT id, job_id, user_address, note, created_at
            FROM saved_jobs
            WHERE user_address = $1
-           ORDER BY created_at DESC"#
+           ORDER BY created_at DESC"#,
     )
     .bind(address)
     .fetch_all(&state.pool)

@@ -1,9 +1,9 @@
+use axum::http::HeaderMap;
 use axum::{
     extract::{Path, State},
-    routing::{get, post, delete},
+    routing::{delete, get, post},
     Json, Router,
 };
-use axum::http::HeaderMap;
 use uuid::Uuid;
 
 use crate::{
@@ -203,7 +203,7 @@ async fn save_job(
         r#"INSERT INTO saved_jobs (job_id, user_address, note)
            VALUES ($1, $2, $3)
            ON CONFLICT (job_id, user_address) DO UPDATE SET note = EXCLUDED.note
-           RETURNING id, job_id, user_address, note, created_at"#
+           RETURNING id, job_id, user_address, note, created_at"#,
     )
     .bind(job_id)
     .bind(user_address)
