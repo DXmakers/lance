@@ -38,9 +38,8 @@ impl Config {
 }
 
 fn required(name: &str) -> anyhow::Result<String> {
-    Ok(env::var(name)
-        .map_err(|_| anyhow::anyhow!("missing required environment variable: {name}"))?)
-}
+    env::var(name)
+        .map_err(|_| anyhow::anyhow!("missing required environment variable: {name}"))
 
 fn parse_socket_addr(name: &str, default: &str) -> anyhow::Result<SocketAddr> {
     let value = env::var(name).unwrap_or_else(|_| default.to_string());
