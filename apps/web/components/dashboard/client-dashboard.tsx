@@ -1,8 +1,8 @@
 "use client";
 
 import { useJobBoard } from "@/hooks/use-job-board";
-import { useAuthStore } from "@/lib/store/use-auth-store";
 import { formatUsdc } from "@/lib/format";
+import { Button } from "@/components/ui/button";
 import { 
   PlusCircle, 
   Users, 
@@ -14,12 +14,12 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import Link from "next/link";
+import { ActivityLogList } from "@/components/activity-log";
 
 export function ClientDashboard() {
   const { jobs, loading } = useJobBoard();
-  const { user } = useAuthStore();
 
   // In a real app, we'd filter by user.address. 
   // For the demo, we'll show some "Client" specific metrics based on the mock data.
@@ -105,30 +105,11 @@ export function ClientDashboard() {
         <div className="space-y-6">
           <Card className="border-border/60 bg-background/50 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="text-lg font-bold">Trusted Talent</CardTitle>
-              <CardDescription>Verified counter-parties</CardDescription>
+              <CardTitle className="text-lg font-bold">Recent Activity</CardTitle>
+              <CardDescription>Real-time updates</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { name: "Tolu A.", rating: "4.9", jobs: 12, avatar: "TA" },
-                { name: "Elena R.", rating: "5.0", jobs: 8, avatar: "ER" },
-                { name: "Marcus V.", rating: "4.8", jobs: 15, avatar: "MV" },
-              ].map((talent) => (
-                <div key={talent.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary border border-primary/20">
-                      {talent.avatar}
-                    </div>
-                    <span className="text-sm font-medium">{talent.name}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold">{talent.rating}</span>
-                    <Badge variant="secondary" className="text-[9px] px-1.5 py-0 rounded-md">
-                      {talent.jobs} jobs
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+            <CardContent className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+              <ActivityLogList />
             </CardContent>
           </Card>
 
@@ -151,5 +132,3 @@ export function ClientDashboard() {
     </div>
   );
 }
-
-import { Button } from "@/components/ui/button";

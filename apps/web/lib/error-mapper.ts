@@ -120,6 +120,82 @@ const STELLAR_ERROR_MAP: Record<string, ErrorToast> = {
     title: "Not Sponsored",
     description: "The entry is not sponsored by any account.",
   },
+
+  // ── Job Registry contract errors ─────────────────────────────────────────
+  "AlreadyInitialized": {
+    title: "Contract Already Initialized",
+    description: "The job registry contract has already been initialized.",
+  },
+  "NotInitialized": {
+    title: "Contract Not Initialized",
+    description: "The job registry contract has not been initialized. Contact the admin.",
+  },
+  "InvalidJobId": {
+    title: "Invalid Job ID",
+    description: "The provided job ID is invalid. Job IDs must be positive integers.",
+  },
+  "InvalidBudget": {
+    title: "Invalid Budget",
+    description: "The budget must be greater than zero.",
+  },
+  "InvalidHash": {
+    title: "Invalid Metadata Hash",
+    description: "The metadata hash is empty or exceeds the maximum allowed length.",
+  },
+  "JobAlreadyExists": {
+    title: "Job Already Exists",
+    description: "A job with this ID already exists on-chain. Try again with a different ID.",
+  },
+  "JobNotFound": {
+    title: "Job Not Found",
+    description: "The specified job does not exist on-chain.",
+  },
+  "JobNotOpen": {
+    title: "Job Not Open",
+    description: "This job is no longer accepting bids.",
+  },
+  "Unauthorized": {
+    title: "Unauthorized",
+    description: "You are not authorized to perform this action on this job.",
+  },
+  "BidAlreadySubmitted": {
+    title: "Bid Already Submitted",
+    description: "You have already submitted a bid for this job.",
+  },
+  "BidNotFound": {
+    title: "Bid Not Found",
+    description: "The specified bid could not be found for this job.",
+  },
+  "InvalidStateTransition": {
+    title: "Invalid State Transition",
+    description: "This action is not allowed in the current job state.",
+  },
+  "NoDeliverable": {
+    title: "No Deliverable",
+    description: "No deliverable has been submitted for this job.",
+  },
+  "Overflow": {
+    title: "Arithmetic Overflow",
+    description: "An arithmetic overflow occurred. The values may be too large.",
+  },
+
+  // ── Simulation / pipeline errors ─────────────────────────────────────────
+  "Simulation failed": {
+    title: "Simulation Failed",
+    description: "The transaction simulation failed. Check the contract parameters and try again.",
+  },
+  "Confirmation timed out": {
+    title: "Confirmation Timeout",
+    description: "The transaction was submitted but not confirmed in time. Check the explorer for status.",
+  },
+  "Transaction submission failed": {
+    title: "Submission Failed",
+    description: "The transaction was rejected by the network. Please try again.",
+  },
+  "Transaction failed on-chain": {
+    title: "On-Chain Failure",
+    description: "The transaction was included but execution failed on-chain.",
+  },
 };
 
 const BACKEND_ERROR_MAP: Record<string, ErrorToast> = {
@@ -263,4 +339,50 @@ export function mapBackendError(statusCode: number, message?: string): ErrorToas
     title: "Request Failed",
     description: message || `Request failed with status ${statusCode}`,
   };
+}
+
+/**
+ * Detect insufficient-balance errors across every layer the wallet/SDK can
+ * surface them (Horizon transaction codes, Soroban operation codes, raw
+ * simulation strings, generic "underfunded" messages). Used by the UI to
+ * branch into the dedicated `InsufficientBalanceAlert` recovery view (#179).
+ */
+const INSUFFICIENT_BALANCE_MARKERS = [
+  "tx_insufficient_balance",
+  "op_underfunded",
+  "insufficient balance",
+  "insufficient funds",
+  "underfunded",
+  "balance below",
+] as const;
+
+export function isInsufficientBalanceError(error: unknown): boolean {
+  const haystack = collectErrorStrings(error).map((s) => s.toLowerCase());
+  return haystack.some((s) =>
+    INSUFFICIENT_BALANCE_MARKERS.some((marker) => s.includes(marker.toLowerCase())),
+  );
+}
+
+function collectErrorStrings(error: unknown): string[] {
+  const out: string[] = [];
+  if (typeof error === "string") {
+    out.push(error);
+    return out;
+  }
+  if (error instanceof Error) {
+    out.push(error.message);
+  }
+  const stellarError = error as StellarError;
+  const codes = stellarError.response?.data?.extras?.result_codes;
+  if (codes) {
+    if (typeof codes.transaction === "string") {
+      out.push(codes.transaction);
+    } else if (Array.isArray(codes.transaction)) {
+      out.push(...codes.transaction);
+    }
+    if (codes.operations) {
+      out.push(...codes.operations);
+    }
+  }
+  return out;
 }

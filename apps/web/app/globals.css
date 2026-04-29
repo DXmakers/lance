@@ -1,74 +1,53 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f4f4f5;
-  --foreground: #18181b;
-  --card: #ffffff;
-  --card-foreground: #18181b;
-  --muted: #e4e4e7;
-  --muted-foreground: #3f3f46;
-  --border: #d4d4d8;
-  --input: #d4d4d8;
-  --primary: #27272a;
-  --primary-foreground: #fafafa;
-  --accent: #e4e4e7;
-  --accent-foreground: #18181b;
-  --ring: #27272a;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --font-geist-sans:
-    Inter, "Segoe UI", "Helvetica Neue", Arial, ui-sans-serif, system-ui, sans-serif;
-  --font-geist-mono:
-    "SFMono-Regular", "Cascadia Code", "Fira Code", Consolas, ui-monospace,
-    monospace;
+@theme inline {
+  --color-background: #09090b; /* zinc-950 */
+  --color-foreground: #fafafa; /* zinc-50 */
+  
+  --color-primary: #6366f1;    /* indigo-500 */
+  --color-primary-foreground: #ffffff;
+  
+  --color-muted: #18181b;      /* zinc-900 */
+  --color-muted-foreground: #a1a1aa; /* zinc-400 */
+  
+  --color-border: #27272a;     /* zinc-800 */
+  --color-input: #27272a;
+  
+  --radius-xl: 12px;
+  --radius-lg: 10px;
+  --radius-md: 8px;
+  --radius-sm: 4px;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
 }
 
-.dark {
+:root {
   --background: #09090b;
   --foreground: #fafafa;
-  --card: #18181b;
-  --card-foreground: #fafafa;
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
+  --primary: #6366f1;
   --border: #27272a;
-  --input: #27272a;
-  --primary: #fafafa;
-  --primary-foreground: #18181b;
-  --accent: #27272a;
-  --accent-foreground: #fafafa;
-  --ring: #fafafa;
-  --success: #22c55e;
-  --warning: #f59e0b;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-ring: var(--ring);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-* {
-  border-color: var(--border);
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glass effect for shells and cards */
+.glass-surface {
+  background: rgba(24, 24, 27, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(39, 39, 42, 0.5);
+}
+
+.transition-smooth {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 button,
@@ -76,7 +55,7 @@ a,
 input,
 textarea,
 select {
-  transition-duration: 150ms;
+  transition-duration: 200ms;
   transition-property: color, background-color, border-color, box-shadow, opacity, transform;
   transition-timing-function: ease;
 }
@@ -84,6 +63,52 @@ select {
 :focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+/* Responsive design utilities */
+@media (max-width: 640px) {
+  .responsive-text-xs {
+    font-size: 0.625rem;
+    line-height: 0.75rem;
+  }
+  
+  .responsive-text-sm {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  
+  .responsive-gap {
+    gap: 0.5rem;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --border: #000000;
+    --ring: #ffffff;
+  }
+  
+  .dark {
+    --border: #ffffff;
+    --ring: #000000;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    transition: none;
+  }
+  
+  .animate-spin,
+  .animate-pulse {
+    animation: none;
+  }
 }
 
 .glass-surface {
