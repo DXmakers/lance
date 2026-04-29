@@ -6,7 +6,7 @@
  * - Monospace styling for hashes and XDR blobs
  * - Collapsible dev panel for raw XDR and simulation logs
  * - Accessible: uses role="status", aria-live, and aria-current
- * - Matches the project's zinc/indigo dark-mode design language
+ * - Presents fee/resource data in a compact technical layout
  */
 
 "use client";
@@ -35,7 +35,7 @@ export interface TransactionPipelineProps {
   unsignedXdr?: string | null;
   /** Dev-only: signed XDR */
   signedXdr?: string | null;
-  /** Dev-only: simulation diagnostics */
+  /** Simulation diagnostics from the Soroban preflight step */
   simulationLog?: SimulationLog | null;
   className?: string;
 }
@@ -106,7 +106,7 @@ function StepIcon({ status }: StepIconProps) {
   if (status === "active") {
     return (
       <Loader2
-        className="h-5 w-5 animate-spin text-indigo-400"
+        className="h-5 w-5 animate-spin text-zinc-100"
         aria-hidden="true"
       />
     );
@@ -163,7 +163,7 @@ function HashDisplay({ label, value, explorerUrl }: HashDisplayProps) {
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`View ${label} on Stellar Explorer`}
-              className="rounded p-0.5 text-zinc-500 transition-colors hover:text-indigo-400"
+              className="rounded p-0.5 text-zinc-500 transition-colors hover:text-emerald-300"
             >
               <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
             </a>
@@ -176,6 +176,91 @@ function HashDisplay({ label, value, explorerUrl }: HashDisplayProps) {
 
 interface SimLogPanelProps {
   log: SimulationLog;
+}
+
+function formatStroops(value: string): string {
+  const stroops = Number(value);
+  if (!Number.isFinite(stroops)) {
+    return `${value} stroops`;
+  }
+
+  return `${(stroops / 10_000_000).toFixed(7)} XLM`;
+}
+
+function FeeBreakdownPanel({ log }: SimLogPanelProps) {
+  return (
+    <div className="mt-4 rounded-xl border border-zinc-800 bg-black/40 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-500">
+            Fee Breakdown
+          </p>
+          <p className="mt-1 text-xs text-zinc-400">
+            Simulation-derived fees and Soroban resource usage before signature.
+          </p>
+        </div>
+        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-emerald-300">
+          Simulated
+        </span>
+      </div>
+
+      <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <FeeMetric label="Base Fee" value={formatStroops(log.baseFee)} detail={`${log.baseFee} stroops`} />
+        <FeeMetric
+          label="Resource Fee"
+          value={formatStroops(log.resourceFee)}
+          detail={`${log.resourceFee} stroops`}
+        />
+        <FeeMetric
+          label="Estimated Total"
+          value={formatStroops(log.estimatedTotalFee)}
+          detail={`${log.estimatedTotalFee} stroops`}
+          emphasis
+        />
+        <FeeMetric label="CPU" value={log.cpuInsns} detail="instructions" />
+        <FeeMetric label="Memory" value={log.memBytes} detail="bytes" />
+        <FeeMetric
+          label="Ledger I/O"
+          value={`${log.readBytes}/${log.writeBytes}`}
+          detail="read/write bytes"
+        />
+      </dl>
+    </div>
+  );
+}
+
+function FeeMetric({
+  label,
+  value,
+  detail,
+  emphasis = false,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border px-3 py-2.5",
+        emphasis
+          ? "border-emerald-500/20 bg-emerald-500/5"
+          : "border-zinc-800 bg-zinc-950/70",
+      )}
+    >
+      <dt className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">{label}</dt>
+      <dd
+        className={cn(
+          "mt-1 font-mono text-sm",
+          emphasis ? "text-emerald-200" : "text-zinc-100",
+        )}
+      >
+        {value}
+      </dd>
+      <dd className="mt-1 text-[11px] text-zinc-500">{detail}</dd>
+    </div>
+  );
 }
 
 function SimLogPanel({ log }: SimLogPanelProps) {
@@ -204,7 +289,9 @@ function SimLogPanel({ log }: SimLogPanelProps) {
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
             <SimLogRow label="CPU Instructions" value={log.cpuInsns} />
             <SimLogRow label="Memory Bytes" value={log.memBytes} />
-            <SimLogRow label="Min Resource Fee" value={`${log.minResourceFee} stroops`} />
+            <SimLogRow label="Base Fee" value={`${log.baseFee} stroops`} />
+            <SimLogRow label="Resource Fee" value={`${log.resourceFee} stroops`} />
+            <SimLogRow label="Estimated Total" value={`${log.estimatedTotalFee} stroops`} />
             <SimLogRow label="Read Bytes" value={String(log.readBytes)} />
             <SimLogRow label="Write Bytes" value={String(log.writeBytes)} />
           </dl>
@@ -308,13 +395,13 @@ export function TransactionPipeline({
       aria-live="polite"
       aria-label="Transaction pipeline progress"
       className={cn(
-        "rounded-2xl border border-zinc-800 bg-zinc-950/80 p-5 shadow-[0_20px_60px_-40px_rgba(79,70,229,0.5)] backdrop-blur-sm",
+        "rounded-2xl border border-zinc-800 bg-zinc-950/90 p-5 shadow-[0_24px_80px_-48px_rgba(0,0,0,0.8)] backdrop-blur-sm",
         className,
       )}
     >
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-[10px] uppercase tracking-[0.18em] text-indigo-300">
+        <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-400">
           Transaction Pipeline
         </p>
         {isSuccess && (
@@ -358,7 +445,7 @@ export function TransactionPipeline({
               aria-current={isActive ? "step" : undefined}
               className={cn(
                 "flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors duration-200",
-                isActive && "bg-indigo-500/10",
+                isActive && "bg-zinc-900",
                 isDone && "opacity-70",
                 isPending && "opacity-40",
                 isStepError && "bg-red-500/10",
@@ -372,7 +459,7 @@ export function TransactionPipeline({
                   className={cn(
                     "text-sm font-semibold",
                     isDone && "text-zinc-300",
-                    isActive && "text-indigo-200",
+                    isActive && "text-zinc-100",
                     isPending && "text-zinc-500",
                     isStepError && "text-red-300",
                   )}
@@ -397,7 +484,7 @@ export function TransactionPipeline({
               ? "border border-red-500/30 bg-red-500/10 text-red-300"
               : isSuccess
                 ? "border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                : "border border-indigo-500/20 bg-indigo-500/10 text-indigo-200",
+                : "border border-zinc-700 bg-zinc-900 text-zinc-200",
           )}
         >
           {message}
@@ -419,6 +506,8 @@ export function TransactionPipeline({
           explorerUrl={`${EXPLORER_BASE}/${txHash}`}
         />
       )}
+
+      {simulationLog && <FeeBreakdownPanel log={simulationLog} />}
 
       {/* Dev panel — only rendered outside production */}
       {isDev && (unsignedXdr || signedXdr || simulationLog) && (

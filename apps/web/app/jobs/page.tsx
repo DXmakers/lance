@@ -6,18 +6,16 @@ import {
   Briefcase,
   Clock3,
   DollarSign,
-  Filter,
   Layers,
   Plus,
-  Search,
   Shield,
-  SlidersHorizontal,
   Sparkles,
   TrendingUp,
   Users,
   Zap,
 } from "lucide-react";
 import { ShareJobButton } from "@/components/jobs/share-job-button";
+import { JobFilters } from "@/components/jobs/job-filters";
 import { Stars } from "@/components/stars";
 import { EmptyState } from "@/components/ui/empty-state";
 import { JobCardSkeleton } from "@/components/ui/skeleton";
@@ -25,14 +23,6 @@ import { useJobBoard } from "@/hooks/use-job-board";
 import { formatDate, formatUsdc, shortenAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { BoardJob } from "@/hooks/use-job-board";
-
-// ─── Sort options ────────────────────────────────────────────────────────────
-
-const SORT_OPTIONS = [
-  { id: "chronological", label: "Newest", icon: <Clock3 className="h-3 w-3" /> },
-  { id: "budget", label: "Budget", icon: <TrendingUp className="h-3 w-3" /> },
-  { id: "reputation", label: "Reputation", icon: <Shield className="h-3 w-3" /> },
-] as const;
 
 // ─── Status config ───────────────────────────────────────────────────────────
 
@@ -243,8 +233,30 @@ function JobCard({ job }: { job: BoardJob }) {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function JobsPage() {
-  const { jobs, loading, error, query, activeTag, sortBy, availableTags, actions } =
-    useJobBoard();
+  const {
+    paginatedJobs,
+    loading,
+    error,
+    query,
+    activeTag,
+    sortBy,
+    availableTags,
+    minBudget,
+    maxBudget,
+    filterStatus,
+    actions,
+  } = useJobBoard();
+
+  const totalOpen = paginatedJobs.length;
+
+  function resetFilters() {
+    actions.setQuery("");
+    actions.setActiveTag("all");
+    actions.setSortBy("chronological");
+    actions.setMinBudget(undefined);
+    actions.setMaxBudget(undefined);
+    actions.setFilterStatus("all");
+  }
 
   return (
     <div className="flex min-h-screen flex-col gap-6 bg-zinc-950 p-6 sm:p-8 font-sans">
@@ -281,75 +293,105 @@ export default function JobsPage() {
         </div>
       </div>
 
-      {/* Main Layout */}
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        {/* Sidebar / Filters */}
-        <aside className="flex flex-col gap-6">
-          {/* Search */}
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Search</span>
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-600 transition-colors duration-150 group-focus-within:text-indigo-400" />
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => actions.setQuery(e.target.value)}
-                placeholder="Keywords or address..."
-                className="w-full rounded-[12px] border border-zinc-800 bg-zinc-900/40 py-2.5 pl-9 pr-4 text-xs text-zinc-200 outline-none backdrop-blur-sm transition-all duration-150 focus:border-indigo-500/50 focus:bg-zinc-900/60"
-              />
-            </div>
-          </div>
+      {/* ── Filter & sort bar ────────────────────────────────────────────── */}
+      <JobFilters
+        query={query}
+        setQuery={actions.setQuery}
+        activeTag={activeTag}
+        setActiveTag={actions.setActiveTag}
+        sortBy={sortBy}
+        setSortBy={actions.setSortBy}
+        availableTags={availableTags as string[]}
+        minBudget={minBudget}
+        setMinBudget={actions.setMinBudget}
+        maxBudget={maxBudget}
+        setMaxBudget={actions.setMaxBudget}
+        filterStatus={filterStatus}
+        setFilterStatus={actions.setFilterStatus}
+      />
 
-          {/* Sort */}
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Sort By</span>
-            <div className="flex flex-col gap-1">
-              {SORT_OPTIONS.map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => actions.setSortBy(opt.id)}
-                  className={cn(
-                    "flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-xs font-semibold transition-all duration-150",
-                    sortBy === opt.id
-                      ? "bg-indigo-600/10 text-indigo-400 border border-indigo-500/20"
-                      : "text-zinc-500 hover:bg-zinc-900/60 hover:text-zinc-300 border border-transparent"
-                  )}
-                >
-                  {opt.icon}
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* ── Error banner ─────────────────────────────────────────────────── */}
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-400"
+        >
+          <Zap className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
+          <span>
+            <span className="font-semibold">Live API unavailable</span> — showing
+            resilient mock listings. {error}
+          </span>
+        </div>
+      )}
 
-          {/* Categories */}
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Category</span>
-            <div className="flex flex-wrap gap-2">
-              {availableTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => actions.setActiveTag(tag)}
-                  className={cn(
-                    "rounded-[12px] border px-3 py-1.5 text-xs font-semibold capitalize transition-all duration-150",
-                    activeTag === tag
-                      ? "border-indigo-500/30 bg-indigo-500/10 text-indigo-400"
-                      : "border-zinc-800 bg-zinc-900/40 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
-                  )}
-                >
-                  {tag === "all" ? "Everything" : tag}
-                </button>
-              ))}
-            </div>
-          </div>
-        </aside>
+      {/* ── Results header ───────────────────────────────────────────────── */}
+      {!loading && (
+        <div className="flex items-center justify-between gap-4">
+          <StatsBar total={totalOpen} filtered={paginatedJobs.length} />
+          {(query || activeTag !== "all") && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="text-xs font-semibold text-zinc-500 transition-colors hover:text-zinc-300"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
-        {/* Results Area */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-zinc-500">
-              <span className="text-zinc-300">{jobs.length}</span>
-              <span className="uppercase tracking-widest">Active opportunities</span>
+      {/* ── Job grid ─────────────────────────────────────────────────────── */}
+      <main aria-label="Job listings">
+        {loading ? (
+          <SkeletonGrid />
+        ) : paginatedJobs.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {paginatedJobs.map((job: BoardJob) => (
+              <JobCard key={job.id} job={job} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            tone="dark"
+            icon={<Briefcase className="h-5 w-5" aria-hidden="true" />}
+            title="No jobs matched your filters"
+            description="Try clearing your search or tag filter to surface more opportunities."
+            action={
+              <button
+                type="button"
+                onClick={resetFilters}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-800/60 px-4 py-2",
+                  "text-sm font-semibold text-zinc-300 transition-all duration-150",
+                  "hover:border-zinc-600 hover:text-zinc-100",
+                )}
+              >
+                Reset filters
+              </button>
+            }
+          />
+        )}
+      </main>
+
+      {/* ── Bottom CTA ───────────────────────────────────────────────────── */}
+      {!loading && paginatedJobs.length > 0 && (
+        <footer className="relative overflow-hidden rounded-3xl border border-zinc-800/80 bg-zinc-900/60 p-6 backdrop-blur-sm sm:p-8">
+          <div
+            className="pointer-events-none absolute inset-0"
+            aria-hidden="true"
+            style={{
+              background:
+                "radial-gradient(ellipse 50% 80% at 50% 100%, rgba(99,102,241,0.07) 0%, transparent 70%)",
+            }}
+          />
+          <div className="relative flex flex-col items-center gap-4 text-center sm:flex-row sm:justify-between sm:text-left">
+            <div>
+              <p className="text-sm font-semibold text-zinc-200">
+                Have a project in mind?
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">
+                Post a job brief and let the right freelancer find you.
+              </p>
             </div>
             {error && (
               <div className="flex items-center gap-2 text-[10px] font-bold text-amber-500 uppercase tracking-widest">

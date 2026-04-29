@@ -3,7 +3,7 @@
  *
  * React hook that wraps the Soroban 5-step pipeline and exposes:
  *  - Per-step progress state for UI rendering
- *  - Raw XDR and simulation logs (dev environments only)
+ *  - Raw XDR in dev and simulation diagnostics in all environments
  *  - A typed execute() function that accepts any contract invocation
  *  - Automatic UI state refresh callback on success
  *  - Error state with human-readable messages
@@ -34,7 +34,7 @@ export interface SorobanTransactionState {
   message: string;
   /** Error message if the pipeline failed */
   error: string | null;
-  /** Simulation diagnostics — only populated in non-production builds */
+  /** Simulation diagnostics from the Soroban simulation step */
   simulationLog: SimulationLog | null;
   /** Unsigned transaction XDR — only populated in non-production builds */
   unsignedXdr: string | null;

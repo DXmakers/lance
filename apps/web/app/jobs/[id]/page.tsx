@@ -31,6 +31,8 @@ import {
 import { connectWallet, getConnectedWalletAddress } from "@/lib/stellar";
 
 import { ActivityLogList } from "@/components/activity-log";
+import { TransactionPipeline } from "@/components/blockchain/transaction-pipeline";
+import { useAcceptBid } from "@/hooks/use-accept-bid";
 
 
 export default function JobDetailsPage() {
@@ -38,6 +40,7 @@ export default function JobDetailsPage() {
   const router = useRouter();
 
   const workspace = useLiveJobWorkspace(id);
+  const { accept, transaction: acceptTransaction } = useAcceptBid();
 
   // useLiveJobWorkspace provides data and a `refresh()` helper
   const [viewerAddress, setViewerAddress] = useState<string | null>(null);
@@ -59,14 +62,28 @@ export default function JobDetailsPage() {
   
   async function handleAcceptBid(bidId: string) {
     if (!workspace.job) return;
+    const bid = workspace.bids.find((item) => item.id === bidId);
+    if (!bid) return;
+
+    setBusyAction(`accept-${bidId}`);
     try {
-      const acceptedJob = await api.bids.accept(id, bidId, {
-        client_address: workspace.job.client_address,
+      const result = await accept({
+        jobId: id,
+        onChainJobId: BigInt(workspace.job.on_chain_job_id ?? 0),
+        bidId,
+        freelancerAddress: bid.freelancer_address,
       });
+
+      if (!result) {
+        throw new Error("Unable to confirm bid acceptance.");
+      }
+
       await workspace.refresh();
-      router.push(`/jobs/${acceptedJob.id}/fund`);
+      router.push(`/jobs/${result.acceptedJob.id}/fund`);
     } catch {
       alert("Failed to accept bid");
+    } finally {
+      setBusyAction(null);
     }
   }
 
@@ -179,6 +196,15 @@ export default function JobDetailsPage() {
   const job = workspace.job;
   const nextMilestone = workspace.milestones.find(
     (milestone) => milestone.status === "pending",
+  );
+  const viewerBid = viewerAddress
+    ? workspace.bids.find(
+        (bid) =>
+          bid.freelancer_address === viewerAddress && bid.status === "pending",
+      )
+    : null;
+  const isClientOwner = Boolean(
+    viewerAddress && viewerAddress === job.client_address,
   );
   const workflowLocked = job.status === "disputed" || workspace.dispute !== null;
 
@@ -315,17 +341,129 @@ export default function JobDetailsPage() {
               </div>
             ) : null}
 
-            {job.status !== "open" ? (
-              <div className="grid gap-8 xl:grid-cols-[1.1fr_0.9fr]">
-                <section>
-                  <MilestoneTracker
-                    milestones={workspace.milestones}
-                    deliverables={workspace.deliverables}
-                    jobStatus={job.status}
-                    loading={workspace.loading}
-                    isClient={
-                      Boolean(viewerAddress) &&
-                      viewerAddress === job.client_address
+          {job.status === "open" ? (
+            <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
+              <section className="rounded-[2rem] border border-zinc-700/60 bg-zinc-950/90 p-6 shadow-[0_20px_60px_-48px_rgba(0,0,0,0.8)]">
+                <h2 className="text-xl font-semibold text-zinc-50">
+                  Submit a Proposal
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-300">
+                  Pitch your approach, timing, and why your previous work maps cleanly to this brief.
+                </p>
+                {isClientOwner ? (
+                  <div className="mt-5 rounded-[1.6rem] border border-slate-700/40 bg-slate-900/80 p-5 text-sm text-slate-200">
+                    <p className="font-semibold text-slate-100">Clients cannot submit proposals</p>
+                    <p className="mt-2 text-slate-300/90">
+                      This job is owned by your account. Freelancers can submit bids and you can accept the strongest proposal from the shortlist.
+                    </p>
+                  </div>
+                ) : null}
+                {viewerBid ? (
+                  <div className="mt-5 rounded-[1.6rem] border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-100">
+                    <p className="font-semibold text-amber-200">Your bid is pending review</p>
+                    <p className="mt-2 text-amber-100/90">
+                      You have already submitted a proposal for this job. The client is reviewing your pitch and will assign the winning freelancer once a bid is accepted.
+                    </p>
+                  </div>
+                ) : null}
+                {!isClientOwner ? (
+                  <div className="mt-5">
+                    <SubmitBidErrorBoundary>
+                      <SubmitBidModal
+                        jobId={id}
+                        onChainJobId={BigInt(workspace.job?.on_chain_job_id ?? 0)}
+                        disabled={Boolean(viewerBid) || busyAction !== null}
+                        onSubmitted={workspace.refresh}
+                      />
+                    </SubmitBidErrorBoundary>
+                  </div>
+                ) : null}
+              </section>
+
+              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <h2 className="text-xl font-semibold text-slate-950">
+                    Bids ({workspace.bids.length})
+                  </h2>
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                    Client shortlist
+                  </span>
+                </div>
+                <BidList
+                  bids={workspace.bids}
+                  isClientOwner={
+                    Boolean(viewerAddress) &&
+                    viewerAddress === workspace.job?.client_address
+                  }
+                  jobStatus={job.status}
+                  acceptingBidId={
+                    busyAction?.startsWith("accept-")
+                      ? busyAction.replace("accept-", "")
+                      : null
+                  }
+                  onAccept={handleAcceptBid}
+                />
+                {acceptTransaction.step !== "idle" ? (
+                  <div className="mt-6 rounded-[1.6rem] border border-indigo-600/20 bg-indigo-950/10 p-5">
+                    <h3 className="text-sm font-semibold text-indigo-100">
+                      Accept bid transaction
+                    </h3>
+                    <p className="mt-2 text-sm text-indigo-200">
+                      The platform is building and confirming the on-chain accept_bid call for this selected freelancer.
+                    </p>
+                    <div className="mt-4">
+                      <TransactionPipeline
+                        step={acceptTransaction.step}
+                        txHash={acceptTransaction.txHash}
+                        message={acceptTransaction.message}
+                        error={acceptTransaction.error}
+                        unsignedXdr={acceptTransaction.unsignedXdr}
+                        signedXdr={acceptTransaction.signedXdr}
+                        simulationLog={acceptTransaction.simulationLog}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            </div>
+          ) : null}
+
+          {job.status !== "open" ? (
+            <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+              <section>
+                <MilestoneTracker
+                  milestones={workspace.milestones}
+                  deliverables={workspace.deliverables}
+                  jobStatus={job.status}
+                  loading={workspace.loading}
+                  isClient={
+                    Boolean(viewerAddress) &&
+                    viewerAddress === job.client_address
+                  }
+                  workflowLocked={workflowLocked}
+                  busyMilestoneId={
+                    busyAction?.startsWith("release-")
+                      ? busyAction.replace("release-", "")
+                      : null
+                  }
+                  onRelease={async (milestoneId) => {
+                    if (!workspace.job) return;
+                    const milestone = workspace.milestones.find(
+                      (m) => m.id === milestoneId,
+                    );
+                    if (!milestone) return;
+                    setBusyAction(`release-${milestoneId}`);
+                    try {
+                      await releaseFunds(
+                        BigInt(workspace.job.on_chain_job_id ?? 0),
+                        Math.max(0, milestone.index - 1),
+                      );
+                      await api.jobs.releaseMilestone(id, milestoneId);
+                      await workspace.refresh();
+                    } catch {
+                      alert("Failed to release milestone");
+                    } finally {
+                      setBusyAction(null);
                     }
                     workflowLocked={workflowLocked}
                     busyMilestoneId={

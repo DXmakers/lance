@@ -22,16 +22,16 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { useIndexerStatus } from "@/hooks/use-indexer-status";
+import { apiAdmin } from "@/lib/api";
 
-// Simulation for historical metrics since we don't have a time-series DB yet
 const generateInitialData = () => {
   const data = [];
   const now = new Date();
   for (let i = 20; i >= 0; i--) {
     data.push({
       time: new Date(now.getTime() - i * 5000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      throughput: Math.floor(Math.random() * 3) + 1,
-      latency: Math.floor(Math.random() * 150) + 50,
+      throughput: 0,
+      latency: 0,
     });
   }
   return data;
@@ -41,18 +41,37 @@ export default function DepositMonitoringDashboard() {
   const { data: status, isLoading } = useIndexerStatus();
   const [chartData, setChartData] = useState(generateInitialData());
   const [logs, setLogs] = useState<{id: string, msg: string, type: 'info' | 'error' | 'warn' | 'success'}[]>([]);
+  const [confirmAction, setConfirmAction] = useState<"restart" | "rescan" | null>(null);
+  const [actionPending, setActionPending] = useState(false);
 
   const addLog = (msg: string, type: 'info' | 'error' | 'warn' | 'success' = 'info') => {
     setLogs(prev => [{ id: Math.random().toString(36), msg, type }, ...prev].slice(0, 50));
   };
 
   const handleRestart = async () => {
-    addLog("SIGTERM sent to indexer_worker", 'warn');
-    setTimeout(() => addLog("Worker process restarted successfully", 'success'), 1500);
+    setActionPending(true);
+    setConfirmAction(null);
+    try {
+      const res = await apiAdmin.indexer.restart();
+      addLog(res.message, 'success');
+    } catch (e) {
+      addLog(`Restart failed: ${e instanceof Error ? e.message : String(e)}`, 'error');
+    } finally {
+      setActionPending(false);
+    }
   };
 
-  const handleRescan = () => {
-    addLog("Ledger re-scan initiated from checkpoint -100", 'info');
+  const handleRescan = async () => {
+    setActionPending(true);
+    setConfirmAction(null);
+    try {
+      const res = await apiAdmin.indexer.rescan();
+      addLog(`Re-scan initiated from ledger ${res.rescan_from_ledger}`, 'info');
+    } catch (e) {
+      addLog(`Re-scan failed: ${e instanceof Error ? e.message : String(e)}`, 'error');
+    } finally {
+      setActionPending(false);
+    }
   };
 
   useEffect(() => {
@@ -63,14 +82,18 @@ export default function DepositMonitoringDashboard() {
       setChartData(prev => {
         const newData = [...prev.slice(1), {
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          throughput: status.total_events_processed % 5 + 1, // simulated throughput variation
-          latency: status.last_loop_duration_ms || 42, 
+          throughput: status.last_batch_rate_per_second,
+          latency: status.last_rpc_latency_ms || status.last_loop_duration_ms,
         }];
         return newData;
       });
 
       if (status.last_loop_duration_ms > 1000) {
         addLog(`High indexing latency detected: ${status.last_loop_duration_ms}ms`, 'warn');
+      }
+
+      if (status.rpc_retry_count > 0) {
+        addLog(`RPC retry pressure detected: ${status.rpc_retry_count}`, 'warn');
       }
     }, 0);
 
@@ -88,6 +111,31 @@ export default function DepositMonitoringDashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white font-mono p-4 sm:p-8">
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+          <div className="border border-zinc-700 bg-zinc-950 p-6 w-80 space-y-4">
+            <p className="text-sm text-zinc-300">
+              {confirmAction === "restart"
+                ? "Send restart signal to the indexer worker?"
+                : "Roll back checkpoint and trigger ledger re-scan?"}
+            </p>
+            <p className="text-[10px] text-zinc-600 uppercase">This action cannot be undone.</p>
+            <div className="flex gap-3 justify-end">
+              <Button size="sm" variant="outline"
+                className="border-zinc-700 text-zinc-400 bg-black hover:bg-zinc-900"
+                onClick={() => setConfirmAction(null)}>
+                Cancel
+              </Button>
+              <Button size="sm" variant="outline"
+                className="border-red-900/40 text-red-500 bg-black hover:bg-red-950/20"
+                onClick={confirmAction === "restart" ? handleRestart : handleRescan}>
+                Confirm
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner Status */}
       <div className="flex items-center gap-2 mb-6">
         <div className={`h-2 w-2 rounded-full ${status?.in_sync ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
@@ -115,16 +163,18 @@ export default function DepositMonitoringDashboard() {
           <Button 
             variant="outline" 
             size="sm" 
+            disabled={actionPending}
             className="flex-1 md:flex-none border-zinc-900 bg-black text-zinc-400 hover:bg-zinc-900 rounded-none h-10 text-[10px] font-bold tracking-widest uppercase px-6"
-            onClick={handleRescan}
+            onClick={() => setConfirmAction("rescan")}
           >
             <RefreshCw className="mr-2 h-3 w-3" /> Re-Scan
           </Button>
           <Button 
             variant="outline" 
             size="sm" 
+            disabled={actionPending}
             className="flex-1 md:flex-none border-zinc-900 bg-black text-red-500/80 hover:bg-red-950/20 rounded-none h-10 text-[10px] font-bold tracking-widest uppercase px-6"
-            onClick={handleRestart}
+            onClick={() => setConfirmAction("restart")}
           >
             <Cpu className="mr-2 h-3 w-3" /> Restart_Worker
           </Button>
@@ -149,7 +199,7 @@ export default function DepositMonitoringDashboard() {
         <MetricItem 
           label="Processed_Events" 
           value={status?.total_events_processed?.toLocaleString() || "0"} 
-          subValue="Cumulative_Lifetime"
+          subValue={`Last batch: ${status?.last_batch_events_processed ?? 0}`}
           icon={<ShieldCheck className="h-3 w-3" />}
         />
         <MetricItem 
