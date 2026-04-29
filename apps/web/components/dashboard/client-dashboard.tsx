@@ -21,6 +21,7 @@ import { ActivityLogList } from "@/components/activity-log";
 export function ClientDashboard() {
   const { jobs, loading } = useJobBoard();
 
+
   // In a real app, we'd filter by user.address. 
   // For the demo, we'll show some "Client" specific metrics based on the mock data.
   const activeJobs = jobs.filter(j => j.status === "open").slice(0, 5);

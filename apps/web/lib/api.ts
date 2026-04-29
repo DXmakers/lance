@@ -184,6 +184,7 @@ export interface Job {
   status: string;
   metadata_hash?: string;
   on_chain_job_id?: number;
+  estimated_completion_date?: string;
   created_at: string;
   updated_at: string;
 }
@@ -195,6 +196,7 @@ export interface CreateJobBody {
   milestones: number;
   client_address: string;
   memo?: string;
+  estimated_completion_date?: string;
 }
 
 export interface JobMetadata {

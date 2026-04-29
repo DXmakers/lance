@@ -45,17 +45,6 @@ pub async fn create_bid(
         None => return Err(AppError::NotFound(format!("job {job_id} not found"))),
     }
 
-    // Validate proposal content
-    if req.proposal.trim().is_empty() {
-        return Err(AppError::BadRequest("proposal cannot be empty".into()));
-    }
-
-    if req.proposal.len() > 5000 {
-        return Err(AppError::BadRequest(
-            "proposal is too long (maximum 5000 characters)".into(),
-        ));
-    }
-
     let bid = sqlx::query_as::<_, Bid>(
         r#"INSERT INTO bids (job_id, freelancer_address, proposal, status, updated_at)
            VALUES ($1, $2, $3, 'pending', NOW())
@@ -152,5 +141,6 @@ pub async fn accept_bid(
 
     // Commit transaction
     tx.commit().await?;
+
     Ok(Json(job))
 }
