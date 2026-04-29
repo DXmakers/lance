@@ -13,6 +13,7 @@ import { toStarRating } from "./format";
 
 const REPUTATION_CONTRACT_ID =
   process.env.NEXT_PUBLIC_REPUTATION_CONTRACT_ID ?? "";
+const IS_E2E = process.env.NEXT_PUBLIC_E2E === "true";
 const RPC_URL =
   process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ??
   "https://soroban-testnet.stellar.org";
@@ -94,6 +95,10 @@ function metricsFromScore(score: ContractReputationScore): ReputationMetrics {
 }
 
 export async function getReputationView(address: string): Promise<ReputationViewMetrics> {
+  if (IS_E2E) {
+    return fallbackView();
+  }
+
   if (!REPUTATION_CONTRACT_ID) {
     return fallbackView();
   }
