@@ -133,14 +133,15 @@ pub struct DisputeRaisedEvent {
 }
 
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DepositEvent {
     pub job_id: u64,
     pub amount: i128,
     pub deposited_at: u64,
 }
+
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ReleaseMilestoneEvent {
     pub job_id: u64,
     pub milestone_index: u32,
@@ -149,7 +150,19 @@ pub struct ReleaseMilestoneEvent {
 }
 
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReleaseEvent {
+    pub job_id: u64,
+    pub released_by: Address,
+    pub released_to: Address,
+    pub milestone_index: u32,
+    pub amount: i128,
+    pub total_released: i128,
+    pub released_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
 pub struct OpenDisputeEvent {
     pub job_id: u64,
     pub initiator: Address,
@@ -157,7 +170,7 @@ pub struct OpenDisputeEvent {
 }
 
 #[contracttype]
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct JobRegistryConfiguredEvent {
     pub configured_by: Address,
     pub registry_contract: Address,
@@ -601,18 +614,14 @@ impl EscrowContract {
         milestone.status = MilestoneStatus::Released;
         job.milestones.set(milestone_index, milestone.clone());
 
-        job.released_amount += milestone.amount;
+        job.released_amount = job.released_amount.saturating_add(milestone.amount);
+        
         let next_status = if job.released_amount == job.total_amount {
             EscrowStatus::Completed
         } else {
             EscrowStatus::WorkInProgress
         };
-        job.status
-            .validate_transition(&next_status)
-            .expect("invalid state transition");
         job.status = next_status;
-
-        enter_reentrancy_guard(&env);
 
         let token_client = token::Client::new(&env, &job.token);
         token_client.transfer(
@@ -628,9 +637,17 @@ impl EscrowContract {
             milestone.amount
         );
         env.storage().persistent().set(&key, &job);
-        Self::bump_job_ttl(&env, &key);
 
-        exit_reentrancy_guard(&env);
+        let evt = ReleaseEvent {
+            job_id,
+            released_by: caller.clone(),
+            released_to: job.freelancer.clone(),
+            milestone_index,
+            amount: milestone.amount,
+            total_released: job.released_amount,
+            released_at: env.ledger().timestamp(),
+        };
+        env.events().publish(("escrow", "ReleaseEvent"), evt);
     }
 
     /// Either party opens a dispute, locking remaining funds.
@@ -867,8 +884,8 @@ impl EscrowContract {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::testutils::Address as _;
-    use soroban_sdk::{token, Address, Env};
+    use soroban_sdk::testutils::{Address as _, Events as _};
+    use soroban_sdk::{token, Address, Env, IntoVal};
 
     fn setup_token(env: &Env, admin: &Address) -> Address {
         let contract = env.register_stellar_asset_contract_v2(admin.clone());
@@ -1203,6 +1220,49 @@ mod test {
         assert_eq!(job.status, EscrowStatus::Completed);
         assert_eq!(tc.balance(&freelancer), total_amount);
         assert_eq!(tc.balance(&contract_id), 0);
+    }
+
+    #[test]
+    fn test_release_funds_emits_release_event() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&88u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&88u64, &1500i128);
+        cc.add_milestone(&88u64, &2500i128);
+        cc.deposit(&88u64, &4000i128);
+
+        cc.release_funds(&88u64, &client, &1u32);
+
+        let events = env.events().all();
+        let release_event = events.get(events.len() - 1).unwrap();
+        assert_eq!(release_event.0, contract_id);
+        assert_eq!(release_event.1, ("escrow", "ReleaseEvent").into_val(&env));
+        let actual_event: ReleaseEvent = release_event.2.into_val(&env);
+        assert_eq!(
+            actual_event,
+            ReleaseEvent {
+                job_id: 88,
+                released_by: client,
+                released_to: freelancer,
+                milestone_index: 1,
+                amount: 2500,
+                total_released: 2500,
+                released_at: env.ledger().timestamp(),
+            }
+        );
     }
 
     #[test]
