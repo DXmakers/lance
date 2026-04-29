@@ -83,8 +83,8 @@ describe("SaveJobButton", () => {
   });
 
   it("validates long notes", async () => {
-    (useWalletSession as any).mockReturnValue({ address: "G123" });
-    (api.users.savedJobs as any).mockResolvedValue([]);
+    (useWalletSession as jest.Mock).mockReturnValue({ address: "G123" });
+    (api.users.savedJobs as jest.Mock).mockResolvedValue([]);
 
     renderComponent();
 

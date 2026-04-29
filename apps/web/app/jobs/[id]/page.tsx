@@ -467,9 +467,9 @@ export default function JobDetailsPage() {
                 )}
               </section>
             </div>
-          </div>
-        </section>
-      </div>
+          ) : null}
+        </div>
+      </section>
     </SiteShell>
   );
 }
