@@ -73,7 +73,15 @@ cp apps/web/.env.example apps/web/.env.local
 
 # backend
 cp backend/.env.example backend/.env
+# optional per-environment overrides
+cp backend/.env.example backend/.env.development
 ```
+
+Backend env loading precedence:
+
+1. Existing process environment variables
+2. `backend/.env.<APP_ENV>` (or `.env.<RUST_ENV>`)
+3. `backend/.env`
 
 ### Run Locally
 

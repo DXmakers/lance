@@ -12,6 +12,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
+use stellar_xdr::curr as sxdr;
+use stellar_xdr::curr::{Limits, ReadXdr, WriteXdr};
 
 /// Soroban network passphrase for testnet. Override via `STELLAR_NETWORK_PASSPHRASE`.
 const DEFAULT_NETWORK_PASSPHRASE: &str = "Test SDF Network ; September 2015";
@@ -148,46 +150,53 @@ impl StellarService {
     /// Call escrow `release_milestone(job_id, milestone_index)` on-chain.
     /// Returns the transaction hash on success.
     pub async fn release_milestone(&self, job_id: &str, milestone_index: i32) -> Result<String> {
-        let args = vec![
-            scval_symbol("release_milestone"),
-            scval_string(job_id),
-            scval_i32(milestone_index),
-        ];
-        self.invoke_contract_with_retry(&args).await
+        let args = vec![scval_string(job_id)?, scval_i32(milestone_index)];
+        self.invoke_contract_with_retry("release_milestone", &args)
+            .await
     }
 
     /// Call escrow `open_dispute(job_id)` on-chain.
     pub async fn open_dispute(&self, job_id: &str) -> Result<String> {
-        let args = vec![scval_symbol("open_dispute"), scval_string(job_id)];
-        self.invoke_contract_with_retry(&args).await
+        let args = vec![scval_string(job_id)?];
+        self.invoke_contract_with_retry("open_dispute", &args).await
     }
 
-    /// Call escrow `resolve_dispute(job_id, freelancer_share_bps)` on-chain.
-    pub async fn resolve_dispute(&self, job_id: &str, bps: u32) -> Result<String> {
+    /// Call escrow `resolve_dispute(job_id, payee_amount, payer_amount)` on-chain.
+    pub async fn resolve_dispute(
+        &self,
+        job_id: u64,
+        payee_amount: i128,
+        payer_amount: i128,
+    ) -> Result<String> {
         let args = vec![
-            scval_symbol("resolve_dispute"),
-            scval_string(job_id),
-            scval_u32(bps),
+            scval_u64(job_id),
+            scval_i128(payee_amount),
+            scval_i128(payer_amount),
         ];
-        self.invoke_contract_with_retry(&args).await
+        self.invoke_contract_with_retry("resolve_dispute", &args)
+            .await
     }
 
     // ── Core submission pipeline ─────────────────────────────────────────────
 
     /// Build, simulate, sign, send, and poll — with one retry on sequence
     /// number collision (tx_bad_seq).
-    async fn invoke_contract_with_retry(&self, args: &[serde_json::Value]) -> Result<String> {
-        match self.invoke_contract(args).await {
+    async fn invoke_contract_with_retry(
+        &self,
+        method: &str,
+        args: &[sxdr::ScVal],
+    ) -> Result<String> {
+        match self.invoke_contract(method, args).await {
             Ok(hash) => Ok(hash),
             Err(e) if is_seq_error(&e) => {
                 tracing::warn!("sequence collision, retrying once: {e}");
-                self.invoke_contract(args).await
+                self.invoke_contract(method, args).await
             }
             Err(e) => Err(e),
         }
     }
 
-    async fn invoke_contract(&self, args: &[serde_json::Value]) -> Result<String> {
+    async fn invoke_contract(&self, method: &str, args: &[sxdr::ScVal]) -> Result<String> {
         // 1. Fetch current sequence number from Horizon
         let sequence = self
             .fetch_sequence()
@@ -199,9 +208,16 @@ impl StellarService {
             &self.public_key,
             sequence + 1,
             &self.contract_id,
+            method,
             args,
-            &self.network_passphrase,
         )?;
+        tracing::debug!(
+            contract_id = %self.contract_id,
+            sequence = sequence + 1,
+            method = %method,
+            unsigned_payload_len = invoke_xdr.len(),
+            "soroban invoke payload built"
+        );
 
         // 3. Simulate the transaction to get resource fees and soroban data
         let sim = self
@@ -211,6 +227,11 @@ impl StellarService {
         if let Some(ref err) = sim.error {
             bail!("simulation error: {err}");
         }
+        tracing::debug!(
+            transaction_data_present = sim.transaction_data.is_some(),
+            min_resource_fee = ?sim.min_resource_fee,
+            "soroban simulation succeeded"
+        );
 
         // 4. Assemble the final transaction with resource fees
         let assembled = assemble_transaction(
@@ -218,10 +239,18 @@ impl StellarService {
             sim.transaction_data.as_deref(),
             sim.min_resource_fee.as_deref(),
         )?;
+        tracing::debug!(
+            assembled_payload_len = assembled.len(),
+            "soroban transaction assembled"
+        );
 
         // 5. Sign the assembled transaction
         let signed = self.sign_envelope(&assembled)?;
         let signed_b64 = B64.encode(&signed);
+        tracing::debug!(
+            signed_payload_len = signed.len(),
+            "soroban transaction signed"
+        );
 
         // 6. Submit via sendTransaction
         let send_result = self
@@ -235,6 +264,8 @@ impl StellarService {
                 send_result.error_result_xdr.as_deref().unwrap_or("unknown")
             );
         }
+
+        tracing::debug!(status = %send_result.status, hash = ?send_result.hash, "soroban transaction submitted");
 
         let tx_hash = send_result
             .hash
@@ -348,34 +379,35 @@ impl StellarService {
 
     /// Sign an XDR transaction envelope using ed25519.
     fn sign_envelope(&self, envelope_xdr: &[u8]) -> Result<Vec<u8>> {
-        // The transaction hash = SHA-256 of the network id + envelope type + transaction body.
-        // For simplicity, we sign the SHA-256 of the raw envelope bytes.
-        // In production this should properly extract the transaction hash from XDR.
-        let network_id = Sha256::digest(self.network_passphrase.as_bytes());
-        let mut preimage = Vec::new();
-        preimage.extend_from_slice(&network_id);
-        preimage.extend_from_slice(envelope_xdr);
-        let hash = Sha256::digest(&preimage);
+        let envelope = sxdr::TransactionEnvelope::from_xdr(envelope_xdr, Limits::none())
+            .map_err(|e| anyhow!("failed to decode envelope for signing: {e}"))?;
 
-        let signature = self.signing_key.sign(&hash);
-        let sig_bytes = signature.to_bytes();
+        let mut tx_v1 = match envelope {
+            sxdr::TransactionEnvelope::Tx(tx) => tx,
+            _ => bail!("unexpected envelope type for signing"),
+        };
 
-        // Build a simple decorated signature and append to envelope.
-        // The last 4 bytes of the public key form the "hint".
-        let hint = &self.public_key[28..32];
+        let network_id = sxdr::Hash(Sha256::digest(self.network_passphrase.as_bytes()).into());
+        let payload = sxdr::TransactionSignaturePayload {
+            network_id,
+            tagged_transaction: sxdr::TransactionSignaturePayloadTaggedTransaction::Tx(
+                tx_v1.tx.clone(),
+            ),
+        };
+        let payload_xdr = payload
+            .to_xdr(Limits::none())
+            .map_err(|e| anyhow!("failed to encode signature payload: {e}"))?;
 
-        // Re-encode the envelope XDR with the signature attached.
-        // This is a simplified approach: we append the signature structure
-        // at the end of the envelope. A production implementation should
-        // properly decode the XDR envelope, add the signature to its
-        // signatures vector, and re-encode.
-        let mut signed = envelope_xdr.to_vec();
-        // Append decorated signature count (1) and the signature data
-        signed.extend_from_slice(&1u32.to_be_bytes()); // 1 signature
-        signed.extend_from_slice(hint); // 4-byte hint
-        signed.extend_from_slice(&(sig_bytes.len() as u32).to_be_bytes());
-        signed.extend_from_slice(&sig_bytes);
-        Ok(signed)
+        let signature = self.signing_key.sign(&Sha256::digest(&payload_xdr));
+        let decorated = sxdr::DecoratedSignature {
+            hint: sxdr::SignatureHint(self.public_key[28..32].try_into().expect("slice length")),
+            signature: sxdr::Signature(sxdr::BytesM::try_from(signature.to_bytes().to_vec())?),
+        };
+        tx_v1.signatures = sxdr::VecM::try_from(vec![decorated])?;
+
+        sxdr::TransactionEnvelope::Tx(tx_v1)
+            .to_xdr(Limits::none())
+            .map_err(|e| anyhow!("failed to encode signed envelope: {e}"))
     }
 }
 
@@ -390,23 +422,38 @@ fn build_invoke_host_fn_xdr(
     source_public_key: &[u8; 32],
     sequence: i64,
     contract_id: &str,
-    args: &[serde_json::Value],
-    _network_passphrase: &str,
+    method: &str,
+    args: &[sxdr::ScVal],
 ) -> Result<Vec<u8>> {
-    // We encode a JSON representation that the Soroban RPC
-    // `simulateTransaction` endpoint can parse, then let the simulation
-    // response provide the final assembled XDR. This first pass builds
-    // a minimal envelope that the simulate endpoint accepts.
-    let invoke = serde_json::json!({
-        "source": encode_stellar_public_key(source_public_key),
-        "sequence": sequence.to_string(),
-        "contract": contract_id,
-        "function_args": args,
-    });
-    // Encode as a compact JSON blob and then base64-wrap for transport.
-    // The Soroban RPC simulate endpoint accepts both XDR and JSON envelopes.
-    let bytes = serde_json::to_vec(&invoke)?;
-    Ok(bytes)
+    let contract_hash = decode_contract_id(contract_id)?;
+    let operation = sxdr::Operation {
+        source_account: None,
+        body: sxdr::OperationBody::InvokeHostFunction(sxdr::InvokeHostFunctionOp {
+            host_function: sxdr::HostFunction::InvokeContract(sxdr::InvokeContractArgs {
+                contract_address: sxdr::ScAddress::Contract(sxdr::Hash(contract_hash)),
+                function_name: sxdr::ScSymbol(sxdr::StringM::<32>::try_from(method)?),
+                args: sxdr::VecM::try_from(args.to_vec())?,
+            }),
+            auth: sxdr::VecM::default(),
+        }),
+    };
+
+    let tx = sxdr::Transaction {
+        source_account: sxdr::MuxedAccount::Ed25519(sxdr::Uint256(*source_public_key)),
+        fee: 100,
+        seq_num: sxdr::SequenceNumber(sequence),
+        cond: sxdr::Preconditions::None,
+        memo: sxdr::Memo::None,
+        operations: sxdr::VecM::try_from(vec![operation])?,
+        ext: sxdr::TransactionExt::V0,
+    };
+
+    sxdr::TransactionEnvelope::Tx(sxdr::TransactionV1Envelope {
+        tx,
+        signatures: sxdr::VecM::default(),
+    })
+    .to_xdr(Limits::none())
+    .map_err(|e| anyhow!("failed to encode invoke envelope: {e}"))
 }
 
 /// Assemble a transaction with resource data from simulation.
@@ -415,38 +462,84 @@ fn assemble_transaction(
     transaction_data: Option<&str>,
     min_resource_fee: Option<&str>,
 ) -> Result<Vec<u8>> {
-    // In a full implementation, this would decode the XDR transaction,
-    // set the sorobanData and adjust the fee. For now we produce an
-    // assembled JSON envelope that includes the simulation output.
-    let original_json: serde_json::Value =
-        serde_json::from_slice(original).unwrap_or(serde_json::json!({}));
+    let envelope = sxdr::TransactionEnvelope::from_xdr(original, Limits::none())
+        .map_err(|e| anyhow!("failed to decode unsigned envelope: {e}"))?;
+    let mut tx_v1 = match envelope {
+        sxdr::TransactionEnvelope::Tx(tx) => tx,
+        _ => bail!("unexpected envelope type for assembled transaction"),
+    };
 
-    let assembled = serde_json::json!({
-        "envelope": original_json,
-        "transaction_data": transaction_data,
-        "min_resource_fee": min_resource_fee,
-    });
-    Ok(serde_json::to_vec(&assembled)?)
+    let transaction_data_b64 =
+        transaction_data.ok_or_else(|| anyhow!("simulation missing transactionData"))?;
+    let transaction_data_xdr = B64
+        .decode(transaction_data_b64)
+        .map_err(|e| anyhow!("invalid transactionData base64: {e}"))?;
+    let soroban_data = sxdr::SorobanTransactionData::from_xdr(transaction_data_xdr, Limits::none())
+        .map_err(|e| anyhow!("failed to decode SorobanTransactionData: {e}"))?;
+
+    let resource_fee: u32 = min_resource_fee
+        .unwrap_or("0")
+        .parse()
+        .context("invalid minResourceFee from simulation")?;
+
+    tx_v1.tx.fee = tx_v1.tx.fee.saturating_add(resource_fee);
+    tx_v1.tx.ext = sxdr::TransactionExt::V1(soroban_data);
+
+    sxdr::TransactionEnvelope::Tx(tx_v1)
+        .to_xdr(Limits::none())
+        .map_err(|e| anyhow!("failed to encode assembled envelope: {e}"))
 }
 
 /// Build a Soroban SCVal symbol.
-fn scval_symbol(s: &str) -> serde_json::Value {
-    serde_json::json!({ "type": "symbol", "value": s })
+fn scval_symbol(s: &str) -> Result<sxdr::ScVal> {
+    Ok(sxdr::ScVal::Symbol(sxdr::ScSymbol(
+        sxdr::StringM::<32>::try_from(s)?,
+    )))
 }
 
 /// Build a Soroban SCVal string.
-fn scval_string(s: &str) -> serde_json::Value {
-    serde_json::json!({ "type": "string", "value": s })
+fn scval_string(s: &str) -> Result<sxdr::ScVal> {
+    Ok(sxdr::ScVal::String(sxdr::ScString(
+        sxdr::StringM::try_from(s)?,
+    )))
 }
 
 /// Build a Soroban SCVal i32.
-fn scval_i32(v: i32) -> serde_json::Value {
-    serde_json::json!({ "type": "i32", "value": v })
+fn scval_i32(v: i32) -> sxdr::ScVal {
+    sxdr::ScVal::I32(v)
 }
 
 /// Build a Soroban SCVal u32.
-fn scval_u32(v: u32) -> serde_json::Value {
-    serde_json::json!({ "type": "u32", "value": v })
+fn scval_u32(v: u32) -> sxdr::ScVal {
+    sxdr::ScVal::U32(v)
+}
+
+/// Build a Soroban SCVal u64.
+fn scval_u64(v: u64) -> sxdr::ScVal {
+    sxdr::ScVal::U64(v)
+}
+
+/// Build a Soroban SCVal i128.
+fn scval_i128(v: i128) -> sxdr::ScVal {
+    sxdr::ScVal::I128(sxdr::Int128Parts {
+        hi: (v >> 64) as i64,
+        lo: v as u64,
+    })
+}
+
+/// Decode a Stellar contract ID (C...) into raw 32-byte hash.
+fn decode_contract_id(contract_id: &str) -> Result<[u8; 32]> {
+    let decoded =
+        base32_decode(contract_id).ok_or_else(|| anyhow!("invalid base32 in contract id"))?;
+    if decoded.len() != 35 {
+        bail!("contract id wrong length: {} (expected 35)", decoded.len());
+    }
+    if decoded[0] != (2 << 3) {
+        bail!("not a Stellar contract id (wrong version byte)");
+    }
+    let mut hash = [0u8; 32];
+    hash.copy_from_slice(&decoded[1..33]);
+    Ok(hash)
 }
 
 /// Decode a Stellar secret key (S… base32) into raw 32-byte ed25519 seed.
@@ -479,7 +572,7 @@ fn encode_stellar_public_key(key: &[u8; 32]) -> String {
 }
 
 /// Minimal base32 (RFC 4648) decoder.
-fn base32_decode(input: &str) -> Option<Vec<u8>> {
+pub(crate) fn base32_decode(input: &str) -> Option<Vec<u8>> {
     const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     let input = input.trim_end_matches('=');
     let mut bits = 0u64;
@@ -523,7 +616,7 @@ fn base32_encode(data: &[u8]) -> String {
 }
 
 /// CRC16-XMODEM used in Stellar key encoding.
-fn crc16_xmodem(data: &[u8]) -> u16 {
+pub(crate) fn crc16_xmodem(data: &[u8]) -> u16 {
     let mut crc: u16 = 0;
     for &byte in data {
         crc ^= (byte as u16) << 8;
@@ -574,18 +667,23 @@ mod tests {
 
     #[test]
     fn test_scval_helpers() {
-        let sym = scval_symbol("hello");
-        assert_eq!(sym["type"], "symbol");
-        assert_eq!(sym["value"], "hello");
+        let sym = scval_symbol("hello").unwrap();
+        assert!(matches!(sym, sxdr::ScVal::Symbol(_)));
 
-        let s = scval_string("world");
-        assert_eq!(s["type"], "string");
+        let s = scval_string("world").unwrap();
+        assert!(matches!(s, sxdr::ScVal::String(_)));
 
         let i = scval_i32(42);
-        assert_eq!(i["value"], 42);
+        assert!(matches!(i, sxdr::ScVal::I32(42)));
 
         let u = scval_u32(100);
-        assert_eq!(u["value"], 100);
+        assert!(matches!(u, sxdr::ScVal::U32(100)));
+
+        let u64v = scval_u64(7);
+        assert!(matches!(u64v, sxdr::ScVal::U64(7)));
+
+        let i128v = scval_i128(12345678901234567890i128);
+        assert!(matches!(i128v, sxdr::ScVal::I128(_)));
     }
 
     #[test]
