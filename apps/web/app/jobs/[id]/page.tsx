@@ -457,4 +457,23 @@ export default function JobDetailsPage() {
                     <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                       <FileUp className="h-4 w-4 text-amber-600" />
                       <span>{deliverableFile ? deliverableFile.name : "Upload ZIP, image, JSON, or PDF evidence"}</span>
-(Content truncated due to size limit. Use line ranges to read remaining content)
+                    </label>
+                    <input
+                      type="file"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) setDeliverableFile(file);
+                      }}
+                      className="hidden"
+                      id="deliverable-file"
+                    />
+                  </form>
+                </div>
+              </section>
+            </div>
+          ) : null}
+        </div>
+      </section>
+    </SiteShell>
+  );
+}
