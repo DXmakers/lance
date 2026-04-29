@@ -118,6 +118,9 @@ export function useJobBoard(options: UseJobBoardOptions = {}) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [minBudget, setMinBudget] = useState<number | undefined>(undefined);
+  const [maxBudget, setMaxBudget] = useState<number | undefined>(undefined);
+  const [filterStatus, setFilterStatus] = useState<string>("all");
 
   const deferredQuery = useDeferredValue(query);
 
@@ -155,7 +158,19 @@ export function useJobBoard(options: UseJobBoardOptions = {}) {
   }, [allJobs]);
 
   const visibleJobs = useMemo(() => {
-    let result = allJobs.filter((job) => job.status === "open");
+        let result = allJobs;
+
+    if (filterStatus !== "all") {
+      result = result.filter((job) => job.status === filterStatus);
+    }
+
+    if (minBudget !== undefined && minBudget > 0) {
+      result = result.filter((job) => (job.budget_usdc / 10_000_000) >= minBudget);
+    }
+
+    if (maxBudget !== undefined && maxBudget > 0) {
+      result = result.filter((job) => (job.budget_usdc / 10_000_000) <= maxBudget);
+    }
 
     if (activeTag !== "all") {
       result = result.filter((job) => job.tags.includes(activeTag));
@@ -184,7 +199,7 @@ export function useJobBoard(options: UseJobBoardOptions = {}) {
     });
 
     return result;
-  }, [allJobs, activeTag, deferredQuery, sortBy]);
+  }, [allJobs, activeTag, deferredQuery, sortBy, minBudget, maxBudget, filterStatus]);
 
   const totalPages = Math.ceil(visibleJobs.length / pageSize);
   const safePage = Math.min(Math.max(page, 1), totalPages || 1);
@@ -196,6 +211,9 @@ export function useJobBoard(options: UseJobBoardOptions = {}) {
   }, [visibleJobs, safePage, pageSize, totalPages]);
 
   const actions = {
+    setMinBudget,
+    setMaxBudget,
+    setFilterStatus,
     setQuery,
     setActiveTag(nextTag: string) {
       startTransition(() => {
@@ -229,6 +247,9 @@ export function useJobBoard(options: UseJobBoardOptions = {}) {
     activeTag,
     sortBy,
     availableTags,
+    minBudget,
+    maxBudget,
+    filterStatus,
     pagination: {
       page: safePage,
       pageSize,

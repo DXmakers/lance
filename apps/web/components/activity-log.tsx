@@ -61,7 +61,11 @@ const ActivityItem = ({ activity }: ActivityItemProps) => {
   const Icon = config.icon;
 
   const message = useMemo(() => {
-    if (activity.details?.message) {
+    if (
+      activity.details &&
+      typeof activity.details === "object" &&
+      "message" in activity.details
+    ) {
       const msg = activity.details.message;
       return typeof msg === 'string' ? msg : JSON.stringify(msg);
     }

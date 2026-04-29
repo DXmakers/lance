@@ -176,6 +176,8 @@ function sleep(ms: number): Promise<void> {
 
 // ─── Core Pipeline ────────────────────────────────────────────────────────────
 
+// ─── Core Pipeline ────────────────────────────────────────────────────────────
+
 /**
  * Executes the full Build → Simulate → Sign → Submit → Confirm pipeline
  * for a single Soroban contract invocation.
@@ -192,134 +194,124 @@ export async function invokeContract(
     onProgress?.({ step, message: stepMessage(step), ...extra });
   }
 
+  const rpc = getRpc();
   let seqAttempt = 0;
+  let lastError: Error | null = null;
 
   while (seqAttempt <= MAX_SEQ_RETRIES) {
     try {
-      return await runPipeline({
-        callerAddress,
-        contractId,
-        method,
-        args,
-        emit,
+      // ── Step 1: Build ──────────────────────────────────────────────────────
+      emit("building");
+      const account = await rpc.getAccount(callerAddress);
+      const contract = new Contract(contractId);
+
+      const unsignedTx = new TransactionBuilder(account, {
+        fee: BASE_FEE,
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })
+        .addOperation(contract.call(method, ...args))
+        .setTimeout(30)
+        .build();
+
+      const unsignedXdr = unsignedTx.toXDR();
+      devLog("build", { method, unsignedXdr });
+      emit("building", { unsignedXdr, message: "Transaction built." });
+
+      // ── Step 2: Simulate ───────────────────────────────────────────────────
+      emit("simulating");
+      const simResult = await rpc.simulateTransaction(unsignedTx);
+
+      if (Api.isSimulationError(simResult)) {
+        throw new Error(`Simulation failed: ${simResult.error}`);
+      }
+
+      const preparedTx = await rpc.prepareTransaction(unsignedTx);
+      const simulationLog = extractSimulationLog(simResult, unsignedTx, preparedTx);
+      devLog("simulate", simulationLog);
+
+      emit("simulating", {
+        simulationLog,
+        message: "Simulation complete. Resources and fees assembled.",
       });
+
+      // ── Step 3: Sign ───────────────────────────────────────────────────────
+      emit("signing", { unsignedXdr });
+      const preparedXdr = preparedTx.toXDR();
+      devLog("prepared-xdr", preparedXdr);
+      const signedXdr = await signTransaction(preparedXdr);
+      devLog("signed-xdr", IS_DEV ? signedXdr : "[redacted]");
+
+      emit("signing", {
+        signedXdr: IS_DEV ? signedXdr : undefined,
+        message: "Transaction signed.",
+      });
+
+      // ── Step 4: Submit ─────────────────────────────────────────────────────
+      emit("submitting");
+      const signedTx = new Transaction(signedXdr, NETWORK_PASSPHRASE);
+      const sendResult = await rpc.sendTransaction(signedTx);
+
+      if (sendResult.status === "ERROR") {
+        let isSeqMismatch = false;
+        try {
+          if (sendResult.errorResult) {
+            isSeqMismatch = sendResult.errorResult.result().switch().name === 'txBadSeq';
+          }
+        } catch {
+          // Fallback to string matching
+        }
+
+        if (isSeqMismatch) {
+          throw new Error("SEQUENCE_NUMBER_MISMATCH");
+        }
+
+        const detail = JSON.stringify(sendResult.errorResult ?? {});
+        throw new Error(`Submission rejected by RPC: ${detail}`);
+      }
+
+      const txHash = sendResult.hash;
+      emit("submitting", { txHash, message: `Submitted. Hash: ${txHash}` });
+
+      // ── Step 5: Confirm (Poll) ─────────────────────────────────────────────
+      emit("confirming", { txHash });
+      const confirmedHash = await pollForConfirmation(rpc, txHash);
+
+      emit("success", {
+        txHash: confirmedHash,
+        unsignedXdr,
+        signedXdr: IS_DEV ? signedXdr : undefined,
+        simulationLog,
+        message: "Transaction confirmed on-chain.",
+      });
+
+      return {
+        txHash: confirmedHash,
+        unsignedXdr,
+        signedXdr: IS_DEV ? signedXdr : undefined,
+        simulationLog,
+      };
     } catch (err) {
-      if (isSequenceMismatch(err) && seqAttempt < MAX_SEQ_RETRIES) {
+      const msg = err instanceof Error ? err.message : String(err);
+      
+      if (
+        (msg.includes("SEQUENCE_NUMBER_MISMATCH") || isSequenceMismatch(err)) && 
+        seqAttempt < MAX_SEQ_RETRIES
+      ) {
         seqAttempt++;
+        lastError = err instanceof Error ? err : new Error(msg);
         emit("building", {
           message: `Sequence mismatch — refreshing account and retrying (attempt ${seqAttempt}/${MAX_SEQ_RETRIES})…`,
         });
-        // Brief pause before retry so the network can settle
         await sleep(1_000);
         continue;
       }
+
       emit("error", { message: errorMessage(err) });
       throw err;
     }
   }
 
-  // Unreachable, but satisfies TypeScript
-  throw new Error("Pipeline exhausted all retry attempts.");
-}
-
-interface RunPipelineParams {
-  callerAddress: string;
-  contractId: string;
-  method: string;
-  args: xdr.ScVal[];
-  emit: (step: PipelineStep, extra?: Partial<PipelineProgressEvent>) => void;
-}
-
-async function runPipeline(params: RunPipelineParams): Promise<PipelineResult> {
-  const { callerAddress, contractId, method, args, emit } = params;
-  const rpc = getRpc();
-
-  // ── Step 1: Build ──────────────────────────────────────────────────────────
-  emit("building");
-
-  // Always fetch the latest account to get the current sequence number.
-  // This is also the fix for sequence-number-mismatch retries.
-  const account = await rpc.getAccount(callerAddress);
-  const contract = new Contract(contractId);
-
-  const unsignedTx = new TransactionBuilder(account, {
-    fee: BASE_FEE,
-    networkPassphrase: NETWORK_PASSPHRASE,
-  })
-    .addOperation(contract.call(method, ...args))
-    .setTimeout(30)
-    .build();
-
-  const unsignedXdr = IS_DEV ? unsignedTx.toXDR() : undefined;
-  devLog("build", { method, unsignedXdr });
-  emit("building", { unsignedXdr, message: "Transaction built." });
-
-  // ── Step 2: Simulate ───────────────────────────────────────────────────────
-  emit("simulating");
-
-  const simResult = await rpc.simulateTransaction(unsignedTx);
-
-  if ("error" in simResult && simResult.error) {
-    throw new Error(`Simulation failed: ${simResult.error}`);
-  }
-
-  // prepareTransaction assembles auth entries, footprint, and resource limits
-  // from the simulation result into a ready-to-sign transaction.
-  const preparedTx = await rpc.prepareTransaction(unsignedTx);
-  const simulationLog = extractSimulationLog(simResult, unsignedTx, preparedTx);
-  devLog("simulate", simulationLog);
-
-  emit("simulating", {
-    simulationLog,
-    message: "Simulation complete. Resources and fees assembled.",
-  });
-
-  // ── Step 3: Sign ───────────────────────────────────────────────────────────
-  emit("signing");
-
-  const preparedXdr = preparedTx.toXDR();
-  devLog("prepared-xdr", preparedXdr);
-  const signedXdr = await signTransaction(preparedXdr);
-  devLog("signed-xdr", IS_DEV ? signedXdr : "[redacted]");
-
-  emit("signing", {
-    signedXdr: IS_DEV ? signedXdr : undefined,
-    message: "Transaction signed.",
-  });
-
-  // ── Step 4: Submit ─────────────────────────────────────────────────────────
-  emit("submitting");
-
-  const signedTx = new Transaction(signedXdr, NETWORK_PASSPHRASE);
-  const sendResult = await rpc.sendTransaction(signedTx);
-
-  if (sendResult.status === "ERROR") {
-    const detail = JSON.stringify(sendResult.errorResult ?? {});
-    throw new Error(`Submission rejected by RPC: ${detail}`);
-  }
-
-  const txHash = sendResult.hash;
-  emit("submitting", { txHash, message: `Submitted. Hash: ${txHash}` });
-
-  // ── Step 5: Confirm (Poll) ─────────────────────────────────────────────────
-  emit("confirming", { txHash });
-
-  const confirmedHash = await pollForConfirmation(rpc, txHash);
-
-  emit("success", {
-    txHash: confirmedHash,
-    unsignedXdr,
-    signedXdr: IS_DEV ? signedXdr : undefined,
-    simulationLog,
-    message: "Transaction confirmed on-chain.",
-  });
-
-  return {
-    txHash: confirmedHash,
-    unsignedXdr,
-    signedXdr: IS_DEV ? signedXdr : undefined,
-    simulationLog,
-  };
+  throw lastError ?? new Error("Pipeline exhausted all retry attempts.");
 }
 
 // ─── Polling ──────────────────────────────────────────────────────────────────

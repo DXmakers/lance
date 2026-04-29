@@ -7,6 +7,7 @@ import { shortenAddress, formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Stars } from "@/components/stars";
 import { cn } from "@/lib/utils";
 import { AcceptBidFlow } from "./accept-bid-flow";
 
@@ -128,6 +129,15 @@ export function BidList({
 
   const canAccept = isClientOwner && job.status === "open";
 
+  const sortedBids = [...bids].sort((left, right) => {
+    const leftScore = left.freelancerReputation?.scoreBps ?? 0;
+    const rightScore = right.freelancerReputation?.scoreBps ?? 0;
+    if (rightScore !== leftScore) return rightScore - leftScore;
+    return (
+      new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+    );
+  });
+
   return (
     <AcceptBidFlow job={job} bids={bids} isClientOwner={isClientOwner}>
       {({ handleAcceptClick, acceptingBidId }) => (
@@ -214,10 +224,7 @@ export function BidList({
                       Accepting…
                     </>
                   ) : (
-                    <>
-                      <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                      Accept Bid
-                    </>
+                    <span className="text-zinc-500">No reputation yet</span>
                   )}
                 </Button>
               </div>
