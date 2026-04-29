@@ -4,34 +4,31 @@ use std::net::SocketAddr;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-mod db;
-mod env_config;
-mod error;
-mod indexer;
-mod indexer_metrics;
-mod ledger_follower;
-mod middleware;
-mod models;
-mod routes;
-mod services;
-mod soroban_rpc;
-mod tx_metadata_cache;
-mod tx_queue;
-mod worker;
-
-pub use db::AppState;
+use backend::{db, env_config, indexer, middleware, routes, worker};
+use db::AppState;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let env_bootstrap = env_config::load_backend_environment()?;
 
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "backend=debug,tower_http=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "backend=debug,tower_http=debug".into());
+
+    let use_json = std::env::var("LOG_FORMAT")
+        .map(|v| v.eq_ignore_ascii_case("json"))
+        .unwrap_or(false);
+
+    if use_json {
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(tracing_subscriber::fmt::layer().json())
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(tracing_subscriber::fmt::layer())
+            .init();
+    }
 
     tracing::info!(
         app_env = %env_bootstrap.app_env,
@@ -58,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| "3001".to_string())
         .parse()?;
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    tracing::info!("🚀 Backend listening on {addr}");
+    tracing::info!(addr = %addr, "backend listening");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(
@@ -74,7 +71,7 @@ fn build_router(state: AppState) -> Router {
     let limiter = middleware::build_limiter();
 
     Router::new()
-        .nest("/api", routes::api_router())
+        .nest("/api", routes::api_router(state.clone()))
         .layer(middleware::RateLimitLayer::new(limiter))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())

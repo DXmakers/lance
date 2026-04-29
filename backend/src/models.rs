@@ -116,6 +116,26 @@ pub struct CreateMilestoneEventRequest {
     pub note: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct ActivityLog {
+    pub id: Uuid,
+    pub user_address: Option<String>,
+    pub job_id: Option<Uuid>,
+    pub event_type: String,
+    pub level: String,
+    pub details: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateActivityLogRequest {
+    pub user_address: Option<String>,
+    pub job_id: Option<Uuid>,
+    pub event_type: String,
+    pub level: Option<String>,
+    pub details: Option<serde_json::Value>,
+}
+
 // ── Deliverable ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
@@ -293,24 +313,27 @@ pub struct CastVoteRequest {
     pub reasoning: String,
 }
 
-// ── Activity Log ─────────────────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
-pub struct ActivityLog {
-    pub id: uuid::Uuid,
-    pub user_address: Option<String>,
-    pub job_id: Option<uuid::Uuid>,
-    pub event_type: String,
-    pub level: String,
-    pub details: serde_json::Value,
-    pub created_at: DateTime<Utc>,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthChallengeRequest {
+    pub address: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthChallengeResponse {
+    pub address: String,
+    pub challenge: String,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CreateActivityLogRequest {
-    pub user_address: Option<String>,
-    pub job_id: Option<uuid::Uuid>,
-    pub event_type: String,
-    pub level: Option<String>,
-    pub details: Option<serde_json::Value>,
+pub struct AuthVerifyRequest {
+    pub address: String,
+    pub signature: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AuthVerifyResponse {
+    pub token: String,
+    pub address: String,
 }

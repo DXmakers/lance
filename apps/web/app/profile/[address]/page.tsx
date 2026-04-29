@@ -115,7 +115,7 @@ function PublicProfileWorkspace({ address }: { address: string }) {
 
   const saveProfileMutation = useMutation({
     mutationFn: (payload: UpdateProfileBody) =>
-      api.users.updateProfile(address, viewerQuery.data ?? address, payload),
+      api.users.updateProfile(address, payload),
     onSuccess: (updatedProfile) => {
       queryClient.setQueryData(["profile", address], updatedProfile);
       setFormValues(createProfileFormValues(updatedProfile));
@@ -157,12 +157,7 @@ function PublicProfileWorkspace({ address }: { address: string }) {
 
     const result = validateProfileForm(formValues);
     setFormErrors(result.errors);
-
-    if (!result.data) {
-      toast.error("Please fix the highlighted profile fields.");
-      return;
-    }
-
+    if (!result.data) return;
     saveProfileMutation.mutate(result.data);
   }
 

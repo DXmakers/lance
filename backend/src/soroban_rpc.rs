@@ -401,4 +401,42 @@ mod tests {
         assert_eq!(latest_ledger, 12345);
         assert_eq!(request_count.load(AtomicOrdering::SeqCst), 2);
     }
+
+    #[tokio::test]
+    async fn rpc_client_retries_server_error_requests() {
+        let request_count = Arc::new(AtomicUsize::new(0));
+
+        async fn rpc_handler(
+            State(request_count): State<Arc<AtomicUsize>>,
+        ) -> Result<Json<serde_json::Value>, (AxumStatus, String)> {
+            let seen = request_count.fetch_add(1, AtomicOrdering::SeqCst);
+            if seen == 0 {
+                return Err((
+                    AxumStatus::INTERNAL_SERVER_ERROR,
+                    "internal server error".to_string(),
+                ));
+            }
+            Ok(Json(serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "result": { "sequence": 54321 }
+            })))
+        }
+
+        let app = Router::new()
+            .route("/", post(rpc_handler))
+            .with_state(request_count.clone());
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        let mut rpc =
+            SorobanRpcClient::new(Client::new(), test_config(format!("http://{address}")));
+        let latest_ledger = rpc.get_latest_ledger().await.unwrap();
+
+        assert_eq!(latest_ledger, 54321);
+        assert_eq!(request_count.load(AtomicOrdering::SeqCst), 2);
+    }
 }

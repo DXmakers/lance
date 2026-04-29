@@ -7,6 +7,10 @@ edition = "2021"
 name = "backend"
 path = "src/main.rs"
 
+[[bin]]
+name = "worker"
+path = "src/bin/worker.rs"
+
 [dependencies]
 tokio              = { workspace = true }
 axum               = { workspace = true }
@@ -18,20 +22,19 @@ chrono             = { workspace = true }
 reqwest            = { workspace = true }
 tracing            = { workspace = true }
 tracing-subscriber = { workspace = true }
-anyhow             = { workspace = true }
-thiserror          = { workspace = true }
-dotenvy            = { workspace = true }
-tower              = { workspace = true }
-tower-http         = { workspace = true }
-bytes              = { workspace = true }
-base64             = "0.22"
-sha2               = "0.10"
-ed25519-dalek      = { version = "2", features = ["rand_core"] }
-stellar-xdr        = { workspace = true }
-
-# Rate limiting
-governor           = { version = "0.6", features = ["std"] }
-futures-util       = "0.3"
+anyhow       = { workspace = true }
+thiserror    = { workspace = true }
+dotenvy      = { workspace = true }
+tower        = { workspace = true }
+tower-http   = { workspace = true }
+bytes        = { workspace = true }
+base64       = "0.22"
+sha2         = "0.10"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+hex          = "0.4"
+governor     = { version = "0.6", features = ["std"] }
+futures-util = "0.3"
+stellar-xdr  = { workspace = true }
 
 # Prometheus metrics
 prometheus         = { version = "0.13", features = ["process"] }

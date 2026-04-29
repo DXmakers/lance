@@ -25,9 +25,25 @@ test.describe('Client Dashboard', () => {
       }
     });
 
-    // Set role to client via UI
+    // Seed the persisted session shape used by the app.
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        'lance-auth-session',
+        JSON.stringify({
+          state: {
+            role: 'client',
+            isLoggedIn: true,
+            user: {
+              name: 'E2E Client',
+              email: 'client@lance.so',
+            },
+          },
+          version: 0,
+        }),
+      );
+    });
+
     await page.goto('/');
-    await page.getByRole('button', { name: 'Client Log In' }).click();
     
     // Wait for the client dashboard to load
     await expect(page.locator('h1')).toContainText('Manage hiring and escrow milestones');

@@ -149,6 +149,7 @@ impl LedgerFollower {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn next_cycle(&mut self) -> Result<LedgerCycle> {
         debug!("reading checkpoint from database");
         let mut last_processed_ledger: i64 =
@@ -343,10 +344,15 @@ impl LedgerFollower {
     }
 }
 
+#[tracing::instrument(skip(tx, event), fields(event_id = tracing::field::Empty))]
 async fn process_event_side_effects(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     event: &Value,
 ) -> Result<()> {
+    if let Some(id) = event.get("id").and_then(Value::as_str) {
+        tracing::Span::current().record("event_id", id);
+    }
+
     let topics = event.get("topic").and_then(Value::as_array);
     let first_topic = topics
         .and_then(|items| items.first())
@@ -422,6 +428,75 @@ async fn process_event_side_effects(
                 event_id,
                 ledger, contract_id, sender, token, amount, "indexed deposit event"
             );
+        }
+        "releasemilestone" => {
+            let event_id = event.get("id").and_then(Value::as_str).unwrap_or_default();
+            let ledger = event.get("ledger").and_then(parse_i64).unwrap_or(0);
+            let contract_id = event
+                .get("contractId")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let job_id = topics
+                .and_then(|t| t.get(1))
+                .and_then(Value::as_str)
+                .unwrap_or("0")
+                .parse::<i64>()
+                .unwrap_or(0);
+            let milestone_index = topics
+                .and_then(|t| t.get(2))
+                .and_then(Value::as_str)
+                .unwrap_or("0")
+                .parse::<i32>()
+                .unwrap_or(0);
+            let amount = topics
+                .and_then(|t| t.get(3))
+                .and_then(Value::as_str)
+                .unwrap_or("0")
+                .parse::<i64>()
+                .unwrap_or(0);
+
+            info!(
+                event_id,
+                ledger,
+                contract_id,
+                job_id,
+                milestone_index,
+                amount,
+                "indexed ReleaseMilestone event",
+            );
+
+            sqlx::query(
+                "INSERT INTO indexed_milestone_releases
+                     (id, ledger, contract_id, job_id, milestone_index, amount)
+                 VALUES ($1, $2, $3, $4, $5, $6)
+                 ON CONFLICT (id) DO NOTHING",
+            )
+            .bind(event_id)
+            .bind(ledger)
+            .bind(contract_id)
+            .bind(job_id)
+            .bind(milestone_index)
+            .bind(amount)
+            .execute(&mut **tx)
+            .await?;
+
+            // Best-effort: sync the milestone status in our DB if we can match it.
+            // The on_chain_job_id on jobs links the chain job_id to our UUID.
+            sqlx::query(
+                "UPDATE milestones m
+                 SET status       = 'released',
+                     released_at  = COALESCE(released_at, NOW()),
+                     completed_at = COALESCE(completed_at, NOW())
+                 FROM jobs j
+                 WHERE j.id = m.job_id
+                   AND j.on_chain_job_id = $1
+                   AND m.index = $2
+                   AND m.status = 'pending'",
+            )
+            .bind(job_id)
+            .bind(milestone_index)
+            .execute(&mut **tx)
+            .await?;
         }
         "dispute" | "disputeopened" => {
             let event_id = event.get("id").and_then(Value::as_str).unwrap_or_default();
@@ -619,6 +694,77 @@ mod tests {
         assert_eq!(cycle.checkpoint, 10);
         assert_eq!(cycle.latest_network_ledger, 11);
         assert_eq!(cycle.inserted_events, 0);
+    }
+
+    #[sqlx::test(migrations = "./migrations")]
+    async fn indexer_processes_milestone_released_event(pool: PgPool) {
+        let mock_server = MockServer::start().await;
+
+        // Seed a job with on_chain_job_id=7 and one pending milestone at index 0
+        let job_id: uuid::Uuid = sqlx::query_scalar(
+            "INSERT INTO jobs (title, description, budget_usdc, milestones, client_address, on_chain_job_id)
+             VALUES ('Test', '', 9000, 1, 'GCLIENT', 7) RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query(
+            "INSERT INTO milestones (job_id, index, title, amount_usdc, status)
+             VALUES ($1, 0, 'M1', 3000, 'pending')",
+        )
+        .bind(job_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query("UPDATE indexer_state SET last_processed_ledger = 49 WHERE id = 1")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "result": {
+                    "latestLedger": 50,
+                    "events": [{
+                        "id": "evt-release-1",
+                        "ledger": "50",
+                        "contractId": "CESCROW",
+                        "topic": ["releasemilestone", "7", "0", "3000"],
+                        "value": { "xdr": "AAAA" }
+                    }]
+                }
+            })))
+            .mount(&mock_server)
+            .await;
+
+        let rpc = SorobanRpcClient::new(Client::new(), test_rpc_config(mock_server.uri()));
+        let mut follower = LedgerFollower::new(pool.clone(), rpc, test_follower_config());
+        let cycle = follower.next_cycle().await.unwrap();
+
+        assert_eq!(cycle.inserted_events, 1);
+
+        // indexed_milestone_releases row created
+        let release_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM indexed_milestone_releases WHERE id = 'evt-release-1'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(release_count, 1);
+
+        // milestone status synced to released
+        let status: String =
+            sqlx::query_scalar("SELECT status FROM milestones WHERE job_id = $1 AND index = 0")
+                .bind(job_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(status, "released");
     }
 
     #[sqlx::test(migrations = "./migrations")]

@@ -572,7 +572,7 @@ fn encode_stellar_public_key(key: &[u8; 32]) -> String {
 }
 
 /// Minimal base32 (RFC 4648) decoder.
-fn base32_decode(input: &str) -> Option<Vec<u8>> {
+pub(crate) fn base32_decode(input: &str) -> Option<Vec<u8>> {
     const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     let input = input.trim_end_matches('=');
     let mut bits = 0u64;
@@ -616,7 +616,7 @@ fn base32_encode(data: &[u8]) -> String {
 }
 
 /// CRC16-XMODEM used in Stellar key encoding.
-fn crc16_xmodem(data: &[u8]) -> u16 {
+pub(crate) fn crc16_xmodem(data: &[u8]) -> u16 {
     let mut crc: u16 = 0;
     for &byte in data {
         crc ^= (byte as u16) << 8;
