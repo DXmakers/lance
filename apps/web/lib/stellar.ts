@@ -9,7 +9,7 @@ import {
   xdr,
   Transaction,
 } from "@stellar/stellar-sdk";
-import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
+import { StellarWalletsKit, SwkAppDarkTheme, Networks as WalletNetworks } from "@creit.tech/stellar-wallets-kit";
 
 export type StellarNetwork = "public" | "testnet";
 
@@ -37,7 +37,8 @@ export type WalletKit = {
   openModal: (options?: WalletModalOptions) => Promise<{ address: string }>;
   closeModal: () => void;
   getAddress: () => Promise<{ address: string }>;
-  setNetwork: (network: Networks) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setNetwork: (network: any) => void;
   signTransaction: (xdr: string) => Promise<string>;
   signMessage: (message: string) => Promise<string>;
   disconnect: () => Promise<void>;
@@ -167,7 +168,7 @@ export async function submitTransaction(
         isSeqMismatch =
           response.errorResult.result().switch().name === 'txBadSeq'
       }
-    } catch (_) {
+    } catch {
       // Ignore parsing errors fallback to generic error
     }
 
@@ -225,7 +226,7 @@ function isE2EMode(): boolean {
   return process.env.NEXT_PUBLIC_E2E === "true";
 }
 
-function getNetworkPassphrase(network = APP_STELLAR_NETWORK): Networks {
+function getNetworkPassphrase(network = APP_STELLAR_NETWORK): string {
   return network === "public" ? Networks.PUBLIC : Networks.TESTNET;
 }
 
@@ -251,9 +252,22 @@ async function initializeWalletsKit(): Promise<void> {
     ]);
 
   StellarWalletsKit.init({
-    network: getNetworkPassphrase(),
+    network: getNetworkPassphrase() as unknown as WalletNetworks,
     selectedWalletId: "freighter",
     modules: [new FreighterModule(), new AlbedoModule(), new xBullModule()],
+  });
+  StellarWalletsKit.setTheme({
+    ...SwkAppDarkTheme,
+    "background": "#18181b",
+    "background-secondary": "#09090b",
+    "foreground-strong": "#fafafa",
+    "foreground": "#e4e4e7",
+    "foreground-secondary": "#a1a1aa",
+    "primary": "#6366f1",
+    "primary-foreground": "#ffffff",
+    "border": "rgba(255,255,255,0.06)",
+    "border-radius": "0.75rem",
+    "font-family": "Inter, ui-sans-serif, system-ui, sans-serif",
   });
   isWalletKitInitialized = true;
 }
@@ -348,6 +362,22 @@ export async function getConnectedWalletAddress(): Promise<string | null> {
   }
 }
 
+/**
+ * Returns the network passphrase currently reported by the connected wallet,
+ * or null if the wallet is not connected / does not support getNetwork.
+ * Used for network mismatch detection.
+ */
+export async function getWalletNetworkPassphrase(): Promise<string | null> {
+  if (!isBrowser() || isE2EMode()) return getNetworkPassphrase();
+  try {
+    await initializeWalletsKit();
+    const { networkPassphrase } = await StellarWalletsKit.getNetwork();
+    return networkPassphrase;
+  } catch {
+    return null;
+  }
+}
+
 export async function connectWallet(): Promise<string> {
   const { address } = await getWalletsKit().openModal();
   storeWalletAddress(address);
@@ -391,4 +421,72 @@ export async function getXlmBalance(address: string): Promise<number> {
     console.error("Error fetching XLM balance:", err);
     return 0;
   }
+}
+
+// ── Wallet provider identity ──────────────────────────────────────────────────
+// These exports support the wallet-provider-icon UI: the connected wallet's
+// display name and icon are surfaced alongside the truncated address.
+
+export interface ConnectedWallet {
+  address: string;
+  walletId: string;
+  walletName: string;
+  walletIcon: string;
+}
+
+/**
+ * Opens the wallet-select modal and returns address + provider metadata.
+ * Falls back to generic display values when the kit abstraction does not
+ * expose per-wallet icons (which is the case for the v2 auth-modal API).
+ */
+export async function connectWalletWithInfo(): Promise<ConnectedWallet> {
+  if (isE2EMode()) {
+    storeWalletAddress(MOCK_WALLET_ADDRESS);
+    return {
+      address: MOCK_WALLET_ADDRESS,
+      walletId: "freighter",
+      walletName: "Freighter",
+      walletIcon: "",
+    };
+  }
+
+  let capturedId = WALLET_KIT_ID;
+  const { address } = await getWalletsKit().openModal({
+    onWalletSelected: (option) => {
+      capturedId = option.id;
+    },
+  });
+
+  return {
+    address,
+    walletId: capturedId,
+    walletName: capturedId === WALLET_KIT_ID ? "Stellar Wallet" : capturedId,
+    walletIcon: "",
+  };
+}
+
+/**
+ * Returns the wallet provider id previously stored in localStorage, or null
+ * if no wallet has been connected in this browser.
+ */
+export function getSelectedWalletId(): string | null {
+  if (!isBrowser()) return null;
+  return localStorage.getItem(WALLET_TYPE_STORAGE_KEY);
+}
+
+/**
+ * Returns minimal provider metadata for the given wallet id.
+ * The v2 kit auth-modal abstraction does not expose per-wallet icons, so
+ * `icon` is always an empty string; `WalletProviderIcon` renders the
+ * lucide fallback in that case.
+ */
+export async function getWalletInfo(
+  walletId: string,
+): Promise<{ id: string; name: string; icon: string } | null> {
+  if (!walletId) return null;
+  return {
+    id: walletId,
+    name: walletId === WALLET_KIT_ID ? "Stellar Wallet" : walletId,
+    icon: "",
+  };
 }

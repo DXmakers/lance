@@ -1,6 +1,7 @@
 "use client";
 
-import { startTransition, useDeferredValue, useEffect, useState } from "react";
+import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api, type Job } from "@/lib/api";
 import {
   getReputationMetrics,
@@ -104,84 +105,115 @@ async function buildBoardJobs(sourceJobs: Job[]): Promise<BoardJob[]> {
   }));
 }
 
-export function useJobBoard() {
-  const [jobs, setJobs] = useState<BoardJob[]>([]);
+export interface UseJobBoardOptions {
+  defaultPageSize?: number;
+}
+
+export function useJobBoard(options: UseJobBoardOptions = {}) {
+  const defaultPageSize = options.defaultPageSize ?? 6;
+
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState<string>("all");
   const [sortBy, setSortBy] = useState<JobSort>("chronological");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(defaultPageSize);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [minBudget, setMinBudget] = useState<number | undefined>(undefined);
+  const [maxBudget, setMaxBudget] = useState<number | undefined>(undefined);
+  const [filterStatus, setFilterStatus] = useState<string>("all");
 
   const deferredQuery = useDeferredValue(query);
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadBoard() {
-      setLoading(true);
-      setError(null);
-
+  const { data: allJobs = [], isLoading } = useQuery<BoardJob[]>({
+    queryKey: ["jobs"],
+    queryFn: async () => {
       try {
         const jobsFromApi = await api.jobs.list();
         const sourceJobs = jobsFromApi.length > 0 ? jobsFromApi : createMockJobs();
-        const hydrated = await buildBoardJobs(sourceJobs);
-        if (active) {
-          setJobs(hydrated);
-        }
-      } catch (loadError) {
+        const result = await buildBoardJobs(sourceJobs);
+        setApiError(null);
+        return result;
+      } catch (err) {
         const fallback = await buildBoardJobs(createMockJobs());
-        if (active) {
-          setJobs(fallback);
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load live jobs right now.",
-          );
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
+        const message =
+          err instanceof Error ? err.message : "Unable to load live jobs right now.";
+        setApiError(message);
+        return fallback;
       }
-    }
-
-    void loadBoard();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const availableTags = ["all", ...new Set(jobs.flatMap((job) => job.tags))];
-  let visibleJobs = jobs.filter((job) => job.status === "open");
-
-  if (activeTag !== "all") {
-    visibleJobs = visibleJobs.filter((job) => job.tags.includes(activeTag));
-  }
-
-  if (deferredQuery.trim()) {
-    const term = deferredQuery.trim().toLowerCase();
-    visibleJobs = visibleJobs.filter((job) =>
-      [job.title, job.description, job.client_address, ...job.tags]
-        .join(" ")
-        .toLowerCase()
-        .includes(term),
-    );
-  }
-
-  visibleJobs = [...visibleJobs].sort((left, right) => {
-    if (sortBy === "budget") {
-      return right.budget_usdc - left.budget_usdc;
-    }
-    if (sortBy === "reputation") {
-      return right.clientReputation.scoreBps - left.clientReputation.scoreBps;
-    }
-    return (
-      new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
-    );
+    },
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    retry: 1,
   });
 
+ useEffect(() => {
+    startTransition(() => {
+      setPage(1);
+    });
+  }, [query, activeTag, sortBy]);
+
+  const availableTags = useMemo(() => {
+    const tags = new Set(allJobs.flatMap((job) => job.tags));
+    return ["all", ...tags];
+  }, [allJobs]);
+
+  const visibleJobs = useMemo(() => {
+        let result = allJobs;
+
+    if (filterStatus !== "all") {
+      result = result.filter((job) => job.status === filterStatus);
+    }
+
+    if (minBudget !== undefined && minBudget > 0) {
+      result = result.filter((job) => (job.budget_usdc / 10_000_000) >= minBudget);
+    }
+
+    if (maxBudget !== undefined && maxBudget > 0) {
+      result = result.filter((job) => (job.budget_usdc / 10_000_000) <= maxBudget);
+    }
+
+    if (activeTag !== "all") {
+      result = result.filter((job) => job.tags.includes(activeTag));
+    }
+
+    if (deferredQuery.trim()) {
+      const term = deferredQuery.trim().toLowerCase();
+      result = result.filter((job) =>
+        [job.title, job.description, job.client_address, ...job.tags]
+          .join(" ")
+          .toLowerCase()
+          .includes(term),
+      );
+    }
+
+    result = [...result].sort((left, right) => {
+      if (sortBy === "budget") {
+        return right.budget_usdc - left.budget_usdc;
+      }
+      if (sortBy === "reputation") {
+        return right.clientReputation.scoreBps - left.clientReputation.scoreBps;
+      }
+      return (
+        new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+      );
+    });
+
+    return result;
+  }, [allJobs, activeTag, deferredQuery, sortBy, minBudget, maxBudget, filterStatus]);
+
+  const totalPages = Math.ceil(visibleJobs.length / pageSize);
+  const safePage = Math.min(Math.max(page, 1), totalPages || 1);
+
+  const paginatedJobs = useMemo(() => {
+    if (totalPages === 0) return [];
+    const start = (safePage - 1) * pageSize;
+    return visibleJobs.slice(start, start + pageSize);
+  }, [visibleJobs, safePage, pageSize, totalPages]);
+
   const actions = {
+    setMinBudget,
+    setMaxBudget,
+    setFilterStatus,
     setQuery,
     setActiveTag(nextTag: string) {
       startTransition(() => {
@@ -193,16 +225,39 @@ export function useJobBoard() {
         setSortBy(nextSort);
       });
     },
+    setPage(newPage: number) {
+      startTransition(() => {
+        setPage(newPage);
+      });
+    },
+    setPageSize(newSize: number) {
+      startTransition(() => {
+        setPageSize(newSize);
+        setPage(1);
+      });
+    },
   };
 
   return {
     jobs: visibleJobs,
-    loading,
-    error,
+    paginatedJobs,
+    loading: isLoading,
+    error: apiError,
     query,
     activeTag,
     sortBy,
     availableTags,
+    minBudget,
+    maxBudget,
+    filterStatus,
+    pagination: {
+      page: safePage,
+      pageSize,
+      totalPages,
+      totalCount: visibleJobs.length,
+      hasNextPage: safePage < totalPages,
+      hasPrevPage: safePage > 1,
+    },
     actions,
   };
 }

@@ -1,3 +1,5 @@
+pub mod activity;
+pub mod admin;
 pub mod appeals;
 pub mod auth;
 pub mod bids;
@@ -14,7 +16,7 @@ pub mod verdicts;
 use crate::AppState;
 use axum::{routing::get, Router};
 
-pub fn api_router() -> Router<AppState> {
+pub fn api_router(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/health", get(health::health))
         .route("/health/sync", get(health::sync_status))
@@ -23,10 +25,12 @@ pub fn api_router() -> Router<AppState> {
             "/v1",
             Router::new()
                 .nest("/jobs", jobs::router())
+                .nest("/activity", activity::router())
                 .nest("/disputes", disputes::router())
                 .nest("/appeals", appeals::router())
-                .nest("/users", users::router())
+                .nest("/users", users::router(state))
                 .nest("/auth", auth::router())
-                .nest("/uploads", uploads::router()),
+                .nest("/uploads", uploads::router())
+                .nest("/admin", admin::router()),
         )
 }

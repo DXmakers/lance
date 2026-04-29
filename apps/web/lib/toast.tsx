@@ -66,7 +66,7 @@ function createToastContent(
           className="text-xs text-blue-500 hover:underline mt-1"
           onClick={(e) => e.stopPropagation()}
         >
-          View on Stellar Explorer →
+          Verify on Explorer →
         </a>
       )}
     </div>

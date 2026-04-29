@@ -1,133 +1,126 @@
-"use client";
-
-import { useEffect, useCallback, useRef, useState } from "react";
-import { useWalletStore } from "@/lib/store/use-wallet-store";
+import { useState, useCallback, useEffect } from "react";
+import { Networks } from "@stellar/stellar-sdk";
+import { useAuthStore } from "@/lib/store/use-auth-store";
+import { api } from "@/lib/api";
 import {
+  APP_STELLAR_NETWORK,
   connectWallet,
-  disconnectWallet,
-  getConnectedWalletAddress,
+  getWalletNetwork,
   getWalletsKit,
-  signMessage as signStellarMessage,
-  signTransaction as signStellarTransaction,
 } from "@/lib/stellar";
 import { toast } from "sonner";
-import { Networks } from "@creit.tech/stellar-wallets-kit";
 
 type WalletDisplayNetwork = "MAINNET" | "TESTNET";
 
-const WALLET_KIT_ID = "stellar-wallets-kit";
-
-function toDisplayNetwork(network: Networks): WalletDisplayNetwork {
-  return network === Networks.PUBLIC ? "MAINNET" : "TESTNET";
+function toDisplayNetwork(network: typeof APP_STELLAR_NETWORK): WalletDisplayNetwork {
+  return network === "public" ? "MAINNET" : "TESTNET";
 }
 
 export function useWallet() {
-  const { 
-    address, 
-    walletId, 
-    status, 
-    network,
-    setConnection, 
-    setStatus, 
-    setError, 
-    setNetwork: setStoreNetwork,
-    disconnect: disconnectStore,
-  } = useWalletStore();
-
+  const { login, logout, user, isLoggedIn } = useAuthStore();
+  const [isConnecting, setIsConnecting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const isInitialized = useRef(false);
-  const displayNetwork = toDisplayNetwork(network);
+  const [network, setDisplayNetwork] = useState<WalletDisplayNetwork>(
+    toDisplayNetwork(APP_STELLAR_NETWORK),
+  );
+  const address = user?.address;
+  const isConnected = isLoggedIn && Boolean(address);
+  const status = isConnecting
+    ? "connecting"
+    : isConnected
+      ? "connected"
+      : "disconnected";
 
   const connect = useCallback(async () => {
-    setStatus("connecting");
-    setIsModalOpen(true);
-
+    setIsConnecting(true);
     try {
-      const connectedAddress = await connectWallet();
-      setConnection(connectedAddress, walletId ?? WALLET_KIT_ID);
+      // 1. Get address and network from wallet
+      const kit = getWalletsKit();
+      const address = await connectWallet();
+      const walletNetwork = getWalletNetwork();
+      
+      const expectedNetwork = APP_STELLAR_NETWORK.toUpperCase();
+
+      if (walletNetwork.toUpperCase() !== expectedNetwork) {
+        toast.warning(`Network Mismatch: App is on ${expectedNetwork} but wallet is on ${walletNetwork}`, {
+          duration: 10000,
+        });
+      }
+
+      // 2. Fetch challenge from backend
+      const { challenge } = await api.auth.getChallenge(address);
+
+      // 3. Sign challenge
+      const signature = await kit.signMessage(challenge);
+
+      // 4. Verify signature on backend
+      const { token } = await api.auth.verify(address, signature);
+
+      // 5. Update store
+      login(
+        {
+          address,
+          token,
+          name: address.slice(0, 4) + "..." + address.slice(-4),
+          email: "",
+        },
+        "client" // Default to client for now, or fetch from profile
+      );
+
       toast.success("Wallet connected successfully");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to connect wallet";
-      setError(message);
-      toast.error(message);
+    } catch (error: unknown) {
+      console.error("Wallet connection error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to connect wallet");
     } finally {
+      setIsConnecting(false);
       setIsModalOpen(false);
     }
-  }, [setConnection, setError, setStatus, walletId]);
+  }, [login]);
 
-  const handleDisconnect = useCallback(() => {
-    disconnectWallet();
-    disconnectStore();
+  // Poll for account switches (for wallets that don't emit events)
+  useEffect(() => {
+    if (!isLoggedIn || !address) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const kit = getWalletsKit();
+        const { address: currentAddress } = await kit.getAddress();
+        if (currentAddress !== address) {
+          logout();
+          toast.info("Account switched in wallet. Please reconnect.");
+        }
+      } catch {
+        // Wallet might be locked or disconnected
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isLoggedIn, address, logout]);
+
+  const disconnect = useCallback(() => {
+    logout();
+    setIsModalOpen(false);
     toast.info("Wallet disconnected");
-  }, [disconnectStore]);
+  }, [logout]);
 
   const setNetwork = useCallback((newNetwork: WalletDisplayNetwork) => {
     const stellarNetwork =
       newNetwork === "MAINNET" ? Networks.PUBLIC : Networks.TESTNET;
-    const kit = getWalletsKit();
-    kit.setNetwork(stellarNetwork);
-    setStoreNetwork(stellarNetwork);
-  }, [setStoreNetwork]);
-
-  const signTransaction = useCallback(async (xdr: string) => {
-    try {
-      return await signStellarTransaction(xdr);
-    } catch (error) {
-      console.error("Sign error:", error);
-      toast.error("Transaction rejected by the wallet extension.");
-      return null;
-    }
+    getWalletsKit().setNetwork(stellarNetwork);
+    setDisplayNetwork(newNetwork);
   }, []);
-
-  const signAuthMessage = useCallback(async (message: string) => {
-    try {
-      return await signStellarMessage(message);
-    } catch {
-      toast.error("Failed to sign authentication message.");
-      return null;
-    }
-  }, []);
-
-  // Auto-connect
-  useEffect(() => {
-    if (isInitialized.current) return;
-
-    const attemptAutoConnect = async () => {
-      if (address && walletId) {
-        try {
-          const currentAddress = await getConnectedWalletAddress();
-
-          if (currentAddress === address) {
-            setStatus("connected");
-          } else if (currentAddress) {
-            setConnection(currentAddress, walletId);
-          } else {
-            disconnectStore();
-          }
-        } catch (err) {
-          console.error("Auto-connect failed:", err);
-          disconnectStore();
-        }
-      }
-      isInitialized.current = true;
-    };
-
-    attemptAutoConnect();
-  }, [address, walletId, setConnection, setStatus, disconnectStore]);
 
   return {
-    address,
-    walletId,
-    status,
-    network: displayNetwork,
     connect,
-    disconnect: handleDisconnect,
-    setNetwork,
-    signTransaction,
-    signAuthMessage,
-    isConnected: status === "connected",
-    isConnecting: status === "connecting",
+    disconnect,
+    isConnecting,
+    isLoggedIn,
+    address: user?.address,
+    status,
+    isConnected,
     isModalOpen,
     setIsModalOpen,
+    network,
+    setNetwork,
   };
 }

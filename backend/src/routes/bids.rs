@@ -45,10 +45,21 @@ pub async fn create_bid(
         None => return Err(AppError::NotFound(format!("job {job_id} not found"))),
     }
 
+    // Validate proposal content
+    if req.proposal.trim().is_empty() {
+        return Err(AppError::BadRequest("proposal cannot be empty".into()));
+    }
+
+    if req.proposal.len() > 5000 {
+        return Err(AppError::BadRequest(
+            "proposal is too long (maximum 5000 characters)".into(),
+        ));
+    }
+
     let bid = sqlx::query_as::<_, Bid>(
-        r#"INSERT INTO bids (job_id, freelancer_address, proposal, status)
-           VALUES ($1, $2, $3, 'pending')
-           RETURNING id, job_id, freelancer_address, proposal, proposal_hash, status, created_at"#,
+        r#"INSERT INTO bids (job_id, freelancer_address, proposal, status, updated_at)
+           VALUES ($1, $2, $3, 'pending', NOW())
+           RETURNING id, job_id, freelancer_address, proposal, proposal_hash, status, created_at, updated_at"#,
     )
     .bind(job_id)
     .bind(req.freelancer_address)
@@ -94,11 +105,37 @@ pub async fn accept_bid(
     .await?
     .ok_or_else(|| AppError::NotFound(format!("bid {bid_id} not found for job {job_id}")))?;
 
+    // Begin transaction to update bid status and record transition
+    let mut tx = state.pool.begin().await?;
+
+    // Update bid statuses: accepted for chosen bid, rejected for others
     sqlx::query("UPDATE bids SET status = CASE WHEN id = $1 THEN 'accepted' ELSE 'rejected' END WHERE job_id = $2")
         .bind(bid_id)
         .bind(job_id)
-        .execute(&state.pool)
+        .execute(&mut *tx)
         .await?;
+
+    // Log accepted bid transition
+    sqlx::query(
+        r#"INSERT INTO bid_status_transitions (bid_id, from_status, to_status, transitioned_by, reason)
+           VALUES ($1, 'pending', 'accepted', $2, 'Bid accepted by client')"#,
+    )
+    .bind(bid_id)
+    .bind(&req.client_address)
+    .execute(&mut *tx)
+    .await?;
+
+    // Log rejected bid transitions for other bids
+    sqlx::query(
+        r#"INSERT INTO bid_status_transitions (bid_id, from_status, to_status, transitioned_by, reason)
+           SELECT id, 'pending', 'rejected', $1, 'Other bid selected'
+           FROM bids WHERE job_id = $2 AND id != $3 AND status = 'rejected'"#,
+    )
+    .bind(&req.client_address)
+    .bind(job_id)
+    .bind(bid_id)
+    .execute(&mut *tx)
+    .await?;
 
     let job = sqlx::query_as::<_, Job>(
         r#"UPDATE jobs
@@ -110,8 +147,10 @@ pub async fn accept_bid(
     )
     .bind(freelancer_address)
     .bind(job_id)
-    .fetch_one(&state.pool)
+    .fetch_one(&mut *tx)
     .await?;
 
+    // Commit transaction
+    tx.commit().await?;
     Ok(Json(job))
 }

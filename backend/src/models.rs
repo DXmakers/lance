@@ -45,12 +45,25 @@ pub struct Bid {
     pub proposal_hash: Option<String>,
     pub status: String, // pending | accepted | rejected
     pub created_at: DateTime<Utc>,
+    #[sqlx(default)]
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CreateBidRequest {
     pub freelancer_address: String,
     pub proposal: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct BidStatusTransition {
+    pub id: Uuid,
+    pub bid_id: Uuid,
+    pub from_status: String,
+    pub to_status: String,
+    pub transitioned_by: String,
+    pub reason: Option<String>,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -70,6 +83,57 @@ pub struct Milestone {
     pub status: String, // pending | released
     pub tx_hash: Option<String>,
     pub released_at: Option<DateTime<Utc>>,
+    /// Optional human-readable description of what this milestone covers.
+    pub description: Option<String>,
+    /// Optional target completion date for this milestone.
+    pub due_date: Option<DateTime<Utc>>,
+    /// Timestamp when the milestone was marked completed (released or disputed-resolved).
+    pub completed_at: Option<DateTime<Utc>>,
+}
+
+// ── MilestoneEvent ────────────────────────────────────────────────────────────
+
+/// Immutable audit log entry for a milestone status transition.
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct MilestoneEvent {
+    pub id: Uuid,
+    pub milestone_id: Uuid,
+    pub job_id: Uuid,
+    /// One of: created | deliverable_submitted | released | disputed
+    pub event_type: String,
+    pub actor_address: Option<String>,
+    pub tx_hash: Option<String>,
+    pub note: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct CreateMilestoneEventRequest {
+    pub event_type: String,
+    pub actor_address: Option<String>,
+    pub tx_hash: Option<String>,
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct ActivityLog {
+    pub id: Uuid,
+    pub user_address: Option<String>,
+    pub job_id: Option<Uuid>,
+    pub event_type: String,
+    pub level: String,
+    pub details: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateActivityLogRequest {
+    pub user_address: Option<String>,
+    pub job_id: Option<Uuid>,
+    pub event_type: String,
+    pub level: Option<String>,
+    pub details: Option<serde_json::Value>,
 }
 
 // ── Deliverable ───────────────────────────────────────────────────────────────
@@ -229,9 +293,47 @@ pub struct ArbiterVote {
     pub created_at: DateTime<Utc>,
 }
 
+// ── Deposit ──────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct Deposit {
+    pub id: String,
+    pub ledger: i64,
+    pub contract_id: String,
+    pub sender: String,
+    pub amount: i64,
+    pub token: String,
+    pub created_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CastVoteRequest {
     pub arbiter_address: String,
     pub freelancer_share_bps: i32,
     pub reasoning: String,
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthChallengeRequest {
+    pub address: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthChallengeResponse {
+    pub address: String,
+    pub challenge: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AuthVerifyRequest {
+    pub address: String,
+    pub signature: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AuthVerifyResponse {
+    pub token: String,
+    pub address: String,
 }

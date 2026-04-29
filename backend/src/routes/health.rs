@@ -3,12 +3,63 @@ use serde_json::{json, Value};
 
 use crate::AppState;
 
-pub async fn health(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
+const DEFAULT_SOROBAN_RPC_URL: &str = "https://soroban-testnet.stellar.org";
+const DEFAULT_MAX_LEDGER_LAG: i64 = 5;
+
+fn soroban_rpc_url() -> String {
+    std::env::var("SOROBAN_RPC_URL")
+        .or_else(|_| std::env::var("STELLAR_RPC_URL"))
+        .unwrap_or_else(|_| DEFAULT_SOROBAN_RPC_URL.to_string())
+}
+
+fn max_ledger_lag() -> i64 {
+    std::env::var("INDEXER_MAX_LEDGER_LAG")
+        .ok()
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(DEFAULT_MAX_LEDGER_LAG)
+}
+
+pub async fn liveness() -> (StatusCode, Json<Value>) {
+    (
+        StatusCode::OK,
+        Json(json!({
+            "status": "alive"
+        })),
+    )
+}
+
+pub async fn readiness(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
     match sqlx::query("SELECT 1").execute(&state.pool).await {
         Ok(_) => (
             StatusCode::OK,
-            Json(json!({ "status": "ok", "db": "connected" })),
+            Json(json!({
+                "status": "ready",
+                "db": "connected"
+            })),
         ),
+        Err(e) => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "status": "not_ready",
+                "db": e.to_string()
+            })),
+        ),
+    }
+}
+
+pub async fn health(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
+    match sqlx::query("SELECT 1").execute(&state.pool).await {
+        Ok(_) => {
+            let (code, Json(sync_status_payload)) = sync_status(State(state.clone())).await;
+            (
+                code,
+                Json(json!({
+                    "status": sync_status_payload["status"].clone(),
+                    "db": "connected",
+                    "indexer_sync_status": sync_status_payload
+                })),
+            )
+        }
         Err(e) => (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(json!({ "status": "degraded", "db": e.to_string() })),

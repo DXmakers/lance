@@ -6,6 +6,8 @@ import { type Bid } from "@/lib/api";
 import { shortenAddress, formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Stars } from "@/components/stars";
 import { cn } from "@/lib/utils";
 
 // ── Status helpers ──────────────────────────────────────────────────────────
@@ -69,13 +71,12 @@ function BidListSkeleton() {
 
 function EmptyBids() {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-zinc-800 py-12 text-center">
-      <Clock3 className="h-8 w-8 text-zinc-600" aria-hidden="true" />
-      <p className="text-sm font-medium text-zinc-400">No bids yet</p>
-      <p className="text-xs text-zinc-600">
-        Freelancers who apply will appear here.
-      </p>
-    </div>
+    <EmptyState
+      icon={<Clock3 className="h-5 w-5" aria-hidden="true" />}
+      title="No bids yet"
+      description="Freelancers who apply will appear here."
+      tone="dark"
+    />
   );
 }
 
@@ -130,108 +131,135 @@ export function BidList({
 
   const canAccept = isClientOwner && jobStatus === "open";
 
+  const sortedBids = [...bids].sort((left, right) => {
+    const leftScore = left.freelancerReputation?.scoreBps ?? 0;
+    const rightScore = right.freelancerReputation?.scoreBps ?? 0;
+    if (rightScore !== leftScore) return rightScore - leftScore;
+    return (
+      new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+    );
+  });
+
   return (
-    <ul aria-label="Bids" className="space-y-3">
-      {bids.map((bid) => {
-        const isExpanded = expandedId === bid.id;
-        const isAccepting = acceptingBidId === bid.id;
-        const isAccepted = bid.status === "accepted";
+    <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/95">
+      <table className="min-w-full border-separate border-spacing-y-3">
+        <thead>
+          <tr className="bg-zinc-900/80 text-left text-xs uppercase tracking-[0.22em] text-zinc-500">
+            <th className="px-6 py-3">Freelancer</th>
+            <th className="px-6 py-3">Reputation</th>
+            <th className="px-6 py-3">Proposal</th>
+            <th className="px-6 py-3">Status</th>
+            <th className="px-6 py-3 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedBids.map((bid) => {
+            const isExpanded = expandedId === bid.id;
+            const isAccepting = acceptingBidId === bid.id;
+            const isAccepted = bid.status === "accepted";
 
-        return (
-          <li
-            key={bid.id}
-            className={cn(
-              "rounded-2xl border p-5 transition-colors duration-150",
-              isAccepted
-                ? "border-emerald-500/25 bg-emerald-500/5"
-                : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-700",
-            )}
-          >
-            {/* Header row */}
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <UserCircle2
-                  className="h-5 w-5 flex-shrink-0 text-zinc-500"
-                  aria-hidden="true"
-                />
-                <button
-                  type="button"
-                  onClick={() => setExpandedId(isExpanded ? null : bid.id)}
-                  aria-expanded={isExpanded}
-                  aria-controls={`bid-proposal-${bid.id}`}
-                  className="font-mono text-sm font-medium text-zinc-200 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900"
-                >
-                  {shortenAddress(bid.freelancer_address)}
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <StatusBadge status={bid.status} />
-                <time
-                  dateTime={bid.created_at}
-                  className="text-[11px] text-zinc-600"
-                >
-                  {formatDate(bid.created_at)}
-                </time>
-              </div>
-            </div>
-
-            {/* Proposal — collapsed to 2 lines, expandable */}
-            <div
-              id={`bid-proposal-${bid.id}`}
-              className={cn(
-                "mt-3 text-sm leading-relaxed text-zinc-400",
-                !isExpanded && "line-clamp-2",
-              )}
-            >
-              {bid.proposal}
-            </div>
-
-            {bid.proposal.length > 120 && (
-              <button
-                type="button"
-                onClick={() => setExpandedId(isExpanded ? null : bid.id)}
-                className="mt-1 text-xs text-indigo-400 hover:text-indigo-300 focus-visible:outline-none focus-visible:underline"
+            return (
+              <tr
+                key={bid.id}
+                className={cn(
+                  "border-t border-zinc-800 transition-colors duration-150",
+                  isAccepted ? "bg-emerald-500/5" : "bg-zinc-950/90",
+                )}
               >
-                {isExpanded ? "Show less" : "Read more"}
-              </button>
-            )}
-
-            {/* Accept action */}
-            {canAccept && !isAccepted && (
-              <div className="mt-4 flex justify-end">
-                <Button
-                  size="sm"
-                  onClick={() => onAccept?.(bid.id)}
-                  disabled={isAccepting || Boolean(acceptingBidId)}
-                  aria-label={`Accept bid from ${shortenAddress(bid.freelancer_address)}`}
-                  aria-busy={isAccepting}
-                  className="rounded-full bg-emerald-600 text-xs font-medium text-white shadow-sm shadow-emerald-500/20 transition-all duration-150 hover:bg-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 disabled:opacity-60"
-                >
-                  {isAccepting ? (
-                    <>
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                      Accepting…
-                    </>
+                <td className="px-6 py-5 align-top">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <UserCircle2
+                      className="h-5 w-5 flex-shrink-0 text-zinc-500"
+                      aria-hidden="true"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setExpandedId(isExpanded ? null : bid.id)}
+                      aria-expanded={isExpanded}
+                      aria-controls={`bid-proposal-${bid.id}`}
+                      className="font-mono text-sm font-medium text-zinc-200 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900"
+                    >
+                      {shortenAddress(bid.freelancer_address)}
+                    </button>
+                  </div>
+                </td>
+                <td className="px-6 py-5 align-top text-sm text-zinc-300">
+                  {bid.freelancerReputation ? (
+                    <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800/70 bg-zinc-900/80 px-3 py-1 text-xs text-zinc-300">
+                      <Stars value={bid.freelancerReputation.starRating} />
+                      <span>
+                        {bid.freelancerReputation.averageStars.toFixed(1)}
+                        <span className="ml-1 text-zinc-500">·</span>
+                        {bid.freelancerReputation.totalJobs} jobs
+                      </span>
+                    </div>
                   ) : (
-                    <>
-                      <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                      Accept Bid
-                    </>
+                    <span className="text-zinc-500">No reputation yet</span>
                   )}
-                </Button>
-              </div>
-            )}
-
-            {isAccepted && (
-              <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-400">
-                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                Bid accepted — work in progress
-              </p>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+                </td>
+                <td className="px-6 py-5 align-top">
+                  <div
+                    id={`bid-proposal-${bid.id}`}
+                    className={cn(
+                      "text-sm leading-relaxed text-zinc-400",
+                      !isExpanded && "line-clamp-2",
+                    )}
+                  >
+                    {bid.proposal}
+                  </div>
+                  {bid.proposal.length > 120 && (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedId(isExpanded ? null : bid.id)}
+                      className="mt-2 inline-block text-xs text-indigo-400 hover:text-indigo-300 focus-visible:outline-none focus-visible:underline"
+                    >
+                      {isExpanded ? "Show less" : "Read more"}
+                    </button>
+                  )}
+                </td>
+                <td className="px-6 py-5 align-top text-sm text-zinc-300">
+                  <div className="flex flex-col gap-2">
+                    <StatusBadge status={bid.status} />
+                    <time dateTime={bid.created_at} className="text-[11px] text-zinc-500">
+                      {formatDate(bid.created_at)}
+                    </time>
+                  </div>
+                </td>
+                <td className="px-6 py-5 align-top text-right">
+                  {canAccept && !isAccepted ? (
+                    <Button
+                      size="sm"
+                      onClick={() => onAccept?.(bid.id)}
+                      disabled={isAccepting || Boolean(acceptingBidId)}
+                      aria-label={`Accept bid from ${shortenAddress(bid.freelancer_address)}`}
+                      aria-busy={isAccepting}
+                      className="rounded-full bg-emerald-600 text-xs font-medium text-white shadow-sm shadow-emerald-500/20 transition-all duration-150 hover:bg-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 disabled:opacity-60"
+                    >
+                      {isAccepting ? (
+                        <>
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                          Accepting…
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                          Accept Bid
+                        </>
+                      )}
+                    </Button>
+                  ) : isAccepted ? (
+                    <p className="text-xs font-medium text-emerald-400">
+                      Accepted
+                    </p>
+                  ) : (
+                    <span className="text-xs text-zinc-500">—</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
