@@ -31,11 +31,11 @@ backoff           = "0.4"
 async-trait       = "0.1"
 
 [profile.release]
-opt-level = "z"
-overflow-checks = true
-debug = 0
-strip = "symbols"
-debug-assertions = false
-panic = "abort"
-codegen-units = 1
-lto = true
+opt-level         = "z"
+overflow-checks   = true
+debug             = 0
+strip             = "symbols"
+debug-assertions  = false
+panic             = "abort"
+codegen-units     = 1
+lto               = true

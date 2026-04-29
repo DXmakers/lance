@@ -1,0 +1,114 @@
+
+> web@0.1.0 build
+> next build --webpack
+
+▲ Next.js 16.1.6 (webpack)
+
+  Creating an optimized production build ...
+Failed to compile.
+
+./app/globals.css.webpack[javascript/auto]!=!../../node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[2]!../../node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[3]!./app/globals.css
+Error: Cannot find module '../lightningcss.darwin-arm64.node'
+Require stack:
+- /Users/kevinbrenes/lance/node_modules/lightningcss/node/index.js
+- /Users/kevinbrenes/lance/node_modules/@tailwindcss/node/dist/index.js
+- /Users/kevinbrenes/lance/node_modules/@tailwindcss/postcss/dist/index.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/config/blocks/css/plugins.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/config/blocks/css/index.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/config/index.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack-config.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/plugins/next-trace-entrypoints-plugin.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/collect-build-traces.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/index.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/cli/next-build.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1369:15)
+    at /Users/kevinbrenes/lance/node_modules/next/dist/server/require-hook.js:57:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Module._load (node:internal/modules/cjs/loader:1179:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1449:12)
+    at mod.require (/Users/kevinbrenes/lance/node_modules/next/dist/server/require-hook.js:68:28)
+    at require (node:internal/modules/helpers:135:16)
+
+Import trace for requested module:
+./app/globals.css.webpack[javascript/auto]!=!../../node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[2]!../../node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[3]!./app/globals.css
+./app/globals.css
+
+./app/globals.css
+Error: Cannot find module '../lightningcss.darwin-arm64.node'
+Require stack:
+- /Users/kevinbrenes/lance/node_modules/lightningcss/node/index.js
+- /Users/kevinbrenes/lance/node_modules/@tailwindcss/node/dist/index.js
+- /Users/kevinbrenes/lance/node_modules/@tailwindcss/postcss/dist/index.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/config/blocks/css/plugins.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/config/blocks/css/index.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/config/index.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack-config.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/plugins/next-trace-entrypoints-plugin.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/collect-build-traces.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/index.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/cli/next-build.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1369:15)
+    at /Users/kevinbrenes/lance/node_modules/next/dist/server/require-hook.js:57:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Module._load (node:internal/modules/cjs/loader:1179:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1449:12)
+    at mod.require (/Users/kevinbrenes/lance/node_modules/next/dist/server/require-hook.js:68:28)
+    at require (node:internal/modules/helpers:135:16)
+    at tryRunOrWebpackError (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:29:316134)
+    at __webpack_require_module__ (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:29:131536)
+    at __nested_webpack_require_161494__ (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:29:130971)
+    at /Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:29:131828
+    at symbolIterator (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/neo-async/async.js:1:14444)
+    at done (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/neo-async/async.js:1:14824)
+    at Hook.eval [as callAsync] (eval at create (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:14:9224), <anonymous>:15:1)
+    at Hook.CALL_ASYNC_DELEGATE [as _callAsync] (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:14:6378)
+    at /Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:29:130691
+    at symbolIterator (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/neo-async/async.js:1:14402)
+-- inner error --
+Error: Cannot find module '../lightningcss.darwin-arm64.node'
+Require stack:
+- /Users/kevinbrenes/lance/node_modules/lightningcss/node/index.js
+- /Users/kevinbrenes/lance/node_modules/@tailwindcss/node/dist/index.js
+- /Users/kevinbrenes/lance/node_modules/@tailwindcss/postcss/dist/index.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/config/blocks/css/plugins.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/config/blocks/css/index.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/config/index.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack-config.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/plugins/next-trace-entrypoints-plugin.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/collect-build-traces.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/build/index.js
+- /Users/kevinbrenes/lance/node_modules/next/dist/cli/next-build.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1369:15)
+    at /Users/kevinbrenes/lance/node_modules/next/dist/server/require-hook.js:57:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Module._load (node:internal/modules/cjs/loader:1179:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1449:12)
+    at mod.require (/Users/kevinbrenes/lance/node_modules/next/dist/server/require-hook.js:68:28)
+    at require (node:internal/modules/helpers:135:16)
+    at Object.<anonymous> (/Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[2]!/Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[3]!/Users/kevinbrenes/lance/apps/web/app/globals.css:1:7)
+    at /Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:29:962757
+    at Hook.eval [as call] (eval at create (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:14:9002), <anonymous>:7:1)
+    at Hook.CALL_DELEGATE [as _call] (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:14:6272)
+    at /Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:29:131569
+    at tryRunOrWebpackError (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:29:316088)
+    at __webpack_require_module__ (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:29:131536)
+    at __nested_webpack_require_161494__ (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:29:130971)
+    at /Users/kevinbrenes/lance/node_modules/next/dist/compiled/webpack/bundle5.js:29:131828
+    at symbolIterator (/Users/kevinbrenes/lance/node_modules/next/dist/compiled/neo-async/async.js:1:14444)
+
+Generated code for /Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[2]!/Users/kevinbrenes/lance/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[15].oneOf[10].use[3]!/Users/kevinbrenes/lance/apps/web/app/globals.css
+
+Import trace for requested module:
+./app/globals.css
+
+
+> Build failed because of webpack errors
