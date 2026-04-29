@@ -48,6 +48,7 @@ export default function JobDetailsPage() {
   const [deliverableLink, setDeliverableLink] = useState("");
   const [deliverableFile, setDeliverableFile] = useState<File | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [proposal, setProposal] = useState<string | null>(null);
 
   useEffect(() => {
     void getConnectedWalletAddress().then(setViewerAddress);
@@ -69,7 +70,7 @@ export default function JobDetailsPage() {
         (await getConnectedWalletAddress()) ?? "GD...FREELANCER";
       await api.bids.create(id, {
         freelancer_address: freelancerAddress,
-        proposal,
+        proposal: proposal || "",
       });
       setProposal("");
       await workspace.refresh();
@@ -302,8 +303,9 @@ export default function JobDetailsPage() {
                   </div>
                 </div>
               </div>
-            ) : null}
+            ) : <div> p </div>}
           </div>
+          <section/>
 
           {job.status === "open" ? (
             <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
@@ -398,7 +400,7 @@ export default function JobDetailsPage() {
                     Boolean(viewerAddress) &&
                     viewerAddress === job.client_address
                   }
-                  workflowLocked={workflowLocked}
+                  workflowLocked  ={workflowLocked}
                   busyMilestoneId={
                     busyAction?.startsWith("release-")
                       ? busyAction.replace("release-", "")
@@ -469,11 +471,8 @@ export default function JobDetailsPage() {
                     />
                   </form>
                 ) : null}
-                </div>
               </section>
             </div>
-          </div>
-        </div>
           ) : null}
         </div>
       </section>
