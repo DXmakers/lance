@@ -40,6 +40,7 @@ impl Config {
 fn required(name: &str) -> anyhow::Result<String> {
     env::var(name)
         .map_err(|_| anyhow::anyhow!("missing required environment variable: {name}"))
+}
 
 fn parse_socket_addr(name: &str, default: &str) -> anyhow::Result<SocketAddr> {
     let value = env::var(name).unwrap_or_else(|_| default.to_string());
@@ -48,18 +49,18 @@ fn parse_socket_addr(name: &str, default: &str) -> anyhow::Result<SocketAddr> {
 
 fn parse_u64(name: &str, default: u64) -> anyhow::Result<u64> {
     match env::var(name) {
-        Ok(raw) => Ok(raw
+        Ok(raw) => raw
             .parse::<u64>()
-            .map_err(|error| anyhow::anyhow!("invalid {name}: {error}"))?),
+            .map_err(|error| anyhow::anyhow!("invalid {name}: {error}")),
         Err(_) => Ok(default),
     }
 }
 
 fn parse_u32(name: &str, default: u32) -> anyhow::Result<u32> {
     match env::var(name) {
-        Ok(raw) => Ok(raw
+        Ok(raw) => raw
             .parse::<u32>()
-            .map_err(|error| anyhow::anyhow!("invalid {name}: {error}"))?),
+            .map_err(|error| anyhow::anyhow!("invalid {name}: {error}")),
         Err(_) => Ok(default),
     }
 }
