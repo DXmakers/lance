@@ -37,6 +37,7 @@ Create backend env file:
 
 ```bash
 cp backend/.env.example backend/.env
+cp backend/.env.example backend/.env.development
 ```
 
 Create web env file:
@@ -47,6 +48,7 @@ cp apps/web/.env.example apps/web/.env.local
 
 Important backend variables:
 
+- `APP_ENV`: optional environment selector (defaults to `development`). Backend loads `.env` then `.env.<APP_ENV>` and keeps shell-provided vars highest priority.
 - `DATABASE_URL`: Postgres connection string
 - `SOROBAN_RPC_URL` or `STELLAR_RPC_URL`: Soroban RPC endpoint
 - `JUDGE_AUTHORITY_SECRET`: signing key used by backend judge/contract actions

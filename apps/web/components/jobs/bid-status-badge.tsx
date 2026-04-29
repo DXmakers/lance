@@ -1,9 +1,8 @@
 "use client";
 
 import React from "react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Clock, XCircle, AlertCircle } from "lucide-react";
+import { CheckCircle2, Clock, XCircle } from "lucide-react";
 
 export type BidStatus = "pending" | "accepted" | "rejected";
 
@@ -109,13 +108,11 @@ export function BidStatusBadge({
 interface BidStatusIndicatorProps extends React.HTMLAttributes<HTMLDivElement> {
   status: BidStatus;
   timestamp?: string;
-  animated?: boolean;
 }
 
 export function BidStatusIndicator({
   status,
   timestamp,
-  animated = false,
   className,
   ...props
 }: BidStatusIndicatorProps) {

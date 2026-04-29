@@ -8,7 +8,11 @@ export interface IndexerStatus {
   last_updated_at: string;
   error_count: number;
   total_events_processed: number;
+  last_batch_events_processed: number;
+  last_batch_rate_per_second: number;
   last_loop_duration_ms: number;
+  last_rpc_latency_ms: number;
+  rpc_retry_count: number;
   latest_network_ledger: number;
   ledger_lag: number;
   rpc: {
