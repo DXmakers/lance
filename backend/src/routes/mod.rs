@@ -9,6 +9,7 @@ pub mod evidence;
 pub mod health;
 pub mod jobs;
 pub mod milestones;
+pub mod storage;
 pub mod uploads;
 pub mod users;
 pub mod verdicts;
@@ -24,6 +25,7 @@ pub fn api_router(_state: AppState) -> Router<AppState> {
         .route("/health", get(health::health))
         .route("/sync-status", get(health::sync_status))
         .route("/metrics", get(health::prometheus_metrics))
+        .route("/storage/metrics", get(storage::storage_prometheus_metrics))
         // v1 API routes
         .nest(
             "/v1",
@@ -35,6 +37,7 @@ pub fn api_router(_state: AppState) -> Router<AppState> {
                 .nest("/users", users::router())
                 .nest("/auth", auth::router())
                 .nest("/uploads", uploads::router())
-                .nest("/admin", admin::router()),
+                .nest("/admin", admin::router())
+                .nest("/storage", storage::router()),
         )
 }
