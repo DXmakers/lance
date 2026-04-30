@@ -91,6 +91,17 @@ export const api = {
           body: JSON.stringify(body),
         }),
     },
+    save: (jobId: string, walletAddress: string, body: { note?: string }) =>
+      request<SavedJob>(`/v1/jobs/${jobId}/save`, {
+        method: "POST",
+        headers: { "x-wallet-address": walletAddress },
+        body: JSON.stringify(body),
+      }),
+    unsave: (jobId: string, walletAddress: string) =>
+      request<void>(`/v1/jobs/${jobId}/save`, {
+        method: "DELETE",
+        headers: { "x-wallet-address": walletAddress },
+      }),
   },
   bids: {
     list: (jobId: string) => request<Bid[]>(`/v1/jobs/${jobId}/bids`),
@@ -141,6 +152,8 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(body),
       }),
+    savedJobs: (address: string) =>
+      request<SavedJob[]>(`/v1/users/${address}/saved-jobs`),
   },
 };
 
@@ -217,6 +230,17 @@ export interface JobMetadata {
   tags: string[];
   skills_required: string[];
   estimated_duration_days?: number | null;
+}
+
+export interface AuthChallengeResponse {
+  challenge: string;
+  expires_at: string;
+}
+
+export interface AuthVerifyResponse {
+  token: string;
+  expires_at: string;
+  user_address: string;
 }
 
 export interface MetadataUploadResponse {
@@ -369,22 +393,21 @@ export interface UpdateProfileBody {
   portfolio_links: string[];
 }
 
-export interface ActivityLog {
+export interface SavedJob {
   id: string;
-  user_address?: string | null;
-  job_id?: string | null;
-  event_type: string;
-  level: string;
-  details: Record<string, unknown> | string | null;
+  job_id: string;
+  user_address: string;
+  note?: string;
   created_at: string;
 }
 
-export interface AuthChallengeResponse {
-  address: string;
-  challenge: string;
+export interface ActivityLog {
+  id: string;
+  user_address?: string;
+  job_id?: string;
+  event_type: string;
+  level: string;
+  details: unknown;
+  created_at: string;
 }
 
-export interface AuthVerifyResponse {
-  address: string;
-  token: string;
-}
