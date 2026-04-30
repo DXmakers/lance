@@ -10,7 +10,8 @@ use crate::{
     db::AppState,
     error::{AppError, Result},
     models::{CreateJobRequest, Job, MarkJobFundedRequest},
-    routes::{bids, deliverables, milestones},
+    routes::{auth::AuthenticatedUser, bids, deliverables, milestones},
+    services::metadata,
 };
 
 pub fn router() -> Router<AppState> {
@@ -68,9 +69,15 @@ async fn get_job(State(state): State<AppState>, Path(id): Path<Uuid>) -> Result<
 }
 
 async fn create_job(
+    user: AuthenticatedUser,
     State(state): State<AppState>,
     Json(req): Json<CreateJobRequest>,
 ) -> Result<Json<Job>> {
+    if user.address != req.client_address {
+        return Err(AppError::Unauthorized(
+            "JWT address does not match client_address".into(),
+        ));
+    }
     if req.title.is_empty() {
         return Err(AppError::BadRequest("title is required".into()));
     }

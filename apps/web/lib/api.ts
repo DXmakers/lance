@@ -34,15 +34,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   auth: {
-    getChallenge: (address: string) =>
-      request<AuthChallengeResponse>(`/v1/auth/challenge`, {
+    nonce: (address: string) =>
+      request<{ nonce: string }>(`/v1/auth/nonce?address=${encodeURIComponent(address)}`),
+    verify: (body: { address: string; message: string; signature: string }) =>
+      request<{ token: string; expires_at: string }>("/v1/auth/verify", {
         method: "POST",
-        body: JSON.stringify({ address }),
-      }),
-    verify: (address: string, signature: string) =>
-      request<AuthVerifyResponse>(`/v1/auth/verify`, {
-        method: "POST",
-        body: JSON.stringify({ address, signature }),
+        body: JSON.stringify(body),
       }),
   },
   jobs: {

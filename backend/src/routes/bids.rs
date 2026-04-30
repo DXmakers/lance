@@ -8,6 +8,7 @@ use crate::{
     db::AppState,
     error::{AppError, Result},
     models::{AcceptBidRequest, Bid, CreateBidRequest, Job},
+    routes::auth::AuthenticatedUser,
 };
 
 pub async fn list_bids(
@@ -25,10 +26,17 @@ pub async fn list_bids(
 }
 
 pub async fn create_bid(
+    user: AuthenticatedUser,
     State(state): State<AppState>,
     Path(job_id): Path<Uuid>,
     Json(req): Json<CreateBidRequest>,
 ) -> Result<Json<Bid>> {
+    // JWT subject must match the freelancer address in the request body.
+    if user.address != req.freelancer_address {
+        return Err(AppError::Unauthorized(
+            "JWT address does not match freelancer_address".into(),
+        ));
+    }
     // ensure job is open
     let job_status: Option<String> = sqlx::query_scalar("SELECT status FROM jobs WHERE id = $1")
         .bind(job_id)
