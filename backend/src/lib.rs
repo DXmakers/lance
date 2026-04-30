@@ -9,6 +9,7 @@ pub mod models;
 pub mod routes;
 pub mod services;
 pub mod soroban_rpc;
+pub mod storage_audit;
 pub mod tx_metadata_cache;
 pub mod tx_queue;
 pub mod worker;

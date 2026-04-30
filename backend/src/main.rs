@@ -46,7 +46,8 @@ async fn main() -> anyhow::Result<()> {
 
     let state = AppState::new(pool.clone());
     tokio::spawn(worker::run_judge_worker(pool.clone()));
-    tokio::spawn(indexer::run_indexer_worker(pool));
+    tokio::spawn(indexer::run_indexer_worker(pool.clone()));
+    tokio::spawn(storage_audit::run_storage_audit_worker(pool));
 
     let app = build_router(state);
 
