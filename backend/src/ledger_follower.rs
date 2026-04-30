@@ -531,7 +531,7 @@ async fn process_event_side_effects(
             .bind(ledger)
             .bind(contract_id)
             .bind(job_id)
-            .bind(opened_by)
+            .bind(&opened_by)
             .bind("DisputeOpened")
             .execute(&mut **tx)
             .await
