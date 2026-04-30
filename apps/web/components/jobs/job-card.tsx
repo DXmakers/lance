@@ -115,8 +115,6 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export function JobCard({ job }: JobCardProps) {
-  const statusConfig = STATUS_CONFIG[job.status] || STATUS_CONFIG.open;
-
   return (
     <article className="group relative flex flex-col rounded-3xl border border-white/10 bg-zinc-950/70 p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.55)] backdrop-blur-md transition-all duration-150 hover:-translate-y-1 hover:border-amber-500/30 hover:shadow-[0_24px_64px_-40px_rgba(15,23,42,0.65)] focus-within:ring-2 focus-within:ring-amber-500/50 focus-within:ring-offset-2 focus-within:ring-offset-zinc-950">
       <Link

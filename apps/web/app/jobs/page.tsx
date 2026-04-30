@@ -8,9 +8,7 @@ import {
   DollarSign,
   Layers,
   Plus,
-  Shield,
   Sparkles,
-  TrendingUp,
   Users,
   Zap,
 } from "lucide-react";
