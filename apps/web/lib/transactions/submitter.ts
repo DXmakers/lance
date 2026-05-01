@@ -250,10 +250,10 @@ function rebuildTransaction(
   }
 
   // Copy timebounds
-  if (originalTx.timebounds) {
+  if (originalTx.timeBounds) {
     txBuilder.setTimebounds(
-      originalTx.timebounds.minTime,
-      originalTx.timebounds.maxTime,
+      originalTx.timeBounds.minTime,
+      originalTx.timeBounds.maxTime,
     );
   }
 
