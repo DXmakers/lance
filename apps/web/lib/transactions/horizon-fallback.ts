@@ -99,7 +99,8 @@ export async function getHorizonTransactionStatus(
     return tx;
   } catch (error) {
     // Transaction not found or other error
-    if (error instanceof Horizon.NotFoundError) {
+    const horizonError = error as { response?: { status?: number } };
+    if (horizonError.response?.status === 404) {
       return null;
     }
     throw error;
