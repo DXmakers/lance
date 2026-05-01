@@ -117,7 +117,7 @@ export function BidList({
     return (
       <div
         role="alert"
-        className="rounded-2xl border border-red-500/20 bg-red-500/5 p-5 text-sm text-red-400"
+        className="rounded-[12px] border border-red-500/20 bg-red-500/5 p-5 text-xs font-medium text-red-400"
       >
         {error}
       </div>

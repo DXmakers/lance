@@ -160,81 +160,92 @@ export default function JobDetailsPage() {
                     <SaveJobButton jobId={job.id} />
                   </div>
                 </div>
-                <p className="mt-4 text-sm leading-7 text-slate-600">
-                  {job.description}
-                </p>
               </div>
-              <div className="rounded-[1.6rem] border border-amber-200 bg-amber-50 p-5 text-right">
-                <p className="text-xs uppercase tracking-[0.22em] text-amber-700">
-                  Contract Value
-                </p>
-                <p className="mt-2 text-3xl font-semibold text-slate-950">
-                  {formatUsdc(job.budget_usdc)}
-                </p>
-                <p className="mt-2 text-sm text-slate-600">
-                  {job.milestones} milestone approvals
-                </p>
-              </div>
-            </div>
 
-            <div className="mt-6 grid gap-4 rounded-[1.6rem] border border-slate-200 bg-slate-50 p-5 sm:grid-cols-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                  Client
-                </p>
-                <p className="mt-2 text-sm font-medium text-slate-700">
-                  {shortenAddress(job.client_address)}
-                </p>
+              <div className="mt-8 grid gap-4 border-t border-white/5 pt-8 sm:grid-cols-3">
+                <MetadataCard label="Client" value={shortenAddress(job.client_address)} />
+                <MetadataCard label="Freelancer" value={job.freelancer_address ? shortenAddress(job.freelancer_address) : "Unassigned"} accent={!!job.freelancer_address} />
+                <MetadataCard label="Last Pulse" value={formatDateTime(job.updated_at)} />
               </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                  Freelancer
-                </p>
-                <p className="mt-2 text-sm font-medium text-slate-700">
-                  {job.freelancer_address
-                    ? shortenAddress(job.freelancer_address)
-                    : "Not assigned"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                  Updated
-                </p>
-                <p className="mt-2 text-sm font-medium text-slate-700">
-                  {formatDateTime(job.updated_at)}
-                </p>
-              </div>
-            </div>
 
-            <div className="mt-4 rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                Escrow Contract
-              </p>
-              <p className="mt-2 font-mono text-xs text-slate-600 break-all">
-                {getEscrowContractId() || "Not configured"}
-              </p>
-            </div>
+              <div className="mt-6 rounded-[8px] border border-zinc-800 bg-zinc-950/50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                  Escrow Authority
+                </p>
+                <p className="mt-2 font-mono text-[11px] text-zinc-400 break-all">
+                  {getEscrowContractId() || "System Default"}
+                </p>
+              </div>
 
-            {workflowLocked ? (
-              <div className="mt-6 rounded-[1.6rem] border border-red-200 bg-red-50 p-5 text-red-800">
-                <div className="flex items-start gap-3">
-                  <ShieldAlert className="mt-0.5 h-5 w-5" />
-                  <div>
-                    <p className="font-semibold">
-                      Regular workflow is locked while the dispute center is active.
-                    </p>
-                    <p className="mt-2 text-sm leading-6">
-                      Deliverable uploads and release actions stay frozen until the
-                      Agent Judge returns an immutable verdict.
-                    </p>
-                    <Link
-                      href={`/jobs/${id}/dispute${workspace.dispute ? `?disputeId=${workspace.dispute.id}` : ""}`}
-                      className="mt-4 inline-flex items-center gap-2 text-sm font-semibold underline"
-                    >
-                      Open dispute center
-                    </Link>
+              {workflowLocked ? (
+                <div className="mt-8 rounded-[12px] border border-red-500/20 bg-red-500/5 p-6 text-red-400">
+                  <div className="flex items-start gap-4">
+                    <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold uppercase tracking-tight">
+                        Protocol Safety Lock Active
+                      </p>
+                      <p className="mt-2 text-[13px] leading-relaxed text-red-400/80">
+                        Workflows are suspended while the dispute center is active.
+                        Actions stay frozen until a resolution is reached.
+                      </p>
+                      <Link
+                        href={`/jobs/${id}/dispute${workspace.dispute ? `?disputeId=${workspace.dispute.id}` : ""}`}
+                        className="mt-4 inline-flex items-center gap-2 text-xs font-bold underline decoration-red-500/30 underline-offset-4 hover:decoration-red-500"
+                      >
+                        Enter Dispute Center
+                      </Link>
+                    </div>
                   </div>
                 </div>
+              ) : null}
+            </div>
+
+            {job.status === "open" ? (
+              <div className="grid gap-8 xl:grid-cols-[1fr_0.95fr]">
+                <section className="rounded-[12px] border border-indigo-500/30 bg-indigo-500/5 p-8 shadow-[0_20px_60px_-48px_rgba(0,0,0,0.8)]">
+                  <h2 className="text-xl font-bold text-white">
+                    Secure This Project
+                  </h2>
+                  <p className="mt-2 text-[13px] leading-relaxed text-zinc-400">
+                    Pitch your technical approach and previous on-chain experience to the client.
+                  </p>
+                  <div className="mt-6">
+                    <SubmitBidErrorBoundary>
+                      <SubmitBidModal
+                        jobId={id}
+                        onChainJobId={BigInt(workspace.job?.on_chain_job_id ?? 0)}
+                        disabled={busyAction !== null}
+                        onSubmitted={workspace.refresh}
+                      />
+                    </SubmitBidErrorBoundary>
+                  </div>
+                </section>
+
+                <section className="rounded-[12px] border border-zinc-800/50 bg-zinc-900/40 p-8 backdrop-blur-md">
+                  <div className="mb-6 flex items-center justify-between gap-4">
+                    <h2 className="text-xl font-bold text-white">
+                      Bids
+                    </h2>
+                    <span className="rounded-full bg-zinc-800/80 px-3 py-1 text-[10px] font-bold text-zinc-500">
+                      {workspace.bids.length} Proposals
+                    </span>
+                  </div>
+                  <BidList
+                    bids={workspace.bids}
+                    isClientOwner={
+                      Boolean(viewerAddress) &&
+                      viewerAddress === workspace.job?.client_address
+                    }
+                    jobStatus={job.status}
+                    acceptingBidId={
+                      busyAction?.startsWith("accept-")
+                        ? busyAction.replace("accept-", "")
+                        : null
+                    }
+                    onAccept={handleAcceptBid}
+                  />
+                </section>
               </div>
             ) : <div> p </div>}
           </div>
@@ -358,22 +369,47 @@ export default function JobDetailsPage() {
                     } finally {
                       setBusyAction(null);
                     }
-                  }}
-                />
-              </section>
+                    workflowLocked={workflowLocked}
+                    busyMilestoneId={
+                      busyAction?.startsWith("release-")
+                        ? busyAction.replace("release-", "")
+                        : null
+                    }
+                    onRelease={async (milestoneId) => {
+                      if (!workspace.job) return;
+                      const milestone = workspace.milestones.find(
+                        (m) => m.id === milestoneId,
+                      );
+                      if (!milestone) return;
+                      setBusyAction(`release-${milestoneId}`);
+                      try {
+                        await releaseFunds(
+                          BigInt(workspace.job.on_chain_job_id ?? 0),
+                          Math.max(0, milestone.index - 1),
+                        );
+                        await api.jobs.releaseMilestone(id, milestoneId);
+                        await workspace.refresh();
+                      } catch {
+                        alert("Failed to release milestone");
+                      } finally {
+                        setBusyAction(null);
+                      }
+                    }}
+                  />
+                </section>
 
-              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-xl font-semibold text-slate-950">
-                      Deliverables
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Freelancers can pin files to IPFS or share links, then the client gets a dedicated approval moment.
-                    </p>
+                <section className="rounded-[12px] border border-zinc-800/50 bg-zinc-900/40 p-8 backdrop-blur-md">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-white">
+                        Evidence Submission
+                      </h2>
+                      <p className="mt-2 text-[12px] leading-relaxed text-zinc-500">
+                        Pin deliverables to IPFS to trigger a formal approval moment.
+                      </p>
+                    </div>
+                    <FileUp className="h-5 w-5 text-indigo-400" />
                   </div>
-                  <FileUp className="h-5 w-5 text-amber-600" />
-                </div>
 
                 {!workflowLocked ? (
                   <form onSubmit={handleSubmitDeliverable} className="mt-5 space-y-4">
