@@ -45,17 +45,22 @@ export async function submitToHorizon(
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown Horizon submission error";
+    const horizonError = error as {
+      hash?: string;
+      resultXdr?: string;
+      response?: { status?: number };
+    };
 
     // Check for specific Horizon error types
-    if (error instanceof Horizon.TransactionFailedError) {
+    if (horizonError.resultXdr) {
       return {
-        hash: error.hash || "",
+        hash: horizonError.hash || "",
         status: "error",
-        errorMessage: `Transaction failed: ${error.resultXdr}`,
+        errorMessage: `Transaction failed: ${horizonError.resultXdr}`,
       };
     }
 
-    if (error instanceof Horizon.BadRequestError) {
+    if (horizonError.response?.status === 400) {
       return {
         hash: "",
         status: "error",
@@ -63,7 +68,7 @@ export async function submitToHorizon(
       };
     }
 
-    if (error instanceof Horizon.BadResponseError) {
+    if (horizonError.response?.status && horizonError.response.status >= 500) {
       return {
         hash: "",
         status: "error",
