@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { useWalletStore } from "@/lib/store/use-wallet-store";
 import { connectWallet, getWalletsKit, signAuthMessage } from "@/lib/stellar";
@@ -20,12 +20,11 @@ export function WalletConnect() {
     error 
   } = useWalletStore();
 
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  // Handle hydration to avoid mismatch in Next.js
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
+  const isHydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const handleConnect = async () => {
     setConnecting(true);
