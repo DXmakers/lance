@@ -34,6 +34,14 @@ pub struct MarkJobFundedRequest {
     pub client_address: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct JobFilterParams {
+    pub query: Option<String>,
+    pub tag: Option<String>,
+    pub sort: Option<String>,
+    pub status: Option<String>,
+}
+
 // ── Bid ───────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]

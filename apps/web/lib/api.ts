@@ -46,7 +46,15 @@ export const api = {
       }),
   },
   jobs: {
-    list: () => request<Job[]>("/v1/jobs"),
+    list: (params?: { query?: string; tag?: string; sort?: string; status?: string }) => {
+      const qs = new URLSearchParams();
+      if (params?.query) qs.set("query", params.query);
+      if (params?.tag) qs.set("tag", params.tag);
+      if (params?.sort) qs.set("sort", params.sort);
+      if (params?.status) qs.set("status", params.status);
+      const path = `/v1/jobs${qs.toString() ? `?${qs.toString()}` : ""}`;
+      return request<Job[]>(path);
+    },
     get: (id: string) => request<Job>(`/v1/jobs/${id}`),
     create: (body: CreateJobBody) =>
       request<Job>("/v1/jobs", { method: "POST", body: JSON.stringify(body) }),
