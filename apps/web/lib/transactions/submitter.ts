@@ -244,8 +244,9 @@ function rebuildTransaction(
 
   // Copy operations from original transaction
   const operations = originalTx.operations;
+  type BuilderOperation = Parameters<TransactionBuilder["addOperation"]>[0];
   for (const op of operations) {
-    txBuilder.addOperation(op);
+    txBuilder.addOperation(op as unknown as BuilderOperation);
   }
 
   // Copy timebounds
