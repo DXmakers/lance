@@ -39,7 +39,7 @@ export async function submitToHorizon(
 
     // If no hash but no error, treat as pending
     return {
-      hash: response.id || "",
+      hash: "",
       status: "pending",
     };
   } catch (error) {
