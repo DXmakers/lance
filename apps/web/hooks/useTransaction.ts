@@ -21,8 +21,9 @@ import { submitTransaction, SubmissionResult } from "@/lib/transactions/submitte
 import { pollTransactionStatus, PollingResult } from "@/lib/transactions/poller";
 import { simulateTransaction, SimulationResult } from "@/lib/transactions/simulator";
 import { calculateAdjustedFee, FeeEstimate } from "@/lib/transactions/fee-estimator";
-import { signTransaction, SigningResult } from "@/lib/wallets/signer";
-import { SigningRequest } from "@/lib/wallets/provider";
+import { signTransaction } from "@/lib/wallets/signer";
+import { SigningRequest, SigningResult } from "@/lib/wallets/provider";
+import { sorobanServer } from "@/lib/stellar";
 
 export interface UseTransactionOptions {
   /** Source account address */
@@ -262,7 +263,7 @@ export function useTransaction(options: UseTransactionOptions): UseTransactionRe
 
         lifecycleRef.current!.transitionToSimulating();
 
-        const simulation = await simulateTransaction(tx);
+        const simulation = await simulateTransaction(sorobanServer, tx);
 
         if (!simulation) {
           throw new Error("Simulation returned no result");

@@ -1,66 +1,85 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import { Networks } from "@creit.tech/stellar-wallets-kit";
+import { persist } from "zustand/middleware";
 
-export type WalletStatus = "disconnected" | "connecting" | "connected" | "error";
+// Matching the Networks enum from the kit to avoid circular dependencies or import issues
+export enum WalletNetworkPassphrase {
+  PUBLIC = "Public Global Stellar Network ; September 2015",
+  TESTNET = "Test SDF Network ; September 2015",
+}
 
 interface WalletState {
+  publicKey: string | null;
   address: string | null;
   walletId: string | null;
-  status: WalletStatus;
-  network: Networks;
+  status: "connected" | "disconnected" | "connecting" | "error";
+  network: string;
   error: string | null;
-
-  setConnection: (address: string, walletId: string) => void;
-  setStatus: (status: WalletStatus) => void;
+  isConnected: boolean;
+  isConnecting: boolean;
+  
+  setConnection: (publicKey: string, walletId: string) => void;
+  setStatus: (status: "connected" | "disconnected" | "connecting" | "error") => void;
+  setNetwork: (network: string) => void;
+  setConnecting: (isConnecting: boolean) => void;
   setError: (error: string | null) => void;
-  setNetwork: (network: Networks) => void;
   disconnect: () => void;
 }
 
-const storageHelper = {
-  encrypt: (str: string) => btoa(str),
-  decrypt: (str: string) => atob(str),
-};
-
 export const useWalletStore = create<WalletState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
+      publicKey: null,
       address: null,
       walletId: null,
       status: "disconnected",
-      network: (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET,
+      network: WalletNetworkPassphrase.TESTNET,
       error: null,
+      isConnected: false,
+      isConnecting: false,
 
-      setConnection: (address, walletId) =>
-        set({ address, walletId, status: "connected", error: null }),
-
-      setStatus: (status) => set({ status }),
-
-      setError: (error) => set({ error, status: error ? "error" : "disconnected" }),
-
+      setConnection: (publicKey, walletId) => 
+        set({ 
+          publicKey, 
+          address: publicKey, 
+          walletId, 
+          status: "connected", 
+          isConnected: true, 
+          isConnecting: false, 
+          error: null 
+        }),
+      
+      setStatus: (status) => set({ 
+        status, 
+        isConnected: status === "connected", 
+        isConnecting: status === "connecting" 
+      }),
+      
       setNetwork: (network) => set({ network }),
-
-      disconnect: () =>
-        set({ address: null, walletId: null, status: "disconnected", error: null }),
+      
+      setConnecting: (isConnecting) => set({ 
+        isConnecting, 
+        status: isConnecting ? "connecting" : (get().isConnected ? "connected" : "disconnected") 
+      }),
+      
+      setError: (error) => set({ 
+        error, 
+        status: "error", 
+        isConnecting: false 
+      }),
+      
+      disconnect: () => 
+        set({ 
+          publicKey: null, 
+          address: null, 
+          walletId: null, 
+          status: "disconnected", 
+          isConnected: false, 
+          isConnecting: false, 
+          error: null 
+        }),
     }),
     {
-      name: "lance-wallet-session",
-      storage: createJSONStorage(() => ({
-        getItem: (name) => {
-          const value = localStorage.getItem(name);
-          return value ? storageHelper.decrypt(value) : null;
-        },
-        setItem: (name, value) => {
-          localStorage.setItem(name, storageHelper.encrypt(value));
-        },
-        removeItem: (name) => localStorage.removeItem(name),
-      })),
-      partialize: (state) => ({
-        address: state.address,
-        walletId: state.walletId,
-        network: state.network,
-      }),
+      name: "lance-wallet-storage",
     }
   )
 );

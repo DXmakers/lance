@@ -9,30 +9,9 @@ import {
   xdr,
   Transaction,
 } from "@stellar/stellar-sdk";
-import {
-  Networks as WalletNetworks,
-  StellarWalletsKit,
-  SwkAppDarkTheme,
-} from "@creit.tech/stellar-wallets-kit";
+import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 
 export type StellarNetwork = "public" | "testnet";
-type WalletDisplayNetwork = "PUBLIC" | "TESTNET";
-type WalletKitNetwork = Parameters<typeof StellarWalletsKit.setNetwork>[0];
-type StellarWalletsKitSelection = typeof StellarWalletsKit & {
-  selectedModule?: {
-    productId?: string;
-  };
-};
-
-export const FREIGHTER_ID = "freighter";
-export const ALBEDO_ID = "albedo";
-export const XBULL_ID = "xbull";
-
-export const SUPPORTED_WALLETS = [
-  FREIGHTER_ID,
-  ALBEDO_ID,
-  XBULL_ID,
-];
 
 type WalletSelection = {
   id: string;
@@ -58,13 +37,10 @@ export type WalletKit = {
   openModal: (options?: WalletModalOptions) => Promise<{ address: string }>;
   closeModal: () => void;
   getAddress: () => Promise<{ address: string }>;
-  setNetwork: (network: WalletKitNetwork) => void;
-  getNetwork: () => Promise<{ network: string }>;
+  setNetwork: (network: Networks) => void;
   signTransaction: (xdr: string) => Promise<string>;
   signMessage: (message: string) => Promise<string>;
-  signAuthMessage: (message: string) => Promise<{ signature: string }>;
   disconnect: () => Promise<void>;
-  selectedWalletId?: string;
 };
 
 const MOCK_WALLET_ADDRESS =
@@ -86,6 +62,10 @@ const HORIZON_URL =
     : "https://horizon-testnet.stellar.org");
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Soroban RPC Simulator and Polling Logic (Issue #164)
+// ──────────────────────────────────────────────────────────────────────────────
 
 const SOROBAN_RPC_URL =
   process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ||
@@ -121,11 +101,13 @@ export async function buildAndSimulateTransaction({
   transaction: Transaction;
   simulation: SorobanRpc.Api.SimulateTransactionResponse;
 }> {
+  // 1. Fetch fresh account state to avoid Sequence Number Mismatch
   const account = await getAccountState(sourceAddress);
   const contract = new Contract(contractId);
 
+  // 2. Build the base transaction
   const txBuilder = new TransactionBuilder(account, {
-    fee: "100",
+    fee: "100", // Base fee; dynamically adjusted by simulation
     networkPassphrase: NETWORK_PASSPHRASE,
   });
 
@@ -134,6 +116,7 @@ export async function buildAndSimulateTransaction({
 
   const tx = txBuilder.build();
 
+  // 3. Simulate the transaction
   let simulation: SorobanRpc.Api.SimulateTransactionResponse;
   try {
     simulation = await sorobanServer.simulateTransaction(tx);
@@ -141,10 +124,23 @@ export async function buildAndSimulateTransaction({
     throw new Error(`RPC Simulation request failed: ${error}`);
   }
 
+  // 4. Handle simulation errors
   if (SorobanRpc.Api.isSimulationError(simulation)) {
+    if (process.env.NODE_ENV === "development") {
+      console.error(
+        "Raw Simulation Error:",
+        JSON.stringify(simulation, null, 2)
+      );
+    }
     throw new Error(`Simulation failed: ${simulation.error}`);
   }
 
+  if (process.env.NODE_ENV === "development") {
+    console.log("Simulation Success:", JSON.stringify(simulation, null, 2));
+    console.log("Raw XDR Before Assembly:", tx.toXDR());
+  }
+
+  // 5. Assemble transaction with dynamic resource limits and fees from simulation
   try {
     const assembledTx = SorobanRpc.assembleTransaction(
       tx,
@@ -161,13 +157,32 @@ export async function buildAndSimulateTransaction({
 export async function submitTransaction(
   signedTx: Transaction
 ): Promise<SorobanRpc.Api.SendTransactionResponse> {
-  const response = await sorobanServer.sendTransaction(signedTx);
+  const response = await sorobanServer.sendTransaction(signedTx)
 
   if (response.status === 'ERROR') {
-    throw new Error('Transaction submission failed with network status ERROR.');
+    let isSeqMismatch = false
+    try {
+      if (response.errorResult) {
+        // response.errorResult is already an xdr.TransactionResult object in v12+
+        isSeqMismatch =
+          response.errorResult.result().switch().name === 'txBadSeq'
+      }
+    } catch (_) {
+      // Ignore parsing errors fallback to generic error
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Transaction Submit Error:', response.errorResult)
+    }
+
+    if (isSeqMismatch) {
+      throw new Error('SEQUENCE_MISMATCH')
+    }
+
+    throw new Error('Transaction submission failed with network status ERROR.')
   }
 
-  return response;
+  return response
 }
 
 export async function pollTransactionStatus(
@@ -181,6 +196,9 @@ export async function pollTransactionStatus(
     const response = await sorobanServer.getTransaction(txHash);
 
     if (response.status !== SorobanRpc.Api.GetTransactionStatus.NOT_FOUND) {
+      if (process.env.NODE_ENV === "development") {
+        console.log(`Transaction ${txHash} updated to status:`, response.status);
+      }
       return response;
     }
 
@@ -193,6 +211,10 @@ export async function pollTransactionStatus(
   );
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Stellar Wallets Kit Integration (from main)
+// ──────────────────────────────────────────────────────────────────────────────
+
 let isWalletKitInitialized = false;
 
 function isBrowser(): boolean {
@@ -203,16 +225,8 @@ function isE2EMode(): boolean {
   return process.env.NEXT_PUBLIC_E2E === "true";
 }
 
-function getNetworkPassphrase(network = APP_STELLAR_NETWORK): string {
+function getNetworkPassphrase(network = APP_STELLAR_NETWORK): Networks {
   return network === "public" ? Networks.PUBLIC : Networks.TESTNET;
-}
-
-function getWalletKitNetwork(network = APP_STELLAR_NETWORK): WalletKitNetwork {
-  return getNetworkPassphrase(network) as WalletKitNetwork;
-}
-
-function getAppDisplayNetwork(): WalletDisplayNetwork {
-  return APP_STELLAR_NETWORK === "public" ? "PUBLIC" : "TESTNET";
 }
 
 function storeWalletAddress(address: string): void {
@@ -237,22 +251,9 @@ async function initializeWalletsKit(): Promise<void> {
     ]);
 
   StellarWalletsKit.init({
-    network: getWalletKitNetwork() as WalletNetworks,
-    selectedWalletId: FREIGHTER_ID,
+    network: getNetworkPassphrase(),
+    selectedWalletId: "freighter",
     modules: [new FreighterModule(), new AlbedoModule(), new xBullModule()],
-  });
-  StellarWalletsKit.setTheme({
-    ...SwkAppDarkTheme,
-    "background": "#18181b",
-    "background-secondary": "#09090b",
-    "foreground-strong": "#fafafa",
-    "foreground": "#e4e4e7",
-    "foreground-secondary": "#a1a1aa",
-    "primary": "#6366f1",
-    "primary-foreground": "#ffffff",
-    "border": "rgba(255,255,255,0.06)",
-    "border-radius": "0.75rem",
-    "font-family": "Inter, ui-sans-serif, system-ui, sans-serif",
   });
   isWalletKitInitialized = true;
 }
@@ -299,14 +300,6 @@ export function getWalletsKit(): WalletKit {
       StellarWalletsKit.setNetwork(network);
     },
 
-    getNetwork: async () => {
-      if (!isBrowser() || isE2EMode()) {
-        return { network: getAppDisplayNetwork() };
-      }
-      await initializeWalletsKit();
-      return { network: getAppDisplayNetwork() };
-    },
-
     signTransaction: async (xdr) => {
       if (!isBrowser() || isE2EMode()) return xdr;
 
@@ -329,16 +322,6 @@ export function getWalletsKit(): WalletKit {
       return result.signedMessage ?? result.signedXDR ?? "";
     },
 
-    signAuthMessage: async (message) => {
-      if (!isBrowser() || isE2EMode()) return { signature: "mock-signature" };
-
-      await initializeWalletsKit();
-      const { signedMessage } = await StellarWalletsKit.signMessage(message, {
-        networkPassphrase: getNetworkPassphrase(),
-      });
-      return { signature: signedMessage ?? "" };
-    },
-
     disconnect: async () => {
       if (!isBrowser()) return;
 
@@ -349,9 +332,6 @@ export function getWalletsKit(): WalletKit {
       await initializeWalletsKit();
       await StellarWalletsKit.disconnect();
     },
-    get selectedWalletId() {
-      return (StellarWalletsKit as StellarWalletsKitSelection).selectedModule?.productId;
-    }
   };
 }
 
@@ -365,22 +345,6 @@ export async function getConnectedWalletAddress(): Promise<string | null> {
     return (await getWalletsKit().getAddress()).address;
   } catch {
     return stored;
-  }
-}
-
-/**
- * Returns the network passphrase currently reported by the connected wallet,
- * or null if the wallet is not connected / does not support getNetwork.
- * Used for network mismatch detection.
- */
-export async function getWalletNetworkPassphrase(): Promise<string | null> {
-  if (!isBrowser() || isE2EMode()) return getNetworkPassphrase();
-  try {
-    await initializeWalletsKit();
-    const { networkPassphrase } = await StellarWalletsKit.getNetwork();
-    return networkPassphrase;
-  } catch {
-    return null;
   }
 }
 
@@ -408,18 +372,6 @@ export async function signMessage(message: string): Promise<string> {
   return getWalletsKit().signMessage(message);
 }
 
-export async function signAuthMessage(message: string): Promise<string> {
-  const walletsKit = getWalletsKit();
-  const { signature } = await walletsKit.signAuthMessage(message);
-  return signature;
-}
-
-export async function getNetwork(): Promise<string> {
-  const walletsKit = getWalletsKit();
-  const { network } = await walletsKit.getNetwork();
-  return network;
-}
-
 export function isValidStellarAddress(address: string): boolean {
   return /^[G][A-Z2-7]{55}$/.test(address);
 }
@@ -439,72 +391,4 @@ export async function getXlmBalance(address: string): Promise<number> {
     console.error("Error fetching XLM balance:", err);
     return 0;
   }
-}
-
-// ── Wallet provider identity ──────────────────────────────────────────────────
-// These exports support the wallet-provider-icon UI: the connected wallet's
-// display name and icon are surfaced alongside the truncated address.
-
-export interface ConnectedWallet {
-  address: string;
-  walletId: string;
-  walletName: string;
-  walletIcon: string;
-}
-
-/**
- * Opens the wallet-select modal and returns address + provider metadata.
- * Falls back to generic display values when the kit abstraction does not
- * expose per-wallet icons (which is the case for the v2 auth-modal API).
- */
-export async function connectWalletWithInfo(): Promise<ConnectedWallet> {
-  if (isE2EMode()) {
-    storeWalletAddress(MOCK_WALLET_ADDRESS);
-    return {
-      address: MOCK_WALLET_ADDRESS,
-      walletId: "freighter",
-      walletName: "Freighter",
-      walletIcon: "",
-    };
-  }
-
-  let capturedId = WALLET_KIT_ID;
-  const { address } = await getWalletsKit().openModal({
-    onWalletSelected: (option) => {
-      capturedId = option.id;
-    },
-  });
-
-  return {
-    address,
-    walletId: capturedId,
-    walletName: capturedId === WALLET_KIT_ID ? "Stellar Wallet" : capturedId,
-    walletIcon: "",
-  };
-}
-
-/**
- * Returns the wallet provider id previously stored in localStorage, or null
- * if no wallet has been connected in this browser.
- */
-export function getSelectedWalletId(): string | null {
-  if (!isBrowser()) return null;
-  return localStorage.getItem(WALLET_TYPE_STORAGE_KEY);
-}
-
-/**
- * Returns minimal provider metadata for the given wallet id.
- * The v2 kit auth-modal abstraction does not expose per-wallet icons, so
- * `icon` is always an empty string; `WalletProviderIcon` renders the
- * lucide fallback in that case.
- */
-export async function getWalletInfo(
-  walletId: string,
-): Promise<{ id: string; name: string; icon: string } | null> {
-  if (!walletId) return null;
-  return {
-    id: walletId,
-    name: walletId === WALLET_KIT_ID ? "Stellar Wallet" : walletId,
-    icon: "",
-  };
 }

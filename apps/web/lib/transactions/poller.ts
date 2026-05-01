@@ -65,7 +65,7 @@ export async function pollTransactionStatus(
             status: "SUCCESS",
             resultXdr: response.resultXdr ? String(response.resultXdr) : undefined,
             ledger: response.ledger,
-            createdAt: response.createdAt,
+            createdAt: response.createdAt ? String(response.createdAt) : undefined,
           };
         }
 
@@ -75,7 +75,7 @@ export async function pollTransactionStatus(
             status: "FAILED",
             resultXdr: response.resultXdr ? String(response.resultXdr) : undefined,
             ledger: response.ledger,
-            createdAt: response.createdAt,
+            createdAt: response.createdAt ? String(response.createdAt) : undefined,
           };
         }
 

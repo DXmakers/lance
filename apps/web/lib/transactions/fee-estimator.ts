@@ -223,7 +223,7 @@ export function adjustTransactionFees(
   resourceLimits: ResourceLimits,
 ): string {
   // Parse the transaction envelope
-  const envelope = transaction.toXDR("base64");
+  const envelope = transaction.toXDR();
 
   // Note: Direct XDR manipulation is complex. In practice, you would:
   // 1. Use the RPC's prepareTransaction which handles this automatically

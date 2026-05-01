@@ -1,19 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
 import { NetworkMismatchBanner } from "@/components/ui/network-mismatch-banner";
 import { useAuthStore } from "@/lib/store/use-auth-store";
-import { useWalletAuth } from "@/hooks/use-wallet-auth";
 import { Button } from "@/components/ui/button";
 import {
-  Search,
-  Menu,
-  LogOut,
-  BriefcaseBusiness,
+  Bell,
   LoaderCircle,
+  LogOut,
+  Menu,
+  Search,
   TriangleAlert,
-  Wallet,
   Unplug,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -22,38 +19,26 @@ import { SessionSwitcher } from "@/components/auth/session-switcher";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { BlockchainSyncIndicator } from "@/components/ui/blockchain-sync-indicator";
 import { useWalletSession } from "@/hooks/use-wallet-session";
-import { toast } from "@/lib/toast";
 import { WalletConnect } from "@/components/wallet/wallet-connect";
-import { ConnectWalletButton } from "@/components/wallet/connect-wallet-button";
-import { NotificationCenter } from "@/components/notifications/notification-center";
 
 function shortAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
-  const { isLoggedIn, login, role, user, walletAddress } = useAuthStore();
-  const { disconnect: disconnectAuth } = useWalletAuth();
+  const { isLoggedIn, logout, role, user } = useAuthStore();
   const {
     address,
-    xlmBalance,
     appNetwork,
     walletNetwork,
-    networkMismatch,
+    xlmBalance,
     isConnected,
     isConnecting,
+    networkMismatch,
     error,
     connect,
     disconnect: disconnectSession,
   } = useWalletSession();
-
-  useEffect(() => {
-    if (!error) return;
-    toast.error({
-      title: "Wallet error",
-      description: error,
-    });
-  }, [error]);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -184,72 +169,38 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
           </div>
           <SessionSwitcher />
           <ThemeToggle />
-          <WalletConnect />
-          {isLoggedIn ? (
-            <div className="flex items-center gap-2">
-              <NotificationCenter />
-              <div className="hidden items-center gap-3 rounded-full border border-border/70 bg-card/70 px-2 py-1.5 md:flex">
-                <Avatar className="h-8 w-8 border border-border/50">
-                  <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">
-                    {user?.name
-                      ?.split(" ")
-                      .map((part) => part[0])
-                      .join("")
-                      .slice(0, 2) ?? "LN"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="pr-2">
-                  <p className="text-sm font-medium text-foreground">{user?.name}</p>
-                  {walletAddress ? (
-                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Wallet className="h-3 w-3" aria-hidden="true" />
-                      {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">{user?.email}</p>
-                  )}
-                </div>
-              </div>
+          <div className="flex items-center gap-4">
+            <WalletConnect />
+            
+            {isLoggedIn ? (
 
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Disconnect wallet and sign out"
-                onClick={disconnectAuth}
-                className="rounded-full transition-opacity duration-200 hover:opacity-80"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Disconnect
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <ConnectWalletButton />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  login({ name: "Amaka Client", email: "client@lance.so" }, "client")
-                }
-                className="rounded-full"
-              >
-                Client Log In
-              </Button>
-              <Button
-                size="sm"
-                onClick={() =>
-                  login(
-                    { name: "Kehinde Freelancer", email: "freelancer@lance.so" },
-                    "freelancer",
-                  )
-                }
-                className="rounded-full"
-              >
-                <BriefcaseBusiness className="mr-2 h-4 w-4" />
-                Freelancer Sign Up
-              </Button>
-            </div>
-          )}
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" className="relative rounded-full bg-card/70">
+                  <Bell className="h-5 w-5" />
+                  <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-primary"></span>
+                </Button>
+                <div className="hidden items-center gap-3 rounded-full border border-border/70 bg-card/70 px-2 py-1.5 md:flex">
+                  <Avatar className="h-8 w-8 border border-border/50">
+                    <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">
+                      {user?.name
+                        ?.split(" ")
+                        .map((part) => part[0])
+                        .join("")
+                        .slice(0, 2) ?? "LN"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="pr-2">
+                    <p className="text-sm font-medium text-foreground">{user?.name}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => logout()} className="rounded-full">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign out
+                </Button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </header>

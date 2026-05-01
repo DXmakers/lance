@@ -111,10 +111,12 @@ export async function submitTransaction(
       const pollingResult = await pollTransactionStatus(txHash, {
         timeoutMs: pollingTimeoutMs,
       });
+      const status =
+        pollingResult.status === "NOT_FOUND" ? "TIMEOUT" : pollingResult.status;
 
       return {
         hash: txHash,
-        status: pollingResult.status,
+        status,
         resultXdr: pollingResult.resultXdr,
         ledger: pollingResult.ledger,
         createdAt: pollingResult.createdAt,
@@ -163,10 +165,12 @@ export async function submitTransaction(
     const pollingResult = await pollTransactionStatus(horizonResult.hash, {
       timeoutMs: pollingTimeoutMs,
     });
+    const status =
+      pollingResult.status === "NOT_FOUND" ? "TIMEOUT" : pollingResult.status;
 
     return {
       hash: horizonResult.hash,
-      status: pollingResult.status,
+      status,
       resultXdr: pollingResult.resultXdr,
       ledger: pollingResult.ledger,
       createdAt: pollingResult.createdAt,
@@ -240,15 +244,16 @@ function rebuildTransaction(
 
   // Copy operations from original transaction
   const operations = originalTx.operations;
+  type BuilderOperation = Parameters<TransactionBuilder["addOperation"]>[0];
   for (const op of operations) {
-    txBuilder.addOperation(op);
+    txBuilder.addOperation(op as unknown as BuilderOperation);
   }
 
   // Copy timebounds
-  if (originalTx.timebounds) {
+  if (originalTx.timeBounds) {
     txBuilder.setTimebounds(
-      originalTx.timebounds.minTime,
-      originalTx.timebounds.maxTime,
+      originalTx.timeBounds.minTime,
+      originalTx.timeBounds.maxTime,
     );
   }
 

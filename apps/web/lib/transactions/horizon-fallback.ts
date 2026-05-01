@@ -39,23 +39,28 @@ export async function submitToHorizon(
 
     // If no hash but no error, treat as pending
     return {
-      hash: response.id || "",
+      hash: "",
       status: "pending",
     };
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown Horizon submission error";
+    const horizonError = error as {
+      hash?: string;
+      resultXdr?: string;
+      response?: { status?: number };
+    };
 
     // Check for specific Horizon error types
-    if (error instanceof Horizon.TransactionFailedError) {
+    if (horizonError.resultXdr) {
       return {
-        hash: error.hash || "",
+        hash: horizonError.hash || "",
         status: "error",
-        errorMessage: `Transaction failed: ${error.resultXdr}`,
+        errorMessage: `Transaction failed: ${horizonError.resultXdr}`,
       };
     }
 
-    if (error instanceof Horizon.BadRequestError) {
+    if (horizonError.response?.status === 400) {
       return {
         hash: "",
         status: "error",
@@ -63,7 +68,7 @@ export async function submitToHorizon(
       };
     }
 
-    if (error instanceof Horizon.BadResponseError) {
+    if (horizonError.response?.status && horizonError.response.status >= 500) {
       return {
         hash: "",
         status: "error",
@@ -94,7 +99,8 @@ export async function getHorizonTransactionStatus(
     return tx;
   } catch (error) {
     // Transaction not found or other error
-    if (error instanceof Horizon.NotFoundError) {
+    const horizonError = error as { response?: { status?: number } };
+    if (horizonError.response?.status === 404) {
       return null;
     }
     throw error;
