@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use anyhow::{anyhow, Context, Result};
 use reqwest::{Client, StatusCode};
 use serde_json::{json, Value};
-use tracing::warn;
+use tracing::{debug, trace, warn};
 
 use crate::indexer_metrics::metrics;
 
@@ -96,6 +96,7 @@ impl SorobanRpcClient {
     }
 
     pub async fn get_latest_ledger(&mut self) -> Result<i64> {
+        debug!("fetching latest ledger from RPC");
         let result = self.rpc_request("getLatestLedger", json!({})).await?;
         let sequence = result
             .get("sequence")
@@ -106,10 +107,14 @@ impl SorobanRpcClient {
             .last_network_ledger
             .store(sequence, Ordering::Relaxed);
 
+        debug!(sequence, "received latest ledger from RPC");
+
         Ok(sequence)
     }
 
     pub async fn get_events(&mut self, start_ledger: i64) -> Result<EventsResponse> {
+        debug!(start_ledger, "fetching events from RPC");
+
         let result = self
             .rpc_request(
                 "getEvents",
@@ -135,6 +140,13 @@ impl SorobanRpcClient {
             .cloned()
             .unwrap_or_default();
 
+        debug!(
+            start_ledger,
+            latest_network_ledger,
+            event_count = events.len(),
+            "received events from RPC"
+        );
+
         Ok(EventsResponse {
             latest_network_ledger,
             events,
@@ -149,9 +161,22 @@ impl SorobanRpcClient {
             "params": params
         });
 
+        trace!(
+            method,
+            params = ?params,
+            "preparing RPC request"
+        );
+
         for attempt in 0..self.config.retry_policy.max_attempts {
             self.enforce_rate_limit().await;
             let started_at = Instant::now();
+
+            trace!(
+                method,
+                attempt,
+                url = %self.config.url,
+                "sending RPC request"
+            );
 
             let response = self
                 .client
@@ -160,14 +185,24 @@ impl SorobanRpcClient {
                 .send()
                 .await;
 
+            let latency_ms = started_at.elapsed().as_millis() as u64;
             metrics()
                 .last_rpc_latency_ms
-                .store(started_at.elapsed().as_millis() as u64, Ordering::Relaxed);
+                .store(latency_ms, Ordering::Relaxed);
 
             match response {
                 Ok(response) => {
                     let status = response.status();
                     let body = response.text().await.unwrap_or_default();
+
+                    trace!(
+                        method,
+                        attempt,
+                        status = %status,
+                        latency_ms,
+                        body_len = body.len(),
+                        "received RPC response"
+                    );
 
                     if !status.is_success() {
                         let message = format!("RPC {method} HTTP {status}: {body}");
@@ -195,15 +230,25 @@ impl SorobanRpcClient {
                         return Err(anyhow!("RPC {method} error: {message}"));
                     }
 
+                    debug!(method, attempt, latency_ms, "RPC request successful");
+
                     return payload
                         .get("result")
                         .cloned()
                         .ok_or_else(|| anyhow!("missing result field in RPC {method} response"));
                 }
                 Err(err) => {
+                    let message = err.to_string();
+                    debug!(
+                        method,
+                        attempt,
+                        latency_ms,
+                        error = %err,
+                        "RPC request failed"
+                    );
+
                     if attempt + 1 < self.config.retry_policy.max_attempts {
-                        self.sleep_before_retry(method, attempt, &err.to_string())
-                            .await;
+                        self.sleep_before_retry(method, attempt, &message).await;
                         continue;
                     }
                     return Err(anyhow!(err).context(format!("RPC request failed for {method}")));
@@ -223,7 +268,13 @@ impl SorobanRpcClient {
         if let Some(last_request_started_at) = self.last_request_started_at {
             let elapsed = last_request_started_at.elapsed();
             if elapsed < self.config.rate_limit_interval {
-                tokio::time::sleep(self.config.rate_limit_interval - elapsed).await;
+                let sleep_duration = self.config.rate_limit_interval - elapsed;
+                trace!(
+                    sleep_ms = sleep_duration.as_millis() as u64,
+                    rate_limit_ms = self.config.rate_limit_interval.as_millis() as u64,
+                    "enforcing rate limit"
+                );
+                tokio::time::sleep(sleep_duration).await;
             }
         }
 
@@ -237,6 +288,7 @@ impl SorobanRpcClient {
         warn!(
             method,
             attempt = attempt + 1,
+            max_attempts = self.config.retry_policy.max_attempts,
             backoff_ms = delay.as_millis() as u64,
             error = message,
             "retrying RPC request",

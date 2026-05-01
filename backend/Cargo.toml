@@ -36,6 +36,10 @@ governor     = { version = "0.6", features = ["std"] }
 futures-util = "0.3"
 stellar-xdr  = { workspace = true }
 
+# Prometheus metrics
+prometheus         = { version = "0.13", features = ["process"] }
+lazy_static        = "1.4"
+
 [dev-dependencies]
 axum-test = "16.0"
 mockito   = "1.5"

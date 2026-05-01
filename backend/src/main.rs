@@ -45,6 +45,7 @@ async fn main() -> anyhow::Result<()> {
     sqlx::migrate!("./migrations").run(&pool).await?;
 
     let state = AppState::new(pool.clone());
+    indexer_metrics::register_metrics();
     tokio::spawn(worker::run_judge_worker(pool.clone()));
     tokio::spawn(indexer::run_indexer_worker(pool));
 
