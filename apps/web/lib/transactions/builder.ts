@@ -70,14 +70,16 @@ export interface BuildTransactionResult {
 
 export class SorobanTransactionBuilder {
   private rpc: SorobanServer;
-  private config: Required<TransactionBuilderConfig>;
+  private config: Required<Omit<TransactionBuilderConfig, "baseFee">> & {
+    baseFee: string;
+  };
 
   constructor(config: TransactionBuilderConfig) {
     this.rpc = new SorobanServer(config.rpcUrl);
     this.config = {
       rpcUrl: config.rpcUrl,
       networkPassphrase: config.networkPassphrase,
-      baseFee: config.baseFee ?? BASE_FEE,
+      baseFee: String(config.baseFee ?? BASE_FEE),
       timeoutSeconds: config.timeoutSeconds ?? 30,
     };
   }
