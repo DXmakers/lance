@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { AlertCircle, LoaderCircle } from "lucide-react";
 import { z } from "zod";
 

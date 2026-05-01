@@ -10,7 +10,6 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Wallet, LogOut, ShieldCheck, ChevronDown, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export function WalletConnect() {
   const { connect, disconnect, isConnecting, isLoggedIn, address } = useWallet();
