@@ -21,8 +21,8 @@ import { submitTransaction, SubmissionResult } from "@/lib/transactions/submitte
 import { pollTransactionStatus, PollingResult } from "@/lib/transactions/poller";
 import { simulateTransaction, SimulationResult } from "@/lib/transactions/simulator";
 import { calculateAdjustedFee, FeeEstimate } from "@/lib/transactions/fee-estimator";
-import { signTransaction, SigningResult } from "@/lib/wallets/signer";
-import { SigningRequest } from "@/lib/wallets/provider";
+import { signTransaction } from "@/lib/wallets/signer";
+import { SigningRequest, SigningResult } from "@/lib/wallets/provider";
 
 export interface UseTransactionOptions {
   /** Source account address */
