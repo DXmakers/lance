@@ -1,46 +1,45 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { SubmitBidModal, submitBidSchema } from "../submit-bid-modal";
 
-const createBidMock = vi.fn();
-const toastSuccessMock = vi.fn();
-const toastErrorMock = vi.fn();
+const submitMock = vi.fn();
+const resetMock = vi.fn();
+const useSubmitBidMock = vi.fn();
 
-vi.mock("@/lib/api", () => ({
-  api: {
-    bids: {
-      create: (...args: unknown[]) => createBidMock(...args),
-    },
-  },
+vi.mock("@/hooks/use-submit-bid", () => ({
+  useSubmitBid: () => useSubmitBidMock(),
 }));
 
-vi.mock("@/lib/toast", () => ({
-  toast: {
-    success: (...args: unknown[]) => toastSuccessMock(...args),
-    error: (...args: unknown[]) => toastErrorMock(...args),
-  },
-}));
+function buildTransactionState(overrides: Record<string, unknown> = {}) {
+  return {
+    step: "idle",
+    isPending: false,
+    txHash: null,
+    message: "Ready.",
+    error: null,
+    simulationLog: null,
+    unsignedXdr: null,
+    signedXdr: null,
+    progressHistory: [],
+    execute: vi.fn(),
+    reset: resetMock,
+    ...overrides,
+  };
+}
 
-function renderModal() {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-
+function renderModal(onChainJobId = 42n) {
   const onSubmitted = vi.fn().mockResolvedValue(undefined);
-  const resolveFreelancerAddress = vi.fn().mockResolvedValue("GABC123");
 
   render(
-    <QueryClientProvider client={client}>
-      <SubmitBidModal
-        jobId="job-123"
-        onSubmitted={onSubmitted}
-        resolveFreelancerAddress={resolveFreelancerAddress}
-      />
-    </QueryClientProvider>,
+    <SubmitBidModal
+      jobId="job-123"
+      onChainJobId={onChainJobId}
+      onSubmitted={onSubmitted}
+    />,
   );
 
-  return { onSubmitted, resolveFreelancerAddress };
+  return { onSubmitted };
 }
 
 describe("submitBidSchema", () => {
@@ -59,9 +58,14 @@ describe("submitBidSchema", () => {
 
 describe("SubmitBidModal", () => {
   beforeEach(() => {
-    createBidMock.mockReset();
-    toastSuccessMock.mockReset();
-    toastErrorMock.mockReset();
+    vi.useRealTimers();
+    submitMock.mockReset();
+    resetMock.mockReset();
+    useSubmitBidMock.mockReturnValue({
+      submit: submitMock,
+      isSubmitting: false,
+      transaction: buildTransactionState(),
+    });
   });
 
   it("shows validation feedback and disables submission until valid", () => {
@@ -73,12 +77,11 @@ describe("SubmitBidModal", () => {
     fireEvent.change(textarea, { target: { value: "short" } });
 
     expect(screen.getByText(/at least 24 characters/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send Bid" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Sign & Submit Bid" })).toBeDisabled();
   });
 
-  it("submits bid and closes modal on success", async () => {
-    createBidMock.mockResolvedValue({ id: "bid-1" });
-    const { onSubmitted, resolveFreelancerAddress } = renderModal();
+  it("prevents wallet submission until the job has an on-chain id", () => {
+    renderModal(0n);
 
     fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));
     fireEvent.change(screen.getByLabelText("Proposal"), {
@@ -88,39 +91,60 @@ describe("SubmitBidModal", () => {
       },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Send Bid" }));
-
-    await waitFor(() => {
-      expect(resolveFreelancerAddress).toHaveBeenCalledTimes(1);
-      expect(createBidMock).toHaveBeenCalledWith("job-123", {
-        freelancer_address: "GABC123",
-        proposal:
-          "I can deliver this in two milestones with contract-safe updates and daily standups.",
-      });
-      expect(onSubmitted).toHaveBeenCalledTimes(1);
-      expect(toastSuccessMock).toHaveBeenCalled();
-    });
-
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText(/not been indexed on-chain yet/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign & Submit Bid" })).toBeDisabled();
   });
 
-  it("shows API failure message", async () => {
-    createBidMock.mockRejectedValue(new Error("backend failed"));
-    renderModal();
+  it("submits bid and refreshes the job immediately on success", async () => {
+    submitMock.mockResolvedValue({ bid: { id: "bid-1" }, txHash: "tx-1" });
+    const { onSubmitted } = renderModal();
 
     fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));
     fireEvent.change(screen.getByLabelText("Proposal"), {
       target: {
-        value: "This is a complete proposal that satisfies validation constraints.",
+        value:
+          "I can deliver this in two milestones with contract-safe updates and daily standups.",
       },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Send Bid" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign & Submit Bid" }));
 
     await waitFor(() => {
-      expect(toastErrorMock).toHaveBeenCalledWith(
-        expect.objectContaining({ description: "backend failed" }),
-      );
+      expect(submitMock).toHaveBeenCalledWith({
+        jobId: "job-123",
+        onChainJobId: 42n,
+        proposal:
+          "I can deliver this in two milestones with contract-safe updates and daily standups.",
+      });
+      expect(onSubmitted).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("shows the pipeline when the transaction has started", () => {
+    useSubmitBidMock.mockReturnValue({
+      submit: submitMock,
+      isSubmitting: true,
+      transaction: buildTransactionState({
+        step: "simulating",
+        isPending: true,
+        message: "Simulation complete. Resources and fees assembled.",
+        simulationLog: {
+          baseFee: "100",
+          resourceFee: "5000",
+          estimatedTotalFee: "5100",
+          cpuInsns: "12",
+          memBytes: "128",
+          readBytes: 64,
+          writeBytes: 32,
+        },
+      }),
+    });
+
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Submit Bid" }));
+
+    expect(screen.getByText("Transaction Pipeline")).toBeInTheDocument();
+    expect(screen.getByText("Fee Breakdown")).toBeInTheDocument();
+    expect(screen.getByText(/estimated total/i)).toBeInTheDocument();
   });
 });

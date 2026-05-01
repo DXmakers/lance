@@ -2,44 +2,45 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
-  CheckCircle2,
-  Clock3,
   FileUp,
-  Gavel,
-  LoaderCircle,
   ShieldAlert,
-  Wallet,
 } from "lucide-react";
 import { BidList } from "@/components/jobs/bid-list";
-import { ShareJobButton } from "@/components/jobs/share-job-button";
-import { SubmitBidErrorBoundary } from "@/components/jobs/submit-bid-error-boundary";
-import { SubmitBidModal } from "@/components/jobs/submit-bid-modal";
+import { SaveJobButton } from "@/components/jobs/save-job-button";
 import { SiteShell } from "@/components/site-shell";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Stars } from "@/components/stars";
 import { JobDetailsSkeleton } from "@/components/ui/skeleton";
 import { useLiveJobWorkspace } from "@/hooks/use-live-job-workspace";
 import { api } from "@/lib/api";
-import { releaseFunds, openDispute, getEscrowContractId } from "@/lib/contracts";
+import { releaseFunds, getEscrowContractId } from "@/lib/contracts";
 import {
-  formatDate,
   formatDateTime,
   formatUsdc,
   shortenAddress,
 } from "@/lib/format";
 import { connectWallet, getConnectedWalletAddress } from "@/lib/stellar";
 
+import { TransactionPipeline } from "@/components/blockchain/transaction-pipeline";
+import { MilestoneTracker } from "@/components/jobs/milestone-tracker";
+import { SubmitBidErrorBoundary } from "@/components/jobs/submit-bid-error-boundary";
+import { SubmitBidModal } from "@/components/jobs/submit-bid-modal";
+import { useAcceptBid } from "@/hooks/use-accept-bid";
+
+
 export default function JobDetailsPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
+
   const workspace = useLiveJobWorkspace(id);
+  const { transaction: acceptTransaction } = useAcceptBid();
+
+  // useLiveJobWorkspace provides data and a `refresh()` helper
   const [viewerAddress, setViewerAddress] = useState<string | null>(null);
   const [deliverableLabel, setDeliverableLabel] = useState("");
   const [deliverableLink, setDeliverableLink] = useState("");
   const [deliverableFile, setDeliverableFile] = useState<File | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [proposal, setProposal] = useState<string | null>(null);
 
   useEffect(() => {
     void getConnectedWalletAddress().then(setViewerAddress);
@@ -52,22 +53,8 @@ export default function JobDetailsPage() {
     return connected;
   }
 
-  async function handleAcceptBid(bidId: string) {
-    if (!workspace.job) return;
-    setBusyAction(`accept-${bidId}`);
+  
 
-    try {
-      const acceptedJob = await api.bids.accept(id, bidId, {
-        client_address: workspace.job.client_address,
-      });
-      void workspace.refresh();
-      router.push(`/jobs/${acceptedJob.id}/fund`);
-    } catch {
-      alert("Failed to accept bid");
-    } finally {
-      setBusyAction(null);
-    }
-  }
 
   async function handleSubmitDeliverable(event: React.FormEvent) {
     event.preventDefault();
@@ -110,45 +97,6 @@ export default function JobDetailsPage() {
     }
   }
 
-  async function handleReleaseFunds() {
-    if (!workspace.job) return;
-    const nextMilestone = workspace.milestones.find(
-      (milestone) => milestone.status === "pending",
-    );
-    if (!nextMilestone) return;
-
-    setBusyAction("release");
-
-    try {
-      await releaseFunds(
-        BigInt(workspace.job.on_chain_job_id ?? 0),
-        Math.max(0, nextMilestone.index - 1),
-      );
-      await api.jobs.releaseMilestone(id, nextMilestone.id);
-      await workspace.refresh();
-    } catch {
-      alert("Failed to release milestone");
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function handleOpenDispute() {
-    if (!workspace.job) return;
-    setBusyAction("dispute");
-
-    try {
-      const actor = (await ensureViewerAddress()) ?? workspace.job.client_address;
-      await openDispute(BigInt(workspace.job.on_chain_job_id ?? 0));
-      const dispute = await api.jobs.dispute.open(id, { opened_by: actor });
-      router.push(`/jobs/${id}/dispute?disputeId=${dispute.id}`);
-    } catch {
-      alert("Failed to open dispute");
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
   if (workspace.loading && !workspace.job) {
     return (
       <SiteShell
@@ -176,8 +124,14 @@ export default function JobDetailsPage() {
   }
 
   const job = workspace.job;
-  const nextMilestone = workspace.milestones.find(
-    (milestone) => milestone.status === "pending",
+  const viewerBid = viewerAddress
+    ? workspace.bids.find(
+        (bid) =>
+          bid.freelancer_address === viewerAddress && bid.status === "pending",
+      )
+    : null;
+  const isClientOwner = Boolean(
+    viewerAddress && viewerAddress === job.client_address,
   );
   const workflowLocked = job.status === "disputed" || workspace.dispute !== null;
 
@@ -202,7 +156,9 @@ export default function JobDetailsPage() {
                   <span className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white">
                     {job.status}
                   </span>
-                  <ShareJobButton path={`/jobs/${id}`} title={job.title} />
+                  <div className="ml-auto">
+                    <SaveJobButton jobId={job.id} />
+                  </div>
                 </div>
                 <p className="mt-4 text-sm leading-7 text-slate-600">
                   {job.description}
@@ -280,8 +236,9 @@ export default function JobDetailsPage() {
                   </div>
                 </div>
               </div>
-            ) : null}
+            ) : <div> p </div>}
           </div>
+          <section/>
 
           {job.status === "open" ? (
             <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
@@ -292,19 +249,34 @@ export default function JobDetailsPage() {
                 <p className="mt-2 text-sm leading-6 text-zinc-300">
                   Pitch your approach, timing, and why your previous work maps cleanly to this brief.
                 </p>
-                <div className="mt-5">
-                  <SubmitBidErrorBoundary>
-                    <SubmitBidModal
-                      jobId={id}
-                      onChainJobId={BigInt(workspace.job?.on_chain_job_id ?? 0)}
-                      disabled={busyAction !== null}
-                      onSubmitted={workspace.refresh}
-                      resolveFreelancerAddress={async () =>
-                        (await getConnectedWalletAddress()) ?? "GD...FREELANCER"
-                      }
-                    />
-                  </SubmitBidErrorBoundary>
-                </div>
+                {isClientOwner ? (
+                  <div className="mt-5 rounded-[1.6rem] border border-slate-700/40 bg-slate-900/80 p-5 text-sm text-slate-200">
+                    <p className="font-semibold text-slate-100">Clients cannot submit proposals</p>
+                    <p className="mt-2 text-slate-300/90">
+                      This job is owned by your account. Freelancers can submit bids and you can accept the strongest proposal from the shortlist.
+                    </p>
+                  </div>
+                ) : null}
+                {viewerBid ? (
+                  <div className="mt-5 rounded-[1.6rem] border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-100">
+                    <p className="font-semibold text-amber-200">Your bid is pending review</p>
+                    <p className="mt-2 text-amber-100/90">
+                      You have already submitted a proposal for this job. The client is reviewing your pitch and will assign the winning freelancer once a bid is accepted.
+                    </p>
+                  </div>
+                ) : null}
+                {!isClientOwner ? (
+                  <div className="mt-5">
+                    <SubmitBidErrorBoundary>
+                      <SubmitBidModal
+                        jobId={id}
+                        onChainJobId={BigInt(workspace.job?.on_chain_job_id ?? 0)}
+                        disabled={Boolean(viewerBid) || busyAction !== null}
+                        onSubmitted={workspace.refresh}
+                      />
+                    </SubmitBidErrorBoundary>
+                  </div>
+                ) : null}
               </section>
 
               <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
@@ -317,72 +289,77 @@ export default function JobDetailsPage() {
                   </span>
                 </div>
                 <BidList
+                  job={job}
                   bids={workspace.bids}
                   isClientOwner={
                     Boolean(viewerAddress) &&
                     viewerAddress === workspace.job?.client_address
                   }
-                  jobStatus={job.status}
-                  acceptingBidId={
-                    busyAction?.startsWith("accept-")
-                      ? busyAction.replace("accept-", "")
-                      : null
-                  }
-                  onAccept={handleAcceptBid}
                 />
+                {acceptTransaction.step !== "idle" ? (
+                  <div className="mt-6 rounded-[1.6rem] border border-indigo-600/20 bg-indigo-950/10 p-5">
+                    <h3 className="text-sm font-semibold text-indigo-100">
+                      Accept bid transaction
+                    </h3>
+                    <p className="mt-2 text-sm text-indigo-200">
+                      The platform is building and confirming the on-chain accept_bid call for this selected freelancer.
+                    </p>
+                    <div className="mt-4">
+                      <TransactionPipeline
+                        step={acceptTransaction.step}
+                        txHash={acceptTransaction.txHash}
+                        message={acceptTransaction.message}
+                        error={acceptTransaction.error}
+                        unsignedXdr={acceptTransaction.unsignedXdr}
+                        signedXdr={acceptTransaction.signedXdr}
+                        simulationLog={acceptTransaction.simulationLog}
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </section>
             </div>
           ) : null}
 
           {job.status !== "open" ? (
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-              <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-xl font-semibold text-slate-950">
-                      Milestone Ledger
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">
-                      Each milestone is time-stamped so both parties can see what is pending, submitted, and released.
-                    </p>
-                  </div>
-                  {workspace.loading ? (
-                    <LoaderCircle className="h-5 w-5 animate-spin text-slate-400" />
-                  ) : null}
-                </div>
-
-                <div className="mt-5 space-y-3">
-                  {workspace.milestones.map((milestone) => (
-                    <div
-                      key={milestone.id}
-                      className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4"
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            Milestone {milestone.index}
-                          </p>
-                          <p className="mt-2 text-sm font-medium text-slate-800">
-                            {milestone.title}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-slate-950">
-                            {formatUsdc(milestone.amount_usdc)}
-                          </p>
-                          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
-                            {milestone.status}
-                          </p>
-                        </div>
-                      </div>
-                      {milestone.released_at ? (
-                        <p className="mt-3 text-xs text-slate-500">
-                          Released {formatDateTime(milestone.released_at)}
-                        </p>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
+              <section>
+                <MilestoneTracker
+                  milestones={workspace.milestones}
+                  deliverables={workspace.deliverables}
+                  jobStatus={job.status}
+                  loading={workspace.loading}
+                  isClient={
+                    Boolean(viewerAddress) &&
+                    viewerAddress === job.client_address
+                  }
+                  workflowLocked  ={workflowLocked}
+                  busyMilestoneId={
+                    busyAction?.startsWith("release-")
+                      ? busyAction.replace("release-", "")
+                      : null
+                  }
+                  onRelease={async (milestoneId) => {
+                    if (!workspace.job) return;
+                    const milestone = workspace.milestones.find(
+                      (m) => m.id === milestoneId,
+                    );
+                    if (!milestone) return;
+                    setBusyAction(`release-${milestoneId}`);
+                    try {
+                      await releaseFunds(
+                        BigInt(workspace.job.on_chain_job_id ?? 0),
+                        Math.max(0, milestone.index - 1),
+                      );
+                      await api.jobs.releaseMilestone(id, milestoneId);
+                      await workspace.refresh();
+                    } catch {
+                      alert("Failed to release milestone");
+                    } finally {
+                      setBusyAction(null);
+                    }
+                  }}
+                />
               </section>
 
               <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
@@ -415,220 +392,22 @@ export default function JobDetailsPage() {
                     <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                       <FileUp className="h-4 w-4 text-amber-600" />
                       <span>{deliverableFile ? deliverableFile.name : "Upload ZIP, image, JSON, or PDF evidence"}</span>
-                      <input
-                        type="file"
-                        className="hidden"
-                        onChange={(event) =>
-                          setDeliverableFile(event.target.files?.[0] ?? null)
-                        }
-                      />
                     </label>
-                    <button
-                      type="submit"
-                      disabled={busyAction === "deliverable"}
-                      className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
-                    >
-                      {busyAction === "deliverable"
-                        ? "Submitting..."
-                        : "Submit Milestone"}
-                    </button>
+                    <input
+                      type="file"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) setDeliverableFile(file);
+                      }}
+                      className="hidden"
+                      id="deliverable-file"
+                    />
                   </form>
                 ) : null}
-
-                <div className="mt-5 space-y-3">
-                  {workspace.deliverables.length === 0 ? (
-                    <EmptyState
-                      icon={<FileUp className="h-5 w-5" />}
-                      title="No milestone evidence yet"
-                      description="Submitted files and links will appear here once a freelancer shares delivery proof."
-                      className="rounded-[1.4rem] bg-slate-50 py-8"
-                    />
-                  ) : (
-                    workspace.deliverables.map((deliverable) => (
-                      <article
-                        key={deliverable.id}
-                        className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                              Milestone {deliverable.milestone_index}
-                            </p>
-                            <p className="mt-2 text-sm font-medium text-slate-800">
-                              {deliverable.label}
-                            </p>
-                          </div>
-                          <p className="text-xs text-slate-500">
-                            {formatDateTime(deliverable.created_at)}
-                          </p>
-                        </div>
-                        <a
-                          href={deliverable.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-amber-700 underline"
-                        >
-                          Open evidence
-                        </a>
-                      </article>
-                    ))
-                  )}
-                </div>
               </section>
             </div>
           ) : null}
         </div>
-
-        <aside className="space-y-6">
-          <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
-            <div className="flex items-center gap-3">
-              <Wallet className="h-5 w-5 text-amber-600" />
-              <h2 className="text-lg font-semibold text-slate-950">
-                Connected Viewer
-              </h2>
-            </div>
-            <p className="mt-4 text-sm text-slate-600">
-              {viewerAddress ?? "No wallet connected yet."}
-            </p>
-            {!viewerAddress ? (
-              <button
-                type="button"
-                onClick={() => void ensureViewerAddress()}
-                className="mt-4 rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-amber-300 hover:text-slate-950"
-              >
-                Connect wallet
-              </button>
-            ) : null}
-          </section>
-
-          <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
-            <h2 className="text-lg font-semibold text-slate-950">
-              Counterparty trust
-            </h2>
-            <div className="mt-5 space-y-4">
-              <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Client reputation
-                </p>
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <Stars value={workspace.clientReputation?.starRating ?? 2.5} />
-                  <span className="text-sm font-semibold text-slate-800">
-                    {workspace.clientReputation?.averageStars.toFixed(1) ?? "2.5"}
-                  </span>
-                </div>
-                <p className="mt-3 text-xs text-slate-500">
-                  {workspace.clientReputation?.totalJobs ?? 0} completed jobs
-                </p>
-              </div>
-
-              {job.freelancer_address ? (
-                <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Freelancer reputation
-                  </p>
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <Stars
-                      value={workspace.freelancerReputation?.starRating ?? 2.5}
-                    />
-                    <span className="text-sm font-semibold text-slate-800">
-                      {workspace.freelancerReputation?.averageStars.toFixed(1) ?? "2.5"}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-xs text-slate-500">
-                    {workspace.freelancerReputation?.totalJobs ?? 0} completed jobs
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          </section>
-
-          {job.status === "awaiting_funding" ? (
-            <section className="rounded-[2rem] border border-amber-200 bg-amber-50 p-6 text-amber-900 shadow-[0_20px_60px_-48px_rgba(245,158,11,0.45)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em]">
-                Next step
-              </p>
-              <h2 className="mt-3 text-xl font-semibold">Fund the escrow</h2>
-              <p className="mt-3 text-sm leading-6">
-                The freelancer is locked in. Deposit funds to transition the contract into active execution.
-              </p>
-              <Link
-                href={`/jobs/${id}/fund`}
-                className="mt-5 inline-flex rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
-              >
-                Open funding review
-              </Link>
-            </section>
-          ) : null}
-
-          {job.status !== "open" && job.status !== "awaiting_funding" ? (
-            <section className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-[0_20px_60px_-48px_rgba(15,23,42,0.8)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">
-                Client control room
-              </p>
-              <h2 className="mt-3 text-xl font-semibold">
-                Awaiting Client Approval
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-300">
-                Approve the latest submitted milestone, or escalate to a dispute if the evidence does not satisfy the brief.
-              </p>
-              <div className="mt-5 space-y-3">
-                <button
-                  type="button"
-                  onClick={handleReleaseFunds}
-                  disabled={
-                    workflowLocked ||
-                    job.status !== "deliverable_submitted" ||
-                    !nextMilestone ||
-                    busyAction === "release"
-                  }
-                  className="flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-800/50"
-                  id="release-funds"
-                >
-                  {busyAction === "release" ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
-                  Approve &amp; Release Funds
-                </button>
-                <button
-                  type="button"
-                  onClick={handleOpenDispute}
-                  disabled={workflowLocked || busyAction === "dispute"}
-                  className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/8 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/12 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {busyAction === "dispute" ? (
-                    <LoaderCircle className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Gavel className="h-4 w-4" />
-                  )}
-                  Reject &amp; Initiate Dispute
-                </button>
-              </div>
-            </section>
-          ) : null}
-
-          <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
-            <h2 className="text-lg font-semibold text-slate-950">
-              Activity pulse
-            </h2>
-            <div className="mt-5 space-y-4">
-              <div className="flex items-center justify-between rounded-[1.4rem] border border-slate-200 bg-slate-50 px-4 py-3">
-                <span className="text-sm text-slate-600">Next milestone</span>
-                <span className="text-sm font-semibold text-slate-900">
-                  {nextMilestone ? `#${nextMilestone.index}` : "Complete"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between rounded-[1.4rem] border border-slate-200 bg-slate-50 px-4 py-3">
-                <span className="text-sm text-slate-600">Last update</span>
-                <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <Clock3 className="h-4 w-4 text-amber-600" />
-                  {formatDate(job.updated_at)}
-                </span>
-              </div>
-            </div>
-          </section>
-        </aside>
       </section>
     </SiteShell>
   );

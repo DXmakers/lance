@@ -17,7 +17,8 @@
   --success: #22c55e;
   --warning: #f59e0b;
   --font-geist-sans:
-    Inter, "Segoe UI", "Helvetica Neue", Arial, ui-sans-serif, system-ui, sans-serif;
+    Inter, "Segoe UI", "Helvetica Neue", Arial, ui-sans-serif, system-ui,
+    sans-serif;
   --font-geist-mono:
     "SFMono-Regular", "Cascadia Code", "Fira Code", Consolas, ui-monospace,
     monospace;
@@ -66,21 +67,11 @@
   --color-warning: var(--warning);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  
+
   --radius-xl: 12px;
-}
-
-@layer utilities {
-  .glass-surface {
-    @apply border border-white/10 bg-white/5 backdrop-blur-md;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #09090b; /* zinc-950 */
-    --foreground: #fafafa; /* zinc-50 */
-  }
+  --radius-lg: 10px;
+  --radius-md: 8px;
+  --radius-sm: 4px;
 }
 
 body {
@@ -96,7 +87,8 @@ input,
 textarea,
 select {
   transition-duration: 200ms;
-  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-property: color, background-color, border-color, box-shadow,
+    opacity, transform;
   transition-timing-function: ease;
 }
 
@@ -105,37 +97,43 @@ select {
   outline-offset: 2px;
 }
 
-/* Responsive design utilities */
+.glass-surface {
+  background: color-mix(in srgb, var(--card) 82%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.transition-smooth {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 @media (max-width: 640px) {
   .responsive-text-xs {
     font-size: 0.625rem;
     line-height: 0.75rem;
   }
-  
+
   .responsive-text-sm {
     font-size: 0.75rem;
     line-height: 1rem;
   }
-  
+
   .responsive-gap {
     gap: 0.5rem;
   }
 }
 
-/* High contrast mode support */
 @media (prefers-contrast: high) {
   :root {
     --border: #000000;
     --ring: #ffffff;
   }
-  
+
   .dark {
     --border: #ffffff;
     --ring: #000000;
   }
 }
 
-/* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   button,
   a,
@@ -144,16 +142,11 @@ select {
   select {
     transition: none;
   }
-  
+
   .animate-spin,
   .animate-pulse {
     animation: none;
   }
-}
-
-.glass-surface {
-  background: color-mix(in srgb, var(--card) 82%, transparent);
-  backdrop-filter: blur(14px);
 }
 
 @keyframes shimmer {

@@ -22,14 +22,14 @@ function toDisplayNetwork(network: Networks): WalletDisplayNetwork {
 }
 
 export function useWallet() {
-  const { 
-    address, 
-    walletId, 
-    status, 
+  const {
+    address,
+    walletId,
+    status,
     network,
-    setConnection, 
-    setStatus, 
-    setError, 
+    setConnection,
+    setStatus,
+    setError,
     setNetwork: setStoreNetwork,
     disconnect: disconnectStore,
   } = useWalletStore();
@@ -47,7 +47,8 @@ export function useWallet() {
       setConnection(connectedAddress, walletId ?? WALLET_KIT_ID);
       toast.success("Wallet connected successfully");
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to connect wallet";
+      const message =
+        err instanceof Error ? err.message : "Failed to connect wallet";
       setError(message);
       toast.error(message);
     } finally {
@@ -61,13 +62,16 @@ export function useWallet() {
     toast.info("Wallet disconnected");
   }, [disconnectStore]);
 
-  const setNetwork = useCallback((newNetwork: WalletDisplayNetwork) => {
-    const stellarNetwork =
-      newNetwork === "MAINNET" ? Networks.PUBLIC : Networks.TESTNET;
-    const kit = getWalletsKit();
-    kit.setNetwork(stellarNetwork);
-    setStoreNetwork(stellarNetwork);
-  }, [setStoreNetwork]);
+  const setNetwork = useCallback(
+    (newNetwork: WalletDisplayNetwork) => {
+      const stellarNetwork =
+        newNetwork === "MAINNET" ? Networks.PUBLIC : Networks.TESTNET;
+      const kit = getWalletsKit();
+      kit.setNetwork(stellarNetwork);
+      setStoreNetwork(stellarNetwork);
+    },
+    [setStoreNetwork],
+  );
 
   const signTransaction = useCallback(async (xdr: string) => {
     try {
@@ -88,7 +92,6 @@ export function useWallet() {
     }
   }, []);
 
-  // Auto-connect
   useEffect(() => {
     if (isInitialized.current) return;
 
@@ -112,8 +115,10 @@ export function useWallet() {
       isInitialized.current = true;
     };
 
-    attemptAutoConnect();
+    void attemptAutoConnect();
   }, [address, walletId, setConnection, setStatus, disconnectStore]);
+
+  const isConnected = status === "connected";
 
   return {
     address,
@@ -125,7 +130,8 @@ export function useWallet() {
     setNetwork,
     signTransaction,
     signAuthMessage,
-    isConnected: status === "connected",
+    isConnected,
+    isLoggedIn: isConnected,
     isConnecting: status === "connecting",
     isModalOpen,
     setIsModalOpen,

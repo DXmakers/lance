@@ -6,6 +6,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     globals: true,
+    css: false,  // Disable CSS processing to avoid PostCSS/lightningcss dependency in tests
     coverage: {
       reporter: ["text", "html"],
       include: [

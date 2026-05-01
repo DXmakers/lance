@@ -9,8 +9,10 @@ import {
   xdr,
   Transaction,
 } from "@stellar/stellar-sdk";
-import { 
+import {
+  Networks as WalletNetworks,
   StellarWalletsKit,
+  SwkAppDarkTheme,
 } from "@creit.tech/stellar-wallets-kit";
 
 export type StellarNetwork = "public" | "testnet";
@@ -235,9 +237,22 @@ async function initializeWalletsKit(): Promise<void> {
     ]);
 
   StellarWalletsKit.init({
-    network: getWalletKitNetwork(),
+    network: getWalletKitNetwork() as WalletNetworks,
     selectedWalletId: FREIGHTER_ID,
     modules: [new FreighterModule(), new AlbedoModule(), new xBullModule()],
+  });
+  StellarWalletsKit.setTheme({
+    ...SwkAppDarkTheme,
+    "background": "#18181b",
+    "background-secondary": "#09090b",
+    "foreground-strong": "#fafafa",
+    "foreground": "#e4e4e7",
+    "foreground-secondary": "#a1a1aa",
+    "primary": "#6366f1",
+    "primary-foreground": "#ffffff",
+    "border": "rgba(255,255,255,0.06)",
+    "border-radius": "0.75rem",
+    "font-family": "Inter, ui-sans-serif, system-ui, sans-serif",
   });
   isWalletKitInitialized = true;
 }
@@ -350,6 +365,22 @@ export async function getConnectedWalletAddress(): Promise<string | null> {
     return (await getWalletsKit().getAddress()).address;
   } catch {
     return stored;
+  }
+}
+
+/**
+ * Returns the network passphrase currently reported by the connected wallet,
+ * or null if the wallet is not connected / does not support getNetwork.
+ * Used for network mismatch detection.
+ */
+export async function getWalletNetworkPassphrase(): Promise<string | null> {
+  if (!isBrowser() || isE2EMode()) return getNetworkPassphrase();
+  try {
+    await initializeWalletsKit();
+    const { networkPassphrase } = await StellarWalletsKit.getNetwork();
+    return networkPassphrase;
+  } catch {
+    return null;
   }
 }
 

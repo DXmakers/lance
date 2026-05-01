@@ -1,22 +1,25 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
 import { NetworkMismatchBanner } from "@/components/ui/network-mismatch-banner";
 import { useAuthStore } from "@/lib/store/use-auth-store";
-import { useWalletAuth } from "@/hooks/use-wallet-auth";
 import { Button } from "@/components/ui/button";
-import { Search, Bell, Menu, LogOut } from "lucide-react";
+import {
+  Bell,
+  LoaderCircle,
+  LogOut,
+  Menu,
+  Search,
+  TriangleAlert,
+  Unplug,
+} from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { SessionSwitcher } from "@/components/auth/session-switcher";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { BlockchainSyncIndicator } from "@/components/ui/blockchain-sync-indicator";
 import { useWalletSession } from "@/hooks/use-wallet-session";
-import { toast } from "@/lib/toast";
 import { WalletConnect } from "@/components/wallet/wallet-connect";
-import { ConnectWalletButton } from "@/components/wallet/connect-wallet-button";
-import { NotificationCenter } from "@/components/notifications/notification-center";
 
 function shortAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -24,6 +27,18 @@ function shortAddress(address: string): string {
 
 export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
   const { isLoggedIn, logout, role, user } = useAuthStore();
+  const {
+    address,
+    appNetwork,
+    walletNetwork,
+    xlmBalance,
+    isConnected,
+    isConnecting,
+    networkMismatch,
+    error,
+    connect,
+    disconnect: disconnectSession,
+  } = useWalletSession();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
