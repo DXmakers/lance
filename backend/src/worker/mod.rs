@@ -1,0 +1,112 @@
+pub mod indexer;
+
+pub use indexer::{run_indexer_worker, IndexerState, IndexerWorker};
+
+use std::time::Duration;
+
+use sqlx::PgPool;
+use uuid::Uuid;
+
+use crate::services::{judge::JudgeService, stellar::StellarService};
+
+pub async fn run_judge_worker(pool: PgPool) {
+    let judge = JudgeService::from_env();
+    let stellar = std::env::var("JUDGE_AUTHORITY_SECRET")
+        .ok()
+        .map(|_| StellarService::from_env());
+
+    loop {
+        if let Err(e) = process_open_disputes(&pool, &judge, stellar.as_ref()).await {
+            tracing::error!("judge worker error: {e}");
+        }
+        tokio::time::sleep(Duration::from_secs(30)).await;
+    }
+}
+
+async fn process_open_disputes(
+    pool: &PgPool,
+    judge: &JudgeService,
+    stellar: Option<&StellarService>,
+) -> anyhow::Result<()> {
+    let disputes: Vec<(Uuid, Uuid)> =
+        sqlx::query_as("SELECT id, job_id FROM disputes WHERE status = 'open'")
+            .fetch_all(pool)
+            .await?;
+
+    for (dispute_id, job_id) in disputes {
+        if let Err(e) = process_dispute(pool, judge, stellar, dispute_id, job_id).await {
+            tracing::error!("dispute {dispute_id} failed: {e}");
+            if let Err(e2) = sqlx::query("UPDATE disputes SET status = 'open' WHERE id = $1")
+                .bind(dispute_id)
+                .execute(pool)
+                .await
+            {
+                tracing::error!("dispute {dispute_id} status reset failed: {e2}");
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn process_dispute(
+    pool: &PgPool,
+    judge: &JudgeService,
+    stellar: Option<&StellarService>,
+    dispute_id: Uuid,
+    job_id: Uuid,
+) -> anyhow::Result<()> {
+    sqlx::query("UPDATE disputes SET status = 'under_review' WHERE id = $1")
+        .bind(dispute_id)
+        .execute(pool)
+        .await?;
+
+    #[derive(sqlx::FromRow)]
+    struct JobRow {
+        on_chain_job_id: Option<i64>,
+    }
+
+    let job = sqlx::query_as::<_, JobRow>("SELECT on_chain_job_id FROM jobs WHERE id = $1")
+        .bind(job_id)
+        .fetch_one(pool)
+        .await?;
+
+    let verdict = judge.judge(pool, dispute_id).await?;
+
+    let job_id_str = job
+        .on_chain_job_id
+        .map(|id| id.to_string())
+        .unwrap_or_else(|| job_id.to_string());
+
+    let on_chain_tx: Option<String> = if let Some(s) = stellar {
+        Some(
+            s.resolve_dispute(&job_id_str, verdict.freelancer_share_bps as u32)
+                .await?,
+        )
+    } else {
+        None
+    };
+
+    sqlx::query(
+        "INSERT INTO verdicts (dispute_id, winner, freelancer_share_bps, reasoning, on_chain_tx)
+         VALUES ($1, $2, $3, $4, $5)",
+    )
+    .bind(dispute_id)
+    .bind(&verdict.winner)
+    .bind(verdict.freelancer_share_bps)
+    .bind(&verdict.reasoning)
+    .bind(&on_chain_tx)
+    .execute(pool)
+    .await?;
+
+    sqlx::query("UPDATE disputes SET status = 'resolved' WHERE id = $1")
+        .bind(dispute_id)
+        .execute(pool)
+        .await?;
+
+    tracing::info!(
+        "dispute {dispute_id} resolved: winner={} tx={:?}",
+        verdict.winner,
+        on_chain_tx
+    );
+    Ok(())
+}

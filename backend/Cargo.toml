@@ -31,10 +31,9 @@ bytes        = { workspace = true }
 base64       = "0.22"
 sha2         = "0.10"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
-hex          = "0.4"
-governor     = { version = "0.6", features = ["std"] }
-futures-util = "0.3"
-stellar-xdr  = { workspace = true }
+prometheus = { workspace = true }
+backoff = { workspace = true }
+async-trait = { workspace = true }
 
 [dev-dependencies]
 axum-test = "16.0"
