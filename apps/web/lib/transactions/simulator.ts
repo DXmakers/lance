@@ -194,7 +194,7 @@ function validateSimulationResult(
   }
 
   // Check for specific error types in the response
-  const asAny = simResult as Record<string, unknown>;
+  const asAny = simResult as unknown as Record<string, unknown>;
 
   // IngressExpiration error
   if (asAny.ingressExpiration !== undefined) {
@@ -238,7 +238,7 @@ function parseSimulationResult(
   const minResourceFee = successResult.minResourceFee ?? "0";
 
   // Extract cost information (CPU instructions and memory)
-  const asAny = simResult as Record<string, unknown>;
+  const asAny = simResult as unknown as Record<string, unknown>;
   const cost = asAny.cost as { cpuInsns?: string; memBytes?: string } | undefined;
   const cpuInstructions = cost?.cpuInsns ?? "0";
   const memoryBytes = cost?.memBytes ?? "0";
@@ -249,7 +249,7 @@ function parseSimulationResult(
   let writeBytes = 0;
 
   if (transactionData) {
-    const dataAsAny = transactionData as Record<string, unknown>;
+    const dataAsAny = transactionData as unknown as Record<string, unknown>;
     readBytes = (dataAsAny.readBytes as number) ?? 0;
     writeBytes = (dataAsAny.writeBytes as number) ?? 0;
   }
