@@ -111,10 +111,12 @@ export async function submitTransaction(
       const pollingResult = await pollTransactionStatus(txHash, {
         timeoutMs: pollingTimeoutMs,
       });
+      const status =
+        pollingResult.status === "NOT_FOUND" ? "TIMEOUT" : pollingResult.status;
 
       return {
         hash: txHash,
-        status: pollingResult.status,
+        status,
         resultXdr: pollingResult.resultXdr,
         ledger: pollingResult.ledger,
         createdAt: pollingResult.createdAt,
@@ -163,10 +165,12 @@ export async function submitTransaction(
     const pollingResult = await pollTransactionStatus(horizonResult.hash, {
       timeoutMs: pollingTimeoutMs,
     });
+    const status =
+      pollingResult.status === "NOT_FOUND" ? "TIMEOUT" : pollingResult.status;
 
     return {
       hash: horizonResult.hash,
-      status: pollingResult.status,
+      status,
       resultXdr: pollingResult.resultXdr,
       ledger: pollingResult.ledger,
       createdAt: pollingResult.createdAt,
