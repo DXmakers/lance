@@ -41,7 +41,7 @@ pub enum Role {
 pub struct ReputationScore {
     pub address: Address,
     pub role: Role,
-    /// Score in basis points (0–10000 = 0–100%)
+    /// Score in basis points (0\u201310000 = 0\u2013100%)
     pub score: i32,
     pub total_jobs: u32,
     /// Sum of raw rating points (1-5) to compute aggregates off-chain
@@ -131,6 +131,7 @@ impl ReputationContract {
         (score as i32).saturating_mul(2_000)
     }
 
+    fn score_from_profile(address: &Address, role: Role, profile: &profile::Profile) -> ReputationScore {
     fn score_from_profile(
         address: &Address,
         role: Role,
@@ -324,8 +325,7 @@ impl ReputationContract {
         let mut profile = storage::read_profile_or_default(&env, &address);
         let (new_score, total_jobs) = match role {
             Role::Client => {
-                profile.client_score =
-                    Self::clamp_score(profile.client_score.saturating_add(delta));
+                profile.client_score = Self::clamp_score(profile.client_score.saturating_add(delta));
                 profile.client_jobs = profile.client_jobs.saturating_add(1);
                 (profile.client_score, profile.client_jobs)
             }
@@ -467,6 +467,9 @@ mod test {
     #[contractimpl]
     impl MockJobRegistry {
         pub fn set_job(env: Env, job_id: u64, job: JobRecord) {
+            env.storage()
+                .persistent()
+                .set(&MockKey::Job(job_id), &job);
             env.storage().persistent().set(&MockKey::Job(job_id), &job);
         }
 
@@ -588,6 +591,14 @@ mod test {
         assert_eq!(view.address, address);
         assert_eq!(view.client.score, 5500);
         assert_eq!(view.client.total_jobs, 1);
+        assert_eq!(view.client.total_points, 500);
+        assert_eq!(view.freelancer.score, 6000);
+        assert_eq!(view.freelancer.total_jobs, 1);
+        assert_eq!(view.freelancer.total_points, 1000);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #3)")] 
         assert_eq!(view.client.total_points, 0);
         assert_eq!(view.freelancer.score, 6000);
         assert_eq!(view.freelancer.total_jobs, 1);
@@ -655,6 +666,7 @@ mod test {
     }
 
     #[test]
+    #[should_panic(expected = "Error(Contract, #2)")] 
     #[should_panic(expected = "Error(Contract, #2)")]
     fn test_upgrade_requires_admin() {
         let env = Env::default();
