@@ -1,13 +1,17 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+// Add these imports at the top
 import {
   Activity, Database, RefreshCw, Terminal, AlertCircle,
-  CheckCircle2, TrendingUp, Cpu, Clock,
+  CheckCircle2, TrendingUp, Cpu, Clock, AlertTriangle,
 } from "lucide-react";
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area,
+  ComposedChart, Line,
 } from "recharts";
+
+// Add this state variable near other useState declarations (around line 102)
+const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +29,79 @@ const generateInitialData = () => {
   }));
 };
 
+interface EventLog {
+  id: string;
+  timestamp: string;
+  ledger: number;
+  eventCount: number;
+  hash: string;
+  status: 'success' | 'error' | 'warning';
+}
+
+interface ConfirmDialogProps {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  confirmText?: string;
+  cancelText?: string;
+  variant?: 'danger' | 'warning';
+}
+
+function ConfirmDialog({ 
+  isOpen, 
+  title, 
+  message, 
+  onConfirm, 
+  onCancel, 
+  confirmText = "CONFIRM",
+  cancelText = "CANCEL",
+  variant = 'warning'
+}: ConfirmDialogProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <Card className="bg-zinc-950 border-zinc-800 rounded-none w-full max-w-md">
+        <CardHeader className="border-b border-zinc-900 py-4">
+          <CardTitle className="text-sm font-medium text-zinc-200 flex items-center gap-2 uppercase">
+            <AlertTriangle className={`h-5 w-5 ${variant === 'danger' ? 'text-red-500' : 'text-yellow-500'}`} />
+            {title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <p className="text-sm text-zinc-400 mb-6 leading-relaxed">{message}</p>
+          <div className="flex gap-3 justify-end">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="border-zinc-800 hover:bg-zinc-900 text-zinc-400 bg-black"
+              onClick={onCancel}
+            >
+              {cancelText}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className={`${
+                variant === 'danger' 
+                  ? 'border-red-900/30 hover:bg-red-900/20 text-red-500' 
+                  : 'border-yellow-900/30 hover:bg-yellow-900/20 text-yellow-500'
+              } bg-black`}
+              onClick={onConfirm}
+            >
+              {confirmText}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function MonitoringDashboard() {
+  const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
   const { data: status, isLoading } = useIndexerStatus();
   const [chartData, setChartData] = useState(generateInitialData);
   const [logs, setLogs] = useState<{ id: string; msg: string; type: "info" | "error" | "warn" }[]>([]);
@@ -78,6 +154,7 @@ export default function MonitoringDashboard() {
       }
     }, 0);
     return () => clearTimeout(id);
+    setEventLogs([]);
   }, [status, addLog]);
 
   if (isLoading)
@@ -154,6 +231,7 @@ export default function MonitoringDashboard() {
           value={status?.last_processed_ledger?.toLocaleString() ?? "0"}
           subValue={`NETWORK: ${status?.latest_network_ledger?.toLocaleString() ?? "—"}`}
           icon={<Database className="text-zinc-500" />}
+          mono={true}
         />
         <StatCard
           title="ERROR_TTL"
@@ -165,13 +243,217 @@ export default function MonitoringDashboard() {
         <StatCard
           title="REFRESH_RATE"
           value={`${status?.last_rpc_latency_ms ?? 0}ms`}
-          subValue="LAST_RPC_LATENCY"
+          subValue={`LOOP: ${status?.last_loop_duration_ms ?? 0}ms`}
           icon={<Clock className="text-zinc-500" />}
+          color={status && status.last_loop_duration_ms > 5000 ? "text-red-500" : "text-zinc-500"}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {/* Throughput Chart */}
+          <Card className="bg-zinc-950 border-zinc-800 rounded-none overflow-hidden">
+            <CardHeader className="border-b border-zinc-900 py-3">
+              <CardTitle className="text-sm font-medium text-zinc-400 flex items-center justify-between uppercase">
+                Indexing Throughput (Events/Second)
+                <TrendingUp className="h-4 w-4 text-green-500" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorThroughput" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#18181b" vertical={false} />
+                  <XAxis 
+                    dataKey="time" 
+                    stroke="#3f3f46" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false} 
+                  />
+                  <YAxis 
+                    stroke="#3f3f46" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tickFormatter={(v) => `${v}`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', color: '#fff', fontSize: '12px' }}
+                    itemStyle={{ color: '#22c55e' }}
+                    formatter={(value: number) => [`${value.toFixed(1)} eps`, 'Throughput']}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="throughput" 
+                    stroke="#22c55e" 
+                    fillOpacity={1} 
+                    fill="url(#colorThroughput)" 
+                    isAnimationActive={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Resource Usage Chart */}
+          <Card className="bg-zinc-950 border-zinc-800 rounded-none overflow-hidden">
+            <CardHeader className="border-b border-zinc-900 py-3">
+              <CardTitle className="text-sm font-medium text-zinc-400 flex items-center justify-between uppercase">
+                Resource Usage
+                <div className="flex gap-3 text-[10px]">
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-blue-500"></div>
+                    CPU
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-purple-500"></div>
+                    MEMORY
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-yellow-500"></div>
+                    LATENCY
+                  </span>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#18181b" vertical={false} />
+                  <XAxis 
+                    dataKey="time" 
+                    stroke="#3f3f46" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false} 
+                  />
+                  <YAxis 
+                    yAxisId="left"
+                    stroke="#3f3f46" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tickFormatter={(v) => `${v}%`}
+                  />
+                  <YAxis 
+                    yAxisId="right"
+                    orientation="right"
+                    stroke="#3f3f46" 
+                    fontSize={10} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tickFormatter={(v) => `${v}ms`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', color: '#fff', fontSize: '12px' }}
+                  />
+                  <Line 
+                    yAxisId="left"
+                    type="monotone" 
+                    dataKey="cpu" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                  <Line 
+                    yAxisId="left"
+                    type="monotone" 
+                    dataKey="memory" 
+                    stroke="#a855f7" 
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                  <Line 
+                    yAxisId="right"
+                    type="monotone" 
+                    dataKey="latency" 
+                    stroke="#eab308" 
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Event Log Table */}
+          <Card className="bg-zinc-950 border-zinc-800 rounded-none">
+            <CardHeader className="border-b border-zinc-900 py-3">
+              <CardTitle className="text-sm font-medium text-zinc-400 uppercase flex items-center justify-between">
+                Recent Ledger Events
+                <Badge variant="outline" className="bg-zinc-900 text-zinc-500 border-zinc-800 text-[10px] h-4">
+                  {eventLogs.length} ENTRIES
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-zinc-900 bg-zinc-950">
+                      <th className="px-4 py-2 font-medium text-zinc-500 uppercase">Timestamp</th>
+                      <th className="px-4 py-2 font-medium text-zinc-500 uppercase font-mono">Ledger</th>
+                      <th className="px-4 py-2 font-medium text-zinc-500 uppercase">Events</th>
+                      <th className="px-4 py-2 font-medium text-zinc-500 uppercase font-mono">Hash</th>
+                      <th className="px-4 py-2 font-medium text-zinc-500 uppercase text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-900">
+                    {eventLogs.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-6 text-center text-zinc-600 italic">
+                          No events recorded yet. Waiting for indexer activity...
+                        </td>
+                      </tr>
+                    )}
+                    {eventLogs.map(log => (
+                      <tr key={log.id} className="hover:bg-zinc-900/50 transition-colors">
+                        <td className="px-4 py-2 text-zinc-400">
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                        </td>
+                        <td className="px-4 py-2 text-zinc-300 font-mono">
+                          #{log.ledger.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-2 text-zinc-300">
+                          {log.eventCount}
+                        </td>
+                        <td className="px-4 py-2 text-zinc-500 font-mono text-[10px]">
+                          {log.hash}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          {log.status === 'success' && (
+                            <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px] h-4">
+                              OK
+                            </Badge>
+                          )}
+                          {log.status === 'warning' && (
+                            <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 text-[10px] h-4">
+                              WARN
+                            </Badge>
+                          )}
+                          {log.status === 'error' && (
+                            <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-[10px] h-4">
+                              ERR
+                            </Badge>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
           <Card className="bg-zinc-950 border-zinc-800 rounded-none overflow-hidden">
             <CardHeader className="border-b border-zinc-900 py-3">
               <CardTitle className="text-sm font-medium text-zinc-400 flex items-center justify-between uppercase">
@@ -267,9 +549,10 @@ interface StatCardProps {
   icon: React.ReactNode;
   color?: string;
   trend?: "STABLE" | "DEGRADED";
+  mono?: boolean;
 }
 
-function StatCard({ title, value, subValue, icon, color = "text-white", trend }: StatCardProps) {
+function StatCard({ title, value, subValue, icon, color = "text-white", trend, mono = false }: StatCardProps) {
   return (
     <Card className="bg-zinc-950 border-zinc-800 rounded-none hover:border-zinc-700 transition-colors">
       <CardContent className="p-4">
@@ -278,14 +561,14 @@ function StatCard({ title, value, subValue, icon, color = "text-white", trend }:
           <div className="h-4 w-4">{icon}</div>
         </div>
         <div className="flex items-baseline gap-2">
-          <p className={`text-xl font-bold tracking-tight ${color}`}>{value}</p>
+          <p className={`text-xl font-bold tracking-tight ${color} ${mono ? 'font-mono' : ''}`}>{value}</p>
           {trend && (
             <span className={`text-[9px] px-1 border ${trend === "STABLE" ? "border-green-900/30 text-green-500" : "border-red-900/30 text-red-500"}`}>
               {trend}
             </span>
           )}
         </div>
-        <p className="text-[10px] text-zinc-600 mt-1 uppercase">{subValue}</p>
+        <p className={`text-[10px] text-zinc-600 mt-1 uppercase ${mono ? 'font-mono' : ''}`}>{subValue}</p>
       </CardContent>
     </Card>
   );

@@ -314,11 +314,11 @@ function MilestoneCard({
             </p>
             {milestoneDeliverables.map((d) => (
               <a
-                key={d.id}
-                href={d.url}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2 rounded-lg bg-zinc-800/60 px-3 py-2 text-[12px] text-zinc-400 ring-1 ring-zinc-700/50 transition-all duration-150 hover:bg-zinc-800 hover:text-zinc-200 hover:ring-zinc-600/60"
+                 key={d.id}
+                 href={d.url}
+                 target="_blank"
+                 rel="noreferrer"
+                 className="flex items-center gap-2 rounded-lg bg-zinc-800/60 px-3 py-2 text-[12px] text-zinc-400 ring-1 ring-zinc-700/50 transition-all duration-150 hover:bg-zinc-800 hover:text-zinc-200"
               >
                 <Link2 className="h-3 w-3 flex-shrink-0 text-amber-500" aria-hidden="true" />
                 <span className="truncate">{d.label}</span>

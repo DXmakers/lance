@@ -1,24 +1,29 @@
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Context, Result};
 use reqwest::{Client, StatusCode};
 use serde_json::{json, Value};
-use tracing::warn;
+use tracing::{debug, info, instrument, warn};
 
 use crate::indexer_metrics::metrics;
 
 const DEFAULT_SOROBAN_RPC_URL: &str = "https://soroban-testnet.stellar.org";
-const DEFAULT_RPC_RATE_LIMIT_MS: u64 = 250;
-const DEFAULT_RPC_RETRY_ATTEMPTS: u32 = 4;
-const DEFAULT_RPC_RETRY_INITIAL_BACKOFF_MS: u64 = 500;
-const DEFAULT_RPC_RETRY_MAX_BACKOFF_MS: u64 = 5_000;
+const DEFAULT_RPC_RATE_LIMIT_MS: u64 = 100;
+const DEFAULT_RPC_RETRY_ATTEMPTS: u32 = 5;
+const DEFAULT_RPC_RETRY_INITIAL_BACKOFF_MS: u64 = 200;
+const DEFAULT_RPC_RETRY_MAX_BACKOFF_MS: u64 = 3_000;
+const DEFAULT_RPC_TIMEOUT_MS: u64 = 10_000;
+const DEFAULT_CIRCUIT_BREAKER_THRESHOLD: u32 = 5;
+const DEFAULT_CIRCUIT_BREAKER_TIMEOUT_MS: u64 = 30_000;
 
 #[derive(Clone, Debug)]
 pub struct RetryPolicy {
     pub max_attempts: u32,
     pub initial_backoff: Duration,
     pub max_backoff: Duration,
+    pub jitter_enabled: bool,
 }
 
 impl RetryPolicy {
@@ -38,13 +43,120 @@ impl RetryPolicy {
                 &format!("{prefix}_MAX_BACKOFF_MS"),
                 default_max_ms.max(default_initial_ms),
             )),
+            jitter_enabled: read_env_bool(&format!("{prefix}_JITTER_ENABLED"), true),
         }
     }
 
     pub fn delay_for_attempt(&self, attempt: u32) -> Duration {
         let factor = 2u128.saturating_pow(attempt);
         let raw_ms = self.initial_backoff.as_millis().saturating_mul(factor);
-        Duration::from_millis(raw_ms.min(self.max_backoff.as_millis()) as u64)
+        let capped_ms = raw_ms.min(self.max_backoff.as_millis()) as u64;
+
+        if self.jitter_enabled {
+            // Add jitter: random value between 0% and 25% of the delay
+            let jitter_range = capped_ms / 4;
+            let jitter = (std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos() as u64)
+                % jitter_range;
+            Duration::from_millis(capped_ms + jitter)
+        } else {
+            Duration::from_millis(capped_ms)
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct CircuitBreakerConfig {
+    pub failure_threshold: u32,
+    pub timeout: Duration,
+    pub enabled: bool,
+}
+
+impl CircuitBreakerConfig {
+    pub fn from_env() -> Self {
+        Self {
+            failure_threshold: read_env_u32(
+                "INDEXER_CIRCUIT_BREAKER_THRESHOLD",
+                DEFAULT_CIRCUIT_BREAKER_THRESHOLD,
+            ),
+            timeout: Duration::from_millis(read_env_u64(
+                "INDEXER_CIRCUIT_BREAKER_TIMEOUT_MS",
+                DEFAULT_CIRCUIT_BREAKER_TIMEOUT_MS,
+            )),
+            enabled: read_env_bool("INDEXER_CIRCUIT_BREAKER_ENABLED", true),
+        }
+    }
+}
+
+#[derive(Debug)]
+enum CircuitBreakerState {
+    Closed,
+    Open { opened_at: Instant },
+    HalfOpen,
+}
+
+struct CircuitBreaker {
+    state: CircuitBreakerState,
+    consecutive_failures: u32,
+    config: CircuitBreakerConfig,
+}
+
+impl CircuitBreaker {
+    fn new(config: CircuitBreakerConfig) -> Self {
+        Self {
+            state: CircuitBreakerState::Closed,
+            consecutive_failures: 0,
+            config,
+        }
+    }
+
+    fn record_success(&mut self) {
+        self.consecutive_failures = 0;
+        self.state = CircuitBreakerState::Closed;
+    }
+
+    fn record_failure(&mut self) {
+        if !self.config.enabled {
+            return;
+        }
+
+        self.consecutive_failures += 1;
+
+        if self.consecutive_failures >= self.config.failure_threshold {
+            self.state = CircuitBreakerState::Open {
+                opened_at: Instant::now(),
+            };
+            warn!(
+                consecutive_failures = self.consecutive_failures,
+                threshold = self.config.failure_threshold,
+                "circuit breaker opened due to consecutive failures"
+            );
+        }
+    }
+
+    fn can_attempt(&mut self) -> Result<()> {
+        if !self.config.enabled {
+            return Ok(());
+        }
+
+        match &self.state {
+            CircuitBreakerState::Closed => Ok(()),
+            CircuitBreakerState::Open { opened_at } => {
+                if opened_at.elapsed() >= self.config.timeout {
+                    info!("circuit breaker transitioning to half-open state");
+                    self.state = CircuitBreakerState::HalfOpen;
+                    Ok(())
+                } else {
+                    Err(anyhow!(
+                        "circuit breaker is open, will retry in {} seconds",
+                        (self.config.timeout - opened_at.elapsed()).as_secs()
+                    ))
+                }
+            }
+            CircuitBreakerState::HalfOpen => Ok(()),
+        }
     }
 }
 
@@ -53,6 +165,8 @@ pub struct RpcClientConfig {
     pub url: String,
     pub rate_limit_interval: Duration,
     pub retry_policy: RetryPolicy,
+    pub request_timeout: Duration,
+    pub circuit_breaker: CircuitBreakerConfig,
 }
 
 impl RpcClientConfig {
@@ -71,6 +185,11 @@ impl RpcClientConfig {
                 DEFAULT_RPC_RETRY_INITIAL_BACKOFF_MS,
                 DEFAULT_RPC_RETRY_MAX_BACKOFF_MS,
             ),
+            request_timeout: Duration::from_millis(read_env_u64(
+                "INDEXER_RPC_TIMEOUT_MS",
+                DEFAULT_RPC_TIMEOUT_MS,
+            )),
+            circuit_breaker: CircuitBreakerConfig::from_env(),
         }
     }
 }
@@ -80,21 +199,56 @@ pub struct EventsResponse {
     pub events: Vec<Value>,
 }
 
+#[derive(Clone)]
+pub struct RpcMetrics {
+    pub total_requests: Arc<AtomicU64>,
+    pub successful_requests: Arc<AtomicU64>,
+    pub failed_requests: Arc<AtomicU64>,
+}
+
+impl RpcMetrics {
+    fn new() -> Self {
+        Self {
+            total_requests: Arc::new(AtomicU64::new(0)),
+            successful_requests: Arc::new(AtomicU64::new(0)),
+            failed_requests: Arc::new(AtomicU64::new(0)),
+        }
+    }
+
+    fn record_request(&self) {
+        self.total_requests.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_success(&self) {
+        self.successful_requests.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_failure(&self) {
+        self.failed_requests.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
 pub struct SorobanRpcClient {
     client: Client,
     pub config: RpcClientConfig,
     last_request_started_at: Option<Instant>,
+    circuit_breaker: CircuitBreaker,
+    metrics: RpcMetrics,
 }
 
 impl SorobanRpcClient {
     pub fn new(client: Client, config: RpcClientConfig) -> Self {
+        let circuit_breaker = CircuitBreaker::new(config.circuit_breaker.clone());
         Self {
             client,
             config,
             last_request_started_at: None,
+            circuit_breaker,
+            metrics: RpcMetrics::new(),
         }
     }
 
+    #[instrument(skip(self), fields(rpc_url = %self.config.url))]
     pub async fn get_latest_ledger(&mut self) -> Result<i64> {
         let result = self.rpc_request("getLatestLedger", json!({})).await?;
         let sequence = result
@@ -106,16 +260,22 @@ impl SorobanRpcClient {
             .last_network_ledger
             .store(sequence, Ordering::Relaxed);
 
+        debug!(sequence, "fetched latest ledger from network");
+
         Ok(sequence)
     }
 
+    #[instrument(skip(self), fields(rpc_url = %self.config.url, start_ledger))]
     pub async fn get_events(&mut self, start_ledger: i64) -> Result<EventsResponse> {
         let result = self
             .rpc_request(
                 "getEvents",
                 json!({
                     "startLedger": start_ledger,
-                    "filters": []
+                    "filters": [],
+                    "pagination": {
+                        "limit": 10000
+                    }
                 }),
             )
             .await?;
@@ -135,6 +295,14 @@ impl SorobanRpcClient {
             .cloned()
             .unwrap_or_default();
 
+        debug!(
+            start_ledger,
+            latest_network_ledger,
+            events_count = events.len(),
+            ledger_range = latest_network_ledger - start_ledger,
+            "fetched events from RPC"
+        );
+
         Ok(EventsResponse {
             latest_network_ledger,
             events,
@@ -142,6 +310,9 @@ impl SorobanRpcClient {
     }
 
     async fn rpc_request(&mut self, method: &str, params: Value) -> Result<Value> {
+        // Check circuit breaker before attempting request
+        self.circuit_breaker.can_attempt()?;
+
         let request_body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -149,69 +320,141 @@ impl SorobanRpcClient {
             "params": params
         });
 
+        let mut last_error: Option<anyhow::Error> = None;
+
         for attempt in 0..self.config.retry_policy.max_attempts {
+            self.metrics.record_request();
             self.enforce_rate_limit().await;
             let started_at = Instant::now();
 
-            let response = self
-                .client
-                .post(&self.config.url)
-                .json(&request_body)
-                .send()
-                .await;
+            let response = tokio::time::timeout(
+                self.config.request_timeout,
+                self.client
+                    .post(&self.config.url)
+                    .json(&request_body)
+                    .send(),
+            )
+            .await;
 
+            let latency_ms = started_at.elapsed().as_millis() as u64;
             metrics()
                 .last_rpc_latency_ms
-                .store(started_at.elapsed().as_millis() as u64, Ordering::Relaxed);
+                .store(latency_ms, Ordering::Relaxed);
 
             match response {
-                Ok(response) => {
+                Ok(Ok(response)) => {
                     let status = response.status();
                     let body = response.text().await.unwrap_or_default();
 
                     if !status.is_success() {
                         let message = format!("RPC {method} HTTP {status}: {body}");
+                        last_error = Some(anyhow!(message.clone()));
+
                         if should_retry_http_status(status)
                             && attempt + 1 < self.config.retry_policy.max_attempts
                         {
                             self.sleep_before_retry(method, attempt, &message).await;
                             continue;
                         }
+
+                        self.metrics.record_failure();
+                        self.circuit_breaker.record_failure();
+                        crate::indexer_metrics::metrics().record_rpc_error();
                         return Err(anyhow!(message));
                     }
 
-                    let payload: Value = serde_json::from_str(&body).with_context(|| {
-                        format!("failed to decode RPC {method} response body: {body}")
-                    })?;
+                    let payload: Value = match serde_json::from_str(&body) {
+                        Ok(p) => p,
+                        Err(e) => {
+                            let message = format!("failed to decode RPC {method} response: {e}");
+                            last_error = Some(anyhow!(message.clone()));
+
+                            if attempt + 1 < self.config.retry_policy.max_attempts {
+                                self.sleep_before_retry(method, attempt, &message).await;
+                                continue;
+                            }
+
+                            self.metrics.record_failure();
+                            self.circuit_breaker.record_failure();
+                            crate::indexer_metrics::metrics().record_rpc_error();
+                            return Err(anyhow!(message));
+                        }
+                    };
 
                     if let Some(rpc_error) = payload.get("error") {
                         let message = rpc_error.to_string();
+                        last_error = Some(anyhow!(message.clone()));
+
                         if should_retry_rpc_error(rpc_error)
                             && attempt + 1 < self.config.retry_policy.max_attempts
                         {
                             self.sleep_before_retry(method, attempt, &message).await;
                             continue;
                         }
+
+                        self.metrics.record_failure();
+                        self.circuit_breaker.record_failure();
+                        crate::indexer_metrics::metrics().record_rpc_error();
                         return Err(anyhow!("RPC {method} error: {message}"));
                     }
 
-                    return payload
+                    let result = payload
                         .get("result")
                         .cloned()
-                        .ok_or_else(|| anyhow!("missing result field in RPC {method} response"));
+                        .ok_or_else(|| anyhow!("missing result field in RPC {method} response"))?;
+
+                    self.metrics.record_success();
+                    self.circuit_breaker.record_success();
+
+                    debug!(
+                        method,
+                        attempt = attempt + 1,
+                        latency_ms,
+                        "RPC request succeeded"
+                    );
+
+                    return Ok(result);
                 }
-                Err(err) => {
+                Ok(Err(err)) => {
+                    let message = err.to_string();
+                    last_error = Some(anyhow!(message.clone()));
+
                     if attempt + 1 < self.config.retry_policy.max_attempts {
-                        self.sleep_before_retry(method, attempt, &err.to_string())
-                            .await;
+                        self.sleep_before_retry(method, attempt, &message).await;
                         continue;
                     }
+
+                    self.metrics.record_failure();
+                    self.circuit_breaker.record_failure();
+                    crate::indexer_metrics::metrics().record_rpc_error();
                     return Err(anyhow!(err).context(format!("RPC request failed for {method}")));
+                }
+                Err(_timeout) => {
+                    let message = format!(
+                        "RPC {method} request timed out after {}ms",
+                        self.config.request_timeout.as_millis()
+                    );
+                    last_error = Some(anyhow!(message.clone()));
+
+                    if attempt + 1 < self.config.retry_policy.max_attempts {
+                        self.sleep_before_retry(method, attempt, &message).await;
+                        continue;
+                    }
+
+                    self.metrics.record_failure();
+                    self.circuit_breaker.record_failure();
+                    crate::indexer_metrics::metrics().record_rpc_error();
+                    return Err(anyhow!(message));
                 }
             }
         }
 
-        Err(anyhow!("RPC request exhausted retries for method {method}"))
+        self.metrics.record_failure();
+        self.circuit_breaker.record_failure();
+        crate::indexer_metrics::metrics().record_rpc_error();
+
+        Err(last_error
+            .unwrap_or_else(|| anyhow!("RPC request exhausted retries for method {method}")))
     }
 
     async fn enforce_rate_limit(&mut self) {
@@ -267,8 +510,24 @@ fn read_env_u32(key: &str, default: u32) -> u32 {
         .unwrap_or(default)
 }
 
+fn read_env_bool(key: &str, default: bool) -> bool {
+    std::env::var(key)
+        .ok()
+        .and_then(|v| match v.to_lowercase().as_str() {
+            "true" | "1" | "yes" | "on" => Some(true),
+            "false" | "0" | "no" | "off" => Some(false),
+            _ => None,
+        })
+        .unwrap_or(default)
+}
+
 fn should_retry_http_status(status: StatusCode) -> bool {
-    status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
+    status == StatusCode::TOO_MANY_REQUESTS
+        || status == StatusCode::REQUEST_TIMEOUT
+        || status == StatusCode::SERVICE_UNAVAILABLE
+        || status == StatusCode::GATEWAY_TIMEOUT
+        || status == StatusCode::BAD_GATEWAY
+        || status.is_server_error()
 }
 
 fn should_retry_rpc_error(error: &Value) -> bool {
@@ -277,6 +536,9 @@ fn should_retry_rpc_error(error: &Value) -> bool {
         || message.contains("too many requests")
         || message.contains("temporar")
         || message.contains("timeout")
+        || message.contains("unavailable")
+        || message.contains("overload")
+        || message.contains("busy")
 }
 
 #[cfg(test)]
@@ -294,6 +556,13 @@ mod tests {
                 max_attempts: 2,
                 initial_backoff: Duration::from_millis(1),
                 max_backoff: Duration::from_millis(2),
+                jitter_enabled: false,
+            },
+            request_timeout: Duration::from_secs(30),
+            circuit_breaker: CircuitBreakerConfig {
+                failure_threshold: 10,
+                timeout: Duration::from_secs(60),
+                enabled: false,
             },
         }
     }
