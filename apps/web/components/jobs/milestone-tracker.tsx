@@ -417,12 +417,11 @@ export function MilestoneTracker({
   busyMilestoneId = null,
   onRelease,
 }: MilestoneTrackerProps) {
-  const { releasedAmount, totalAmount } = useMemo(() => {
+  const { releasedAmount } = useMemo(() => {
     const released = milestones
       .filter((m) => m.status === "released")
       .reduce((sum, m) => sum + m.amount_usdc, 0);
-    const total = milestones.reduce((sum, m) => sum + m.amount_usdc, 0);
-    return { releasedAmount: released, totalAmount: total };
+    return { releasedAmount: released };
   }, [milestones]);
 
   const releasedCount = milestones.filter((m) => m.status === "released").length;

@@ -1,8 +1,5 @@
 use axum::{
-    extract::Extension,
-    extract::{Path, State},
-    handler::Handler,
-    middleware,
+    extract::{Extension, Path, State},
     routing::get,
     Json, Router,
 };
@@ -17,14 +14,11 @@ use crate::{
     },
 };
 
-pub fn router(state: AppState) -> Router<AppState> {
-    Router::new().route("/", get(list_users)).route(
-        "/:address/profile",
-        get(get_profile).put(upsert_profile.layer(middleware::from_fn_with_state(
-            state.clone(),
-            crate::services::auth::auth_middleware,
-        ))),
-    )
+pub fn router() -> Router<AppState> {
+    Router::new()
+        .route("/", get(list_users))
+        .route("/:address/profile", get(get_profile).put(upsert_profile))
+        .route("/:address/saved-jobs", get(get_saved_jobs))
 }
 
 async fn list_users(State(state): State<AppState>) -> Result<Json<Vec<String>>> {
@@ -190,4 +184,21 @@ async fn upsert_profile(
     .await?;
 
     get_profile(State(state), Path(address)).await
+}
+
+async fn get_saved_jobs(
+    State(state): State<AppState>,
+    Path(address): Path<String>,
+) -> Result<Json<Vec<crate::models::SavedJob>>> {
+    let jobs = sqlx::query_as::<_, crate::models::SavedJob>(
+        r#"SELECT id, job_id, user_address, note, created_at
+           FROM saved_jobs
+           WHERE user_address = $1
+           ORDER BY created_at DESC"#,
+    )
+    .bind(address)
+    .fetch_all(&state.pool)
+    .await?;
+
+    Ok(Json(jobs))
 }

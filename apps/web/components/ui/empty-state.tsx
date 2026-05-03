@@ -26,8 +26,8 @@ export function EmptyState({
     <div
       role="status"
       className={cn(
-        "flex flex-col items-center gap-3 rounded-[1.75rem] border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center",
-        isDark && "border-zinc-800 bg-zinc-900/20",
+        "flex flex-col items-center gap-3 rounded-[12px] border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center",
+        isDark && "border-zinc-800 bg-zinc-900/40 backdrop-blur-md",
         className,
       )}
     >

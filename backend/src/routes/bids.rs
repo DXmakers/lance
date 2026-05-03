@@ -137,6 +137,21 @@ pub async fn accept_bid(
     .execute(&mut *tx)
     .await?;
 
+    // Record activity log for the job
+    sqlx::query(
+        r#"INSERT INTO activity_logs (user_address, job_id, event_type, level, details)
+           VALUES ($1, $2, 'bid.accepted', 'success', $3)"#,
+    )
+    .bind(&req.client_address)
+    .bind(job_id)
+    .bind(serde_json::json!({
+        "message": format!("Bid from {} was accepted. Job is now awaiting funding.", freelancer_address),
+        "bid_id": bid_id,
+        "freelancer_address": freelancer_address
+    }))
+    .execute(&mut *tx)
+    .await?;
+
     let job = sqlx::query_as::<_, Job>(
         r#"UPDATE jobs
            SET freelancer_address = $1, status = 'awaiting_funding'

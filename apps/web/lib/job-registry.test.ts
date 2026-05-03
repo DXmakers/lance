@@ -4,7 +4,7 @@
  * Validates acceptBid (Issue #162) and other contract interactions
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   acceptBid,
   AcceptBidParams,
@@ -22,9 +22,9 @@ beforeEach(() => {
 describe("acceptBid", () => {
   it("should throw error when clientAddress is missing", async () => {
     const params: AcceptBidParams = {
-      jobId: 1n,
+      jobId: BigInt(1),
       clientAddress: "",
-      bidId: 1n,
+      freelancerAddress: "GD...",
     };
 
     await expect(acceptBid(params)).rejects.toThrow(
@@ -36,7 +36,7 @@ describe("acceptBid", () => {
     const params: AcceptBidParams = {
       jobId: 0n,
       clientAddress: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-      bidId: 1n,
+      freelancerAddress: "GD...",
     };
 
     await expect(acceptBid(params)).rejects.toThrow(
@@ -44,15 +44,15 @@ describe("acceptBid", () => {
     );
   });
 
-  it("should throw error when bidId is zero or negative", async () => {
+  it("should throw error when freelancerAddress is missing", async () => {
     const params: AcceptBidParams = {
       jobId: 1n,
       clientAddress: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-      bidId: 0n,
+      freelancerAddress: "",
     };
 
     await expect(acceptBid(params)).rejects.toThrow(
-      "bidId must be greater than zero."
+      "freelancerAddress is required."
     );
   });
 
@@ -62,7 +62,7 @@ describe("acceptBid", () => {
     const params: AcceptBidParams = {
       jobId: 1n,
       clientAddress: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-      bidId: 1n,
+      freelancerAddress: "GD...",
     };
 
     const lifecycleSteps: string[] = [];
@@ -91,7 +91,7 @@ describe("acceptBid", () => {
     const params: AcceptBidParams = {
       jobId: 1n,
       clientAddress: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-      bidId: 1n,
+      freelancerAddress: "GD...",
     };
 
     await expect(acceptBid(params)).rejects.toThrow(
@@ -105,7 +105,7 @@ describe("acceptBid", () => {
     const params: AcceptBidParams = {
       jobId: 123n,
       clientAddress: "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-      bidId: 456n,
+      freelancerAddress: "GD...",
     };
 
     const steps: string[] = [];

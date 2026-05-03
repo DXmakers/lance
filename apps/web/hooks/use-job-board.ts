@@ -128,7 +128,12 @@ export function useJobBoard(options: UseJobBoardOptions = {}) {
     queryKey: ["jobs"],
     queryFn: async () => {
       try {
-        const jobsFromApi = await api.jobs.list();
+        const jobsFromApi = await api.jobs.list({
+          query: deferredQuery,
+          tag: activeTag,
+          sort: sortBy,
+        });
+        
         const sourceJobs = jobsFromApi.length > 0 ? jobsFromApi : createMockJobs();
         const result = await buildBoardJobs(sourceJobs);
         setApiError(null);

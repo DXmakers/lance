@@ -34,6 +34,14 @@ pub struct MarkJobFundedRequest {
     pub client_address: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct JobFilterParams {
+    pub query: Option<String>,
+    pub tag: Option<String>,
+    pub sort: Option<String>,
+    pub status: Option<String>,
+}
+
 // ── Bid ───────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
@@ -313,14 +321,30 @@ pub struct CastVoteRequest {
     pub reasoning: String,
 }
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
+// ── SavedJob ──────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+pub struct SavedJob {
+    pub id: Uuid,
+    pub job_id: Uuid,
+    pub user_address: String,
+    pub note: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SaveJobRequest {
+    pub note: Option<String>,
+}
+
+// ── Auth ───────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
 pub struct AuthChallengeRequest {
     pub address: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct AuthChallengeResponse {
     pub address: String,
     pub challenge: String,
@@ -334,6 +358,6 @@ pub struct AuthVerifyRequest {
 
 #[derive(Debug, Serialize)]
 pub struct AuthVerifyResponse {
-    pub token: String,
     pub address: String,
+    pub token: String,
 }
