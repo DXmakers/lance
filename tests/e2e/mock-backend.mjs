@@ -5,10 +5,25 @@ const port = Number(process.env.PORT || "3001");
 
 const seededDisputeId = "11111111-1111-4111-8111-111111111111";
 const seededJobId = "22222222-2222-4222-8222-222222222222";
+const seededOpenJobId = "44444444-4444-4444-8444-444444444444";
 
 const timestamp = () => new Date().toISOString();
 
 const jobs = [
+  {
+    id: seededOpenJobId,
+    title: "Saved jobs UX polish",
+    description:
+      "Implement a resilient saved-jobs flow and ensure bookmarking works across sessions.",
+    budget_usdc: 1_250_000_000,
+    milestones: 1,
+    client_address: "GCLIENTOPENPUBLICKEY1234567890ABCDEFFFFF",
+    freelancer_address: null,
+    status: "open",
+    metadata_hash: null,
+    created_at: timestamp(),
+    updated_at: timestamp(),
+  },
   {
     id: seededJobId,
     title: "Escrow release audit",

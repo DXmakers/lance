@@ -1,253 +1,129 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Clock3, Star, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ArrowUpRight, Bookmark, Clock3 } from "lucide-react";
+import { Stars } from "@/components/stars";
 import { formatDate, formatUsdc, shortenAddress } from "@/lib/format";
+import type { BoardJob } from "@/hooks/use-job-board";
+import { useSavedJobsStore } from "@/lib/store/use-saved-jobs-store";
+import { cn } from "@/lib/utils";
 
-export interface JobCardProps {
-  job: JobCardData;
-}
-
-export interface JobCardData {
-  id: string;
-  title: string;
-  description: string;
-  budget_usdc: number;
-  milestones: number;
-  client_address: string;
-  tags: string[];
-  deadlineAt: string;
-  clientReputation: ReputationMetrics;
-  status: "open" | "in_progress" | "completed" | "disputed";
-  created_at?: string;
-}
-
-interface ReputationMetrics {
-  scoreBps: number;
-  totalJobs: number;
-  starRating: number;
-  averageStars: number;
-}
-
-type JobStatusConfig = {
-  label: string;
-  color: {
-    bg: string;
-    text: string;
-    border: string;
-  };
-};
-
-const STATUS_CONFIG: Record<string, JobStatusConfig> = {
-  open: {
-    label: "Open",
-    color: {
-      bg: "bg-emerald-500/10",
-      text: "text-emerald-500",
-      border: "border-emerald-500/30",
-    },
-  },
-  in_progress: {
-    label: "In Progress",
-    color: {
-      bg: "bg-amber-500/10",
-      text: "text-amber-500",
-      border: "border-amber-500/30",
-    },
-  },
-  completed: {
-    label: "Completed",
-    color: {
-      bg: "bg-blue-500/10",
-      text: "text-blue-500",
-      border: "border-blue-500/30",
-    },
-  },
-  disputed: {
-    label: "Disputed",
-    color: {
-      bg: "bg-red-500/10",
-      text: "text-red-500",
-      border: "border-red-500/30",
-    },
-  },
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.open;
-
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em]",
-        config.color.bg,
-        config.color.text,
-      )}
-    >
-      {config.label}
-    </span>
-  );
-}
-
-function StarRating({ rating }: { rating: number }) {
-  const fullStars = Math.floor(rating);
-  const hasHalfStar = rating % 1 >= 0.5;
-
-  return (
-    <div className="flex items-center gap-0.5" role="img" aria-label={`${rating.toFixed(1)} stars`}>
-      {Array.from({ length: 5 }, (_, i) => {
-        const isFilled = i < fullStars || (i === fullStars && hasHalfStar);
-        return (
-          <Star
-            key={i}
-            className={cn(
-              "h-3.5 w-3.5",
-              isFilled
-                ? "fill-amber-400 text-amber-400"
-                : "fill-zinc-800 text-zinc-700",
-            )}
-          />
-        );
-      })}
-    </div>
-  );
+interface JobCardProps {
+  job: BoardJob;
 }
 
 export function JobCard({ job }: JobCardProps) {
+  const { toggleSaveJob, isSaved } = useSavedJobsStore();
+  const saved = isSaved(job.id);
+
   return (
-    <article className="group relative flex flex-col rounded-3xl border border-white/10 bg-zinc-950/70 p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.55)] backdrop-blur-md transition-all duration-150 hover:-translate-y-1 hover:border-amber-500/30 hover:shadow-[0_24px_64px_-40px_rgba(15,23,42,0.65)] focus-within:ring-2 focus-within:ring-amber-500/50 focus-within:ring-offset-2 focus-within:ring-offset-zinc-950">
+    <div className="group relative" data-testid="job-card">
       <Link
         href={`/jobs/${job.id}`}
-        className="absolute inset-0 rounded-3xl focus:outline-none"
-        aria-label={`View job: ${job.title}`}
+        className="block rounded-[1.75rem] border border-border/60 glass-surface p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.55)] transition hover:-translate-y-1 hover:border-amber-300 dark:hover:border-amber-500/50"
       >
-        <span className="sr-only">View job details</span>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p
+              className={cn(
+                "text-xs font-semibold uppercase tracking-[0.24em]",
+                job.status === "open" && "text-amber-600 dark:text-amber-500",
+                job.status === "completed" && "text-emerald-600 dark:text-emerald-500",
+                job.status === "disputed" && "text-rose-600 dark:text-rose-500",
+                job.status === "in_progress" && "text-blue-600 dark:text-blue-500"
+              )}
+            >
+              {job.status.replace("_", " ")}
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 dark:text-zinc-50">
+              {job.title}
+            </h2>
+          </div>
+          <ArrowUpRight className="h-5 w-5 text-slate-400 transition group-hover:text-slate-950 dark:group-hover:text-zinc-50" />
+        </div>
+
+        <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-zinc-400">
+          {job.description}
+        </p>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {job.tags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600 dark:bg-zinc-800 dark:text-zinc-400"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+
+        <div className="mt-6 grid gap-4 rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3 dark:border-white/5 dark:bg-zinc-800/50">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-zinc-500">
+              Budget
+            </p>
+            <p className="mt-2 text-lg font-semibold text-slate-950 dark:text-zinc-50">
+              {formatUsdc(job.budget_usdc)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-zinc-500">
+              Deadline
+            </p>
+            <p className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-zinc-300">
+              <Clock3 className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+              {formatDate(job.deadlineAt)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-zinc-500">
+              Milestones
+            </p>
+            <p className="mt-2 text-sm font-medium text-slate-700 dark:text-zinc-300">
+              {job.milestones} tracked approvals
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-zinc-500">
+              Client
+            </p>
+            <p className="mt-2 text-sm font-medium text-slate-700 dark:text-zinc-300">
+              {shortenAddress(job.client_address)}
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+              <Stars value={job.clientReputation.starRating} />
+              {job.clientReputation.averageStars.toFixed(1)}
+            </div>
+            <p className="mt-2 text-xs text-slate-500 dark:text-zinc-500">
+              {job.clientReputation.totalJobs} completed jobs on-chain
+            </p>
+          </div>
+        </div>
       </Link>
 
-      <header className="flex items-start justify-between gap-4">
-        <div className="space-y-3">
-          <StatusBadge status={job.status} />
-          <h2 className="text-xl font-semibold tracking-tight text-zinc-50">
-            {job.title}
-          </h2>
-        </div>
-        <ArrowUpRight
-          className="h-5 w-5 text-zinc-500 transition-transform duration-150 group-hover:text-amber-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-          aria-hidden="true"
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleSaveJob(job);
+        }}
+        className={cn(
+          "absolute right-12 top-6 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition hover:scale-110 active:scale-95 dark:border-white/10 dark:bg-zinc-800",
+          saved
+            ? "border-amber-500 bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-500"
+            : "text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+        )}
+        aria-label={saved ? "Unsave job" : "Save job"}
+      >
+        <Bookmark
+          className={cn("h-5 w-5", saved && "fill-current")}
         />
-      </header>
-
-      <p className="mt-4 line-clamp-3 text-sm leading-6 text-zinc-400">
-        {job.description}
-      </p>
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        {job.tags.map((tag) => (
-          <span
-            key={tag}
-            className="rounded-full bg-zinc-800/60 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400"
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
-
-      <div className="mt-6 grid gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4 sm:grid-cols-3">
-        <dl>
-          <dt className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-            Budget
-          </dt>
-          <dd className="mt-2 text-lg font-semibold text-zinc-100">
-            {formatUsdc(job.budget_usdc)}
-          </dd>
-        </dl>
-        <dl>
-          <dt className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-            Deadline
-          </dt>
-          <dd className="mt-2 flex items-center gap-2 text-sm font-medium text-zinc-300">
-            <Clock3 className="h-4 w-4 text-amber-500" aria-hidden="true" />
-            {formatDate(job.deadlineAt)}
-          </dd>
-        </dl>
-        <dl>
-          <dt className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-            Milestones
-          </dt>
-          <dd className="mt-2 flex items-center gap-2 text-sm font-medium text-zinc-300">
-            <Users className="h-4 w-4 text-zinc-500" aria-hidden="true" />
-            {job.milestones} tracked
-          </dd>
-        </dl>
-      </div>
-
-      <footer className="mt-5 flex items-center justify-between gap-4 border-t border-white/10 pt-5">
-        <dl>
-          <dt className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-            Client
-          </dt>
-          <dd className="mt-1 text-sm font-medium text-zinc-300">
-            {shortenAddress(job.client_address)}
-          </dd>
-        </dl>
-        <div className="text-right">
-          <div className="inline-flex items-center gap-2 rounded-full bg-amber-500/10 px-3 py-2">
-            <StarRating rating={job.clientReputation.starRating} />
-            <span className="text-sm font-semibold text-amber-400">
-              {job.clientReputation.averageStars.toFixed(1)}
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-zinc-500">
-            {job.clientReputation.totalJobs} jobs on-chain
-          </p>
-        </div>
-      </footer>
-    </article>
-  );
-}
-
-export function JobCardSkeleton() {
-  return (
-    <article
-      aria-hidden="true"
-      className="animate-pulse rounded-3xl border border-white/10 bg-zinc-950/70 p-6"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-3">
-          <div className="h-6 w-20 rounded-full bg-zinc-800" />
-          <div className="h-8 w-48 rounded-lg bg-zinc-800" />
-        </div>
-      </div>
-
-      <div className="mt-5 space-y-2">
-        <div className="h-4 w-full rounded bg-zinc-800" />
-        <div className="h-4 w-[94%] rounded bg-zinc-800" />
-        <div className="h-4 w-[68%] rounded bg-zinc-800" />
-      </div>
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        <div className="h-7 w-20 rounded-full bg-zinc-800" />
-        <div className="h-7 w-24 rounded-full bg-zinc-800" />
-        <div className="h-7 w-16 rounded-full bg-zinc-800" />
-      </div>
-
-      <div className="mt-6 grid gap-4 rounded-2xl border border-white/10 bg-zinc-900/60 p-4 sm:grid-cols-3">
-        <div className="h-14 rounded bg-zinc-800" />
-        <div className="h-14 rounded bg-zinc-800" />
-        <div className="h-14 rounded bg-zinc-800" />
-      </div>
-
-      <div className="mt-5 flex items-center justify-between gap-4 border-t border-white/10 pt-5">
-        <div className="space-y-2">
-          <div className="h-3 w-16 rounded bg-zinc-800" />
-          <div className="h-4 w-24 rounded bg-zinc-800" />
-        </div>
-        <div className="space-y-2">
-          <div className="h-8 w-20 rounded-full bg-zinc-800" />
-          <div className="h-3 w-28 rounded bg-zinc-800" />
-        </div>
-      </div>
-    </article>
+      </button>
+    </div>
   );
 }

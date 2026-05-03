@@ -1,17 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  Briefcase,
-  Clock3,
-  DollarSign,
-  Layers,
-  Plus,
-  Sparkles,
-  Users,
-  Zap,
-} from "lucide-react";
+import { ArrowUpRight, Bookmark, Clock3, Search, SlidersHorizontal } from "lucide-react";
 import { ShareJobButton } from "@/components/jobs/share-job-button";
 import { JobFilters } from "@/components/jobs/job-filters";
 import { Stars } from "@/components/stars";
@@ -19,8 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { JobCardSkeleton } from "@/components/ui/skeleton";
 import { useJobBoard } from "@/hooks/use-job-board";
 import { formatDate, formatUsdc, shortenAddress } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import type { BoardJob } from "@/hooks/use-job-board";
+import { useSavedJobsStore } from "@/lib/store/use-saved-jobs-store";
 
 // ─── Status config ───────────────────────────────────────────────────────────
 
@@ -231,21 +220,9 @@ function JobCard({ job }: { job: BoardJob }) {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function JobsPage() {
-  const {
-    paginatedJobs,
-    loading,
-    error,
-    query,
-    activeTag,
-    sortBy,
-    availableTags,
-    minBudget,
-    maxBudget,
-    filterStatus,
-    actions,
-  } = useJobBoard();
-
-  const totalOpen = paginatedJobs.length;
+  const { jobs, loading, error, query, activeTag, sortBy, availableTags, actions } =
+    useJobBoard();
+  const { toggleSaveJob, isSaved } = useSavedJobsStore();
 
   function resetFilters() {
     actions.setQuery("");
@@ -349,6 +326,123 @@ export default function JobsPage() {
             ))}
           </div>
         ) : (
+          <div className="grid gap-5 lg:grid-cols-2">
+            {jobs.map((job) => (
+              <div key={job.id} className="group relative" data-testid="job-card">
+                <Link
+                  href={`/jobs/${job.id}`}
+                  className="block rounded-[1.75rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.55)] transition hover:-translate-y-1 hover:border-amber-300"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">
+                        {job.status}
+                      </p>
+                      <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+                        {job.title}
+                      </h2>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <ShareJobButton
+                        path={`/jobs/${job.id}`}
+                        title={job.title}
+                        className="border-slate-200 bg-white/95"
+                      />
+                      <ArrowUpRight className="h-5 w-5 text-slate-400 transition group-hover:text-slate-950" />
+                    </div>
+                  </div>
+
+                  <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-600">
+                    {job.description}
+                  </p>
+
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {job.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 grid gap-4 rounded-[1.4rem] border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                        Budget
+                      </p>
+                      <p className="mt-2 text-lg font-semibold text-slate-950">
+                        {formatUsdc(job.budget_usdc)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                        Deadline
+                      </p>
+                      <p className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <Clock3 className="h-4 w-4 text-amber-600" />
+                        {formatDate(job.deadlineAt)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                        Milestones
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-slate-700">
+                        {job.milestones} tracked approvals
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                        Client
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-slate-700">
+                        {shortenAddress(job.client_address)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+                        <Stars value={job.clientReputation.starRating} />
+                        {job.clientReputation.averageStars.toFixed(1)}
+                      </div>
+                      <p className="mt-2 text-xs text-slate-500">
+                        {job.clientReputation.totalJobs} completed jobs on-chain
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+
+                <button
+                  aria-label={isSaved(job.id) ? "Unsave job" : "Save job"}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    toggleSaveJob(job);
+                  }}
+                  className={[
+                    "absolute right-12 top-6 flex h-10 w-10 items-center justify-center rounded-full border shadow-sm transition hover:scale-110 active:scale-95",
+                    isSaved(job.id)
+                      ? "border-amber-500 bg-amber-50 text-amber-600"
+                      : "border-slate-200 bg-white text-slate-400 hover:text-slate-600",
+                  ].join(" ")}
+                >
+                  <Bookmark
+                    className={[
+                      "h-5 w-5",
+                      isSaved(job.id) ? "fill-current" : "",
+                    ].join(" ")}
+                  />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!loading && jobs.length === 0 ? (
           <EmptyState
             tone="dark"
             icon={<Briefcase className="h-5 w-5" aria-hidden="true" />}
