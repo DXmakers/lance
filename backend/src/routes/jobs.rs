@@ -55,9 +55,9 @@ async fn list_jobs(
 
     if let Some(q) = params.query {
         query_builder.push(" AND (title ILIKE ");
-        query_builder.push_bind(format!("%{}%", q));
+        query_builder.push_bind(format!("%{q}%"));
         query_builder.push(" OR description ILIKE ");
-        query_builder.push_bind(format!("%{}%", q));
+        query_builder.push_bind(format!("%{q}%"));
         query_builder.push(")");
     }
 
@@ -71,21 +71,25 @@ async fn list_jobs(
     if let Some(tag) = params.tag {
         if tag != "all" {
             query_builder.push(" AND (title ILIKE ");
-            query_builder.push_bind(format!("%{}%", tag));
+            query_builder.push_bind(format!("%{tag}%"));
             query_builder.push(" OR description ILIKE ");
-            query_builder.push_bind(format!("%{}%", tag));
+            query_builder.push_bind(format!("%{tag}%"));
             query_builder.push(")");
         }
     }
 
     match params.sort.as_deref() {
-        Some("budget") => query_builder.push(" ORDER BY budget_usdc DESC"),
+        Some("budget") => {
+            query_builder.push(" ORDER BY budget_usdc DESC");
+        }
         Some("reputation") => {
             // Reputation sort requires joining with a reputation table or calculating score.
             // For now, we'll just sort by created_at as a fallback.
             query_builder.push(" ORDER BY created_at DESC");
         }
-        _ => query_builder.push(" ORDER BY created_at DESC"),
+        _ => {
+            query_builder.push(" ORDER BY created_at DESC");
+        }
     }
 
     let jobs = query_builder

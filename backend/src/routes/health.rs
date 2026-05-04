@@ -52,21 +52,50 @@ pub async fn readiness(State(state): State<AppState>) -> (StatusCode, Json<Value
 }
 
 pub async fn health(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
-    match sqlx::query("SELECT 1").execute(&state.pool).await {
+    let mut cache_status = "not configured".to_string();
+    let mut overall_status = "ok".to_string();
+
+    // Check database connection
+    let db_res = sqlx::query("SELECT 1").execute(&state.pool).await;
+
+    // Check Redis cache connection (if configured)
+    if let Some(ref cache) = state.cache {
+        match cache.ping().await {
+            Ok(pong) => {
+                cache_status = pong;
+            }
+            Err(e) => {
+                cache_status = format!("error: {}", e);
+                overall_status = "degraded".to_string();
+            }
+        }
+    }
+
+    match db_res {
         Ok(_) => {
             let (code, Json(sync_status_payload)) = sync_status(State(state.clone())).await;
+            let final_status = if overall_status == "degraded" {
+                "degraded"
+            } else {
+                sync_status_payload["status"].as_str().unwrap_or("ok")
+            };
             (
                 code,
                 Json(json!({
-                    "status": sync_status_payload["status"].clone(),
+                    "status": final_status,
                     "db": "connected",
+                    "cache": cache_status,
                     "indexer_sync_status": sync_status_payload
                 })),
             )
         }
         Err(e) => (
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({ "status": "degraded", "db": e.to_string() })),
+            Json(json!({
+                "status": "degraded",
+                "db": e.to_string(),
+                "cache": cache_status
+            })),
         ),
     }
 }
