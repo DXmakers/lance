@@ -55,9 +55,9 @@ async fn list_jobs(
 
     if let Some(q) = params.query {
         query_builder.push(" AND (title ILIKE ");
-        query_builder.push_bind(format!("%{}%", q));
+        query_builder.push_bind(format!("%{q}%"));
         query_builder.push(" OR description ILIKE ");
-        query_builder.push_bind(format!("%{}%", q));
+        query_builder.push_bind(format!("%{q}%"));
         query_builder.push(")");
     }
 
@@ -71,9 +71,9 @@ async fn list_jobs(
     if let Some(tag) = params.tag {
         if tag != "all" {
             query_builder.push(" AND (title ILIKE ");
-            query_builder.push_bind(format!("%{}%", tag));
+            query_builder.push_bind(format!("%{tag}%"));
             query_builder.push(" OR description ILIKE ");
-            query_builder.push_bind(format!("%{}%", tag));
+            query_builder.push_bind(format!("%{tag}%"));
             query_builder.push(")");
         }
     }

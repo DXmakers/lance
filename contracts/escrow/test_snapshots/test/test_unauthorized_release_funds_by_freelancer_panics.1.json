@@ -474,6 +474,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "requires_multisig"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "status"
                       },
                       "val": {
@@ -1644,7 +1652,7 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'only client can release' from contract function 'Symbol(obj#437)'"
+                  "string": "caught panic 'only client can release' from contract function 'Symbol(obj#447)'"
                 },
                 {
                   "u64": 1
