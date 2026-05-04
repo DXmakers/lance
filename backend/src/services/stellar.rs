@@ -377,7 +377,8 @@ impl StellarService {
     }
 
     async fn rpc_call(&self, method: &str, params: serde_json::Value) -> Result<serde_json::Value> {
-        self.rpc_call_with_retry(method, params, self.max_retries).await
+        self.rpc_call_with_retry(method, params, self.max_retries)
+            .await
     }
 
     /// RPC call with exponential backoff retry logic
@@ -416,7 +417,8 @@ impl StellarService {
             }
         }
 
-        Err(last_error.unwrap_or_else(|| anyhow!("RPC {} failed after {} retries", method, max_retries)))
+        Err(last_error
+            .unwrap_or_else(|| anyhow!("RPC {method} failed after {max_retries} retries")))
     }
 
     /// Inner RPC call without retry logic
@@ -442,9 +444,9 @@ impl StellarService {
             .await
             .map_err(|e| {
                 if e.is_timeout() {
-                    StellarError::ConnectionError(format!("Request timeout: {}", e))
+                    StellarError::ConnectionError(format!("Request timeout: {e}"))
                 } else if e.is_connect() {
-                    StellarError::ConnectionError(format!("Connection failed: {}", e))
+                    StellarError::ConnectionError(format!("Connection failed: {e}"))
                 } else {
                     StellarError::ConnectionError(e.to_string())
                 }
@@ -454,12 +456,14 @@ impl StellarService {
                 if e.status() == Some(reqwest::StatusCode::TOO_MANY_REQUESTS) {
                     StellarError::RateLimited
                 } else {
-                    StellarError::ConnectionError(format!("HTTP error: {}", e))
+                    StellarError::ConnectionError(format!("HTTP error: {e}"))
                 }
             })?
             .json()
             .await
-            .map_err(|e| StellarError::InvalidResponse(format!("Failed to parse response: {}", e)))?;
+            .map_err(|e| {
+                StellarError::InvalidResponse(format!("Failed to parse response: {e}"))
+            })?;
 
         if let Some(err) = resp.error {
             // Classify RPC errors
@@ -480,21 +484,22 @@ impl StellarService {
     /// Calculate exponential backoff delay with jitter
     fn calculate_backoff(&self, attempt: u32) -> Duration {
         use std::time::Duration;
-        
+
         // Exponential backoff: base_delay * 2^attempt
         let exponential_delay = self.retry_base_delay * (2_u32.pow(attempt));
-        
+
         // Cap at max delay
         let delay = exponential_delay.min(self.retry_max_delay);
-        
+
         // Add jitter (±20%) to prevent thundering herd
         let jitter_secs = delay.as_secs_f64() * 0.2;
         let jitter_amount = (fastrand::f64() * 2.0 - 1.0) * jitter_secs;
-        
+
         if jitter_amount >= 0.0 {
             delay + std::time::Duration::from_secs_f64(jitter_amount)
         } else {
-            delay.checked_sub(std::time::Duration::from_secs_f64(-jitter_amount))
+            delay
+                .checked_sub(std::time::Duration::from_secs_f64(-jitter_amount))
                 .unwrap_or(Duration::from_secs(0))
         }
     }
@@ -753,16 +758,16 @@ mod tests {
     #[test]
     fn test_calculate_backoff() {
         let service = StellarService::from_env();
-        
+
         // Test exponential growth
         let delay0 = service.calculate_backoff(0);
         let delay1 = service.calculate_backoff(1);
         let delay2 = service.calculate_backoff(2);
-        
+
         // Each delay should be roughly double the previous (with jitter)
         assert!(delay1 > delay0);
         assert!(delay2 > delay1);
-        
+
         // All delays should be within bounds
         assert!(delay0 >= service.retry_base_delay / 2);
         assert!(delay2 <= service.retry_max_delay + service.retry_max_delay / 5);
@@ -772,10 +777,10 @@ mod tests {
     fn test_stellar_error_types() {
         let conn_err = StellarError::ConnectionError("test".to_string());
         assert!(conn_err.to_string().contains("RPC connection failed"));
-        
+
         let sim_err = StellarError::SimulationError("test".to_string());
         assert!(sim_err.to_string().contains("simulation failed"));
-        
+
         let seq_err = StellarError::SequenceError("test".to_string());
         assert!(seq_err.to_string().contains("Sequence number mismatch"));
     }
