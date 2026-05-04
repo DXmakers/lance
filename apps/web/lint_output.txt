@@ -4,14 +4,15 @@
 
 
 /home/knights/Documents/Project/Drips/lance/apps/web/app/jobs/[id]/page.tsx
-   9:3  warning  'Wallet' is defined but never used          @typescript-eslint/no-unused-vars
-  10:3  warning  'Clock' is defined but never used           @typescript-eslint/no-unused-vars
-  11:3  warning  'ArrowRightLeft' is defined but never used  @typescript-eslint/no-unused-vars
-  12:3  warning  'Info' is defined but never used            @typescript-eslint/no-unused-vars
-  13:3  warning  'ShieldCheck' is defined but never used     @typescript-eslint/no-unused-vars
-  14:3  warning  'Zap' is defined but never used             @typescript-eslint/no-unused-vars
-  15:3  warning  'Phone' is defined but never used           @typescript-eslint/no-unused-vars
-  16:3  warning  'AlertCircle' is defined but never used     @typescript-eslint/no-unused-vars
+   3:31  warning  'useCallback' is defined but never used     @typescript-eslint/no-unused-vars
+   9:3   warning  'Wallet' is defined but never used          @typescript-eslint/no-unused-vars
+  10:3   warning  'Clock' is defined but never used           @typescript-eslint/no-unused-vars
+  11:3   warning  'ArrowRightLeft' is defined but never used  @typescript-eslint/no-unused-vars
+  12:3   warning  'Info' is defined but never used            @typescript-eslint/no-unused-vars
+  13:3   warning  'ShieldCheck' is defined but never used     @typescript-eslint/no-unused-vars
+  14:3   warning  'Zap' is defined but never used             @typescript-eslint/no-unused-vars
+  15:3   warning  'Phone' is defined but never used           @typescript-eslint/no-unused-vars
+  16:3   warning  'AlertCircle' is defined but never used     @typescript-eslint/no-unused-vars
 
 /home/knights/Documents/Project/Drips/lance/apps/web/app/jobs/new/page.tsx
   43:9  warning  'nextStep' is assigned a value but never used   @typescript-eslint/no-unused-vars
@@ -64,5 +65,5 @@
 /home/knights/Documents/Project/Drips/lance/apps/web/lib/wallets/signer.ts
   21:3  warning  'extractSignedXdr' is defined but never used  @typescript-eslint/no-unused-vars
 
-✖ 37 problems (0 errors, 37 warnings)
+✖ 38 problems (0 errors, 38 warnings)
 

@@ -88,26 +88,16 @@ interface BidListProps {
   loading?: boolean;
   error?: string | null;
   isClientOwner?: boolean;
+  onSuccess?: () => void;
 }
 
-/**
- * BidList — Issue #132 & #135
- *
- * Renders the list of bids on a job from the client's perspective.
- * - Shows loading skeletons while bids are being fetched
- * - Empty state when no bids have been submitted
- * - Error boundary fallback for fetch failures
- * - Per-bid "Accept" action for the client owner on open jobs
- * - Status badges with semantic colour coding (Amber = pending, Emerald = accepted)
- * - Fully responsive with keyboard-accessible accept buttons
- * - Integrated "Accept Bid" flow with confirmation modal
- */
 export function BidList({
   job,
   bids,
   loading = false,
   error = null,
   isClientOwner = false,
+  onSuccess,
 }: BidListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -129,7 +119,7 @@ export function BidList({
   const canAccept = isClientOwner && job.status === "open";
 
   return (
-    <AcceptBidFlow job={job} bids={bids} isClientOwner={isClientOwner}>
+    <AcceptBidFlow job={job} bids={bids} isClientOwner={isClientOwner} onSuccess={onSuccess}>
       {({ handleAcceptClick, acceptingBidId }) => (
         <ul aria-label="Bids" className="space-y-3">
           {bids.map((bid) => {
@@ -196,36 +186,6 @@ export function BidList({
                     {isExpanded ? "Show less" : "Read more"}
                   </button>
                 )}
-
-            {/* Accept action */}
-            {canAccept && !isAccepted && (
-              <div className="mt-4 flex justify-end">
-                <Button
-                  size="sm"
-                  onClick={() => handleAcceptClick(bid.id)}
-                  disabled={isAccepting || Boolean(acceptingBidId)}
-                  aria-label={`Accept bid from ${shortenAddress(bid.freelancer_address)}`}
-                  aria-busy={isAccepting}
-                  className="rounded-full bg-emerald-600 text-xs font-medium text-white shadow-sm shadow-emerald-500/20 transition-all duration-150 hover:bg-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 disabled:opacity-60"
-                >
-                  {isAccepting ? (
-                    <>
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                      Accepting…
-                    </>
-                  ) : (
-                    <span className="text-zinc-500">No reputation yet</span>
-                  )}
-                </Button>
-              </div>
-            )}
-
-            {isAccepted && (
-              <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-400">
-                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                Bid accepted — work in progress
-              </p>
-            )}
 
                 {/* Accept action */}
                 {canAccept && !isAccepted && (

@@ -71,17 +71,6 @@ export default function JobDetailsPage() {
     return connected;
   }
 
-  const handleAcceptBid = useCallback(async (bidId: string) => {
-    if (!workspace.job) return;
-    setBusyAction(`accept-${bidId}`);
-    try {
-      // Logic for accepting bid would go here
-      // For now we refresh
-      await workspace.refresh();
-    } finally {
-      setBusyAction(null);
-    }
-  }, [workspace]);
 
   async function handleSubmitDeliverable(event: React.FormEvent) {
     event.preventDefault();
@@ -281,7 +270,7 @@ export default function JobDetailsPage() {
                   job={job}
                   bids={workspace.bids}
                   isClientOwner={isClientOwner}
-                  onAccept={handleAcceptBid}
+                  onSuccess={workspace.refresh}
                 />
                 {acceptTransaction.step !== "idle" && (
                   <div className="mt-6 rounded-[1.6rem] border border-indigo-600/20 bg-indigo-950/10 p-5">
