@@ -2,6 +2,12 @@
 //! Builds InvokeHostFunction XDR transactions, signs with the judge authority
 //! keypair, submits via Soroban RPC `sendTransaction`, and polls
 //! `getTransaction` until confirmed or failed.
+//!
+//! Features:
+//! - Configurable retry logic with exponential backoff
+//! - Structured error classification and handling
+//! - Sequence number collision recovery
+//! - RPC connection failure resilience
 
 #![allow(dead_code)]
 
@@ -25,6 +31,45 @@ const DEFAULT_HORIZON_URL: &str = "https://horizon-testnet.stellar.org";
 const MAX_POLL_ATTEMPTS: u32 = 30;
 /// Delay between `getTransaction` polls.
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
+/// Maximum retry attempts for RPC calls
+const MAX_RPC_RETRIES: u32 = 3;
+/// Base delay for exponential backoff
+const RPC_RETRY_BASE_DELAY: Duration = Duration::from_secs(1);
+/// Maximum delay for exponential backoff
+const RPC_RETRY_MAX_DELAY: Duration = Duration::from_secs(30);
+
+// ── Error Types ──────────────────────────────────────────────────────────────
+
+/// Classified Stellar RPC error types
+#[derive(Debug, thiserror::Error)]
+pub enum StellarError {
+    #[error("RPC connection failed: {0}")]
+    ConnectionError(String),
+
+    #[error("Transaction simulation failed: {0}")]
+    SimulationError(String),
+
+    #[error("Transaction submission failed: {0}")]
+    SubmissionError(String),
+
+    #[error("Transaction failed on-chain: {0}")]
+    TransactionFailed(String),
+
+    #[error("Sequence number mismatch: {0}")]
+    SequenceError(String),
+
+    #[error("RPC rate limited")]
+    RateLimited,
+
+    #[error("RPC timeout after {0} attempts")]
+    Timeout(u32),
+
+    #[error("Invalid response from RPC: {0}")]
+    InvalidResponse(String),
+}
+
+/// Result type alias for Stellar operations
+pub type StellarResult<T> = Result<T, StellarError>;
 
 // ── JSON-RPC types ───────────────────────────────────────────────────────────
 
@@ -88,6 +133,9 @@ pub struct StellarService {
     horizon_url: String,
     network_passphrase: String,
     client: Client,
+    max_retries: u32,
+    retry_base_delay: Duration,
+    retry_max_delay: Duration,
 }
 
 impl StellarService {
@@ -121,6 +169,9 @@ impl StellarService {
             horizon_url,
             network_passphrase,
             client: Client::new(),
+            max_retries: MAX_RPC_RETRIES,
+            retry_base_delay: RPC_RETRY_BASE_DELAY,
+            retry_max_delay: RPC_RETRY_MAX_DELAY,
         }
     }
 
@@ -142,6 +193,9 @@ impl StellarService {
             horizon_url,
             network_passphrase,
             client: Client::new(),
+            max_retries: MAX_RPC_RETRIES,
+            retry_base_delay: RPC_RETRY_BASE_DELAY,
+            retry_max_delay: RPC_RETRY_MAX_DELAY,
         }
     }
 
@@ -354,27 +408,129 @@ impl StellarService {
     }
 
     async fn rpc_call(&self, method: &str, params: serde_json::Value) -> Result<serde_json::Value> {
+        self.rpc_call_with_retry(method, params, self.max_retries)
+            .await
+    }
+
+    /// RPC call with exponential backoff retry logic
+    async fn rpc_call_with_retry(
+        &self,
+        method: &str,
+        params: serde_json::Value,
+        max_retries: u32,
+    ) -> Result<serde_json::Value> {
+        let mut last_error = None;
+
+        for attempt in 0..=max_retries {
+            if attempt > 0 {
+                // Calculate exponential backoff delay with jitter
+                let delay = self.calculate_backoff(attempt);
+                tracing::warn!(
+                    "RPC {} failed, retrying in {:?} (attempt {}/{})",
+                    method,
+                    delay,
+                    attempt,
+                    max_retries
+                );
+                tokio::time::sleep(delay).await;
+            }
+
+            match self.rpc_call_inner(method, params.clone()).await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    // Don't retry on certain errors
+                    let msg = e.to_string().to_lowercase();
+                    if msg.contains("invalid") || msg.contains("unauthorized") {
+                        return Err(e);
+                    }
+                    last_error = Some(e);
+                }
+            }
+        }
+
+        Err(last_error
+            .unwrap_or_else(|| anyhow!("RPC {method} failed after {max_retries} retries")))
+    }
+
+    /// Inner RPC call without retry logic
+    async fn rpc_call_inner(
+        &self,
+        method: &str,
+        params: serde_json::Value,
+    ) -> Result<serde_json::Value> {
         let req = RpcRequest {
             jsonrpc: "2.0",
             id: 1,
             method,
-            params,
+            params: params.clone(),
         };
+
+        tracing::debug!("RPC call: {} with params: {:?}", method, params);
+
         let resp: RpcResponse = self
             .client
             .post(&self.rpc_url)
             .json(&req)
             .send()
-            .await?
-            .error_for_status()?
+            .await
+            .map_err(|e| {
+                if e.is_timeout() {
+                    StellarError::ConnectionError(format!("Request timeout: {e}"))
+                } else if e.is_connect() {
+                    StellarError::ConnectionError(format!("Connection failed: {e}"))
+                } else {
+                    StellarError::ConnectionError(e.to_string())
+                }
+            })?
+            .error_for_status()
+            .map_err(|e| {
+                if e.status() == Some(reqwest::StatusCode::TOO_MANY_REQUESTS) {
+                    StellarError::RateLimited
+                } else {
+                    StellarError::ConnectionError(format!("HTTP error: {e}"))
+                }
+            })?
             .json()
-            .await?;
+            .await
+            .map_err(|e| StellarError::InvalidResponse(format!("Failed to parse response: {e}")))?;
 
         if let Some(err) = resp.error {
+            // Classify RPC errors
+            let msg = err.message.to_lowercase();
+            if msg.contains("rate limit") || msg.contains("too many requests") {
+                return Err(StellarError::RateLimited.into());
+            }
+            if msg.contains("tx_bad_seq") || msg.contains("bad seq") {
+                return Err(StellarError::SequenceError(err.message).into());
+            }
             bail!("RPC error ({}): {}", method, err.message);
         }
+
         resp.result
             .ok_or_else(|| anyhow!("RPC {method}: no result"))
+    }
+
+    /// Calculate exponential backoff delay with jitter
+    fn calculate_backoff(&self, attempt: u32) -> Duration {
+        use std::time::Duration;
+
+        // Exponential backoff: base_delay * 2^attempt
+        let exponential_delay = self.retry_base_delay * (2_u32.pow(attempt));
+
+        // Cap at max delay
+        let delay = exponential_delay.min(self.retry_max_delay);
+
+        // Add jitter (±20%) to prevent thundering herd
+        let jitter_secs = delay.as_secs_f64() * 0.2;
+        let jitter_amount = (fastrand::f64() * 2.0 - 1.0) * jitter_secs;
+
+        if jitter_amount >= 0.0 {
+            delay + std::time::Duration::from_secs_f64(jitter_amount)
+        } else {
+            delay
+                .checked_sub(std::time::Duration::from_secs_f64(-jitter_amount))
+                .unwrap_or(Duration::from_secs(0))
+        }
     }
 
     /// Sign an XDR transaction envelope using ed25519.
@@ -693,5 +849,35 @@ mod tests {
 
         let e = anyhow!("some other error");
         assert!(!is_seq_error(&e));
+    }
+
+    #[test]
+    fn test_calculate_backoff() {
+        let service = StellarService::from_env();
+
+        // Test exponential growth
+        let delay0 = service.calculate_backoff(0);
+        let delay1 = service.calculate_backoff(1);
+        let delay2 = service.calculate_backoff(2);
+
+        // Each delay should be roughly double the previous (with jitter)
+        assert!(delay1 > delay0);
+        assert!(delay2 > delay1);
+
+        // All delays should be within bounds
+        assert!(delay0 >= service.retry_base_delay / 2);
+        assert!(delay2 <= service.retry_max_delay + service.retry_max_delay / 5);
+    }
+
+    #[test]
+    fn test_stellar_error_types() {
+        let conn_err = StellarError::ConnectionError("test".to_string());
+        assert!(conn_err.to_string().contains("RPC connection failed"));
+
+        let sim_err = StellarError::SimulationError("test".to_string());
+        assert!(sim_err.to_string().contains("simulation failed"));
+
+        let seq_err = StellarError::SequenceError("test".to_string());
+        assert!(seq_err.to_string().contains("Sequence number mismatch"));
     }
 }

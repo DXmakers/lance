@@ -258,6 +258,7 @@ dependencies = [
  "chrono",
  "dotenvy",
  "ed25519-dalek",
+ "fastrand",
  "fred",
  "futures",
  "futures-util",
