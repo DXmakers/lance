@@ -406,15 +406,12 @@ impl StellarService {
             match self.rpc_call_inner(method, params.clone()).await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
-                    last_error = Some(e);
-                    
                     // Don't retry on certain errors
-                    if let Some(ref err) = last_error {
-                        let msg = err.to_string().to_lowercase();
-                        if msg.contains("invalid") || msg.contains("unauthorized") {
-                            return Err(err);
-                        }
+                    let msg = e.to_string().to_lowercase();
+                    if msg.contains("invalid") || msg.contains("unauthorized") {
+                        return Err(e);
                     }
+                    last_error = Some(e);
                 }
             }
         }
@@ -432,7 +429,7 @@ impl StellarService {
             jsonrpc: "2.0",
             id: 1,
             method,
-            params,
+            params: params.clone(),
         };
 
         tracing::debug!("RPC call: {} with params: {:?}", method, params);
@@ -491,12 +488,15 @@ impl StellarService {
         let delay = exponential_delay.min(self.retry_max_delay);
         
         // Add jitter (±20%) to prevent thundering herd
-        let jitter = delay.mul_f64(0.2);
-        let jitter_amount = std::time::Duration::from_secs_f64(
-            (jitter.as_secs_f64() * fastrand::f64()) - (jitter.as_secs_f64() * 0.2),
-        );
+        let jitter_secs = delay.as_secs_f64() * 0.2;
+        let jitter_amount = (fastrand::f64() * 2.0 - 1.0) * jitter_secs;
         
-        delay + jitter_amount
+        if jitter_amount >= 0.0 {
+            delay + std::time::Duration::from_secs_f64(jitter_amount)
+        } else {
+            delay.checked_sub(std::time::Duration::from_secs_f64(-jitter_amount))
+                .unwrap_or(Duration::from_secs(0))
+        }
     }
 
     /// Sign an XDR transaction envelope using ed25519.
