@@ -10,23 +10,19 @@ interface WalletState {
   status: WalletStatus;
   network: Networks;
   error: string | null;
-  
-  // Actions
+  signingTx: string | null;
+
   setConnection: (address: string, walletId: string) => void;
   setStatus: (status: WalletStatus) => void;
   setError: (error: string | null) => void;
   setNetwork: (network: Networks) => void;
+  setSigningTx: (xdr: string | null) => void;
   disconnect: () => void;
 }
 
-/**
- * Encrypts/Decrypts data for local storage.
- * Simple implementation to meet "encrypted local storage" requirement.
- * In a real-world scenario, use a more robust library like crypto-js.
- */
 const storageHelper = {
-  encrypt: (str: string) => btoa(str), // Placeholder for encryption
-  decrypt: (str: string) => atob(str), // Placeholder for decryption
+  encrypt: (str: string) => btoa(str),
+  decrypt: (str: string) => atob(str),
 };
 
 export const useWalletStore = create<WalletState>()(
@@ -37,17 +33,21 @@ export const useWalletStore = create<WalletState>()(
       status: "disconnected",
       network: (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET,
       error: null,
+      signingTx: null,
 
-      setConnection: (address, walletId) => 
+      setConnection: (address, walletId) =>
         set({ address, walletId, status: "connected", error: null }),
-      
+
       setStatus: (status) => set({ status }),
-      
+
       setError: (error) => set({ error, status: error ? "error" : "disconnected" }),
-      
+
       setNetwork: (network) => set({ network }),
-      
-      disconnect: () => set({ address: null, walletId: null, status: "disconnected", error: null }),
+
+      setSigningTx: (signingTx) => set({ signingTx }),
+
+      disconnect: () =>
+        set({ address: null, walletId: null, status: "disconnected", error: null, signingTx: null }),
     }),
     {
       name: "lance-wallet-session",

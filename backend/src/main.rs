@@ -1,32 +1,42 @@
 use axum::Router;
-use dotenvy::dotenv;
 use sqlx::postgres::PgPoolOptions;
 use std::net::SocketAddr;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-mod db;
-mod error;
-mod models;
-mod routes;
-mod services;
-mod worker;
-
-pub use db::AppState;
+use backend::{db, env_config, indexer, middleware, routes, worker};
+use db::AppState;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv().ok();
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "backend=debug,tower_http=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    let env_bootstrap = env_config::load_backend_environment()?;
+
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "backend=debug,tower_http=debug".into());
+
+    let use_json = std::env::var("LOG_FORMAT")
+        .map(|v| v.eq_ignore_ascii_case("json"))
+        .unwrap_or(false);
+
+    if use_json {
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(tracing_subscriber::fmt::layer().json())
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(tracing_subscriber::fmt::layer())
+            .init();
+    }
+
+    tracing::info!(
+        app_env = %env_bootstrap.app_env,
+        loaded_env_files = ?env_bootstrap.loaded_files,
+        "backend environment initialized",
+    );
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-
     let pool = PgPoolOptions::new()
         .max_connections(10)
         .connect(&database_url)
@@ -35,23 +45,33 @@ async fn main() -> anyhow::Result<()> {
     sqlx::migrate!("./migrations").run(&pool).await?;
 
     let state = AppState::new(pool.clone());
-    tokio::spawn(worker::run_judge_worker(pool));
+    tokio::spawn(worker::run_judge_worker(pool.clone()));
+    tokio::spawn(indexer::run_indexer_worker(pool));
+
     let app = build_router(state);
 
     let port: u16 = std::env::var("PORT")
         .unwrap_or_else(|_| "3001".to_string())
         .parse()?;
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    tracing::info!("🚀 Backend listening on {addr}");
+    tracing::info!(addr = %addr, "backend listening");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
+
     Ok(())
 }
 
 fn build_router(state: AppState) -> Router {
+    let limiter = middleware::build_limiter();
+
     Router::new()
-        .nest("/api", routes::api_router())
+        .nest("/api", routes::api_router(state.clone()))
+        .layer(middleware::RateLimitLayer::new(limiter))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .with_state(state)

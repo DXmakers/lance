@@ -78,6 +78,7 @@ pub struct EscrowJob {
     pub created_at: u64,
     pub expires_at: u64,
     pub milestones: Vec<Milestone>,
+    pub requires_multisig: bool,
 }
 
 #[contracttype]
@@ -87,6 +88,7 @@ pub enum DataKey {
     AgentJudge,
     JobRegistry,
     Locked,
+    MultisigConfig(u64), // Per-job multisig configuration
 }
 
 #[contracttype]
@@ -120,6 +122,9 @@ pub enum EscrowError {
     UpgradeUnauthorized = 10,
     InvalidStateTransition = 11,
     ReentrancyDetected = 12,
+    MultisigRequired = 13,
+    InsufficientSignatures = 14,
+    AlreadySigned = 15,
 }
 
 #[contracttype]
@@ -178,6 +183,32 @@ pub struct ContractUpgradedEvent {
     pub by_admin: Address,
     pub new_wasm_hash: BytesN<32>,
     pub upgraded_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct MultisigConfig {
+    pub signers: Vec<Address>,
+    pub required_signatures: u32,
+    pub current_signatures: Vec<Address>,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct MultisigConfiguredEvent {
+    pub job_id: u64,
+    pub required_signatures: u32,
+    pub total_signers: u32,
+    pub configured_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct MultisigSignedEvent {
+    pub job_id: u64,
+    pub signer: Address,
+    pub signature_count: u32,
+    pub signed_at: u64,
 }
 
 fn enter_reentrancy_guard(env: &Env) {
@@ -400,6 +431,7 @@ impl EscrowContract {
             created_at: now,
             expires_at,
             milestones: Vec::new(&env),
+            requires_multisig: false,
         };
         log!(
             &env,
@@ -861,6 +893,144 @@ impl EscrowContract {
             statuses.push_back(m.status);
         }
         statuses
+    }
+
+    /// Configure multisig for a job. Only callable by client during Setup phase.
+    pub fn configure_multisig(
+        env: Env,
+        job_id: u64,
+        signers: Vec<Address>,
+        required_signatures: u32,
+    ) -> Result<(), EscrowError> {
+        let key = DataKey::Job(job_id);
+        let mut job: EscrowJob = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::JobNotFound)?;
+        Self::bump_job_ttl(&env, &key);
+
+        job.client.require_auth();
+
+        if job.status != EscrowStatus::Setup {
+            return Err(EscrowError::InvalidState);
+        }
+
+        if signers.is_empty() || required_signatures == 0 {
+            return Err(EscrowError::InvalidInput);
+        }
+
+        if required_signatures > signers.len() {
+            return Err(EscrowError::InvalidInput);
+        }
+
+        let config = MultisigConfig {
+            signers: signers.clone(),
+            required_signatures,
+            current_signatures: Vec::new(&env),
+        };
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::MultisigConfig(job_id), &config);
+
+        job.requires_multisig = true;
+        env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
+
+        env.events().publish(
+            ("escrow", "MultisigConfigured"),
+            MultisigConfiguredEvent {
+                job_id,
+                required_signatures,
+                total_signers: signers.len(),
+                configured_at: env.ledger().timestamp(),
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Sign a multisig job. Callable by any configured signer.
+    pub fn sign_multisig(env: Env, job_id: u64, signer: Address) -> Result<(), EscrowError> {
+        signer.require_auth();
+
+        let key = DataKey::Job(job_id);
+        let job: EscrowJob = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::JobNotFound)?;
+        Self::bump_job_ttl(&env, &key);
+
+        if !job.requires_multisig {
+            return Err(EscrowError::InvalidInput);
+        }
+
+        let config_key = DataKey::MultisigConfig(job_id);
+        let mut config: MultisigConfig = env
+            .storage()
+            .persistent()
+            .get(&config_key)
+            .ok_or(EscrowError::InvalidInput)?;
+
+        // Check if signer is authorized
+        let mut is_signer = false;
+        for s in config.signers.iter() {
+            if s == signer {
+                is_signer = true;
+                break;
+            }
+        }
+        if !is_signer {
+            return Err(EscrowError::Unauthorized);
+        }
+
+        // Check if already signed
+        for s in config.current_signatures.iter() {
+            if s == signer {
+                return Err(EscrowError::AlreadySigned);
+            }
+        }
+
+        config.current_signatures.push_back(signer.clone());
+        env.storage().persistent().set(&config_key, &config);
+        Self::bump_job_ttl(&env, &config_key);
+
+        env.events().publish(
+            ("escrow", "MultisigSigned"),
+            MultisigSignedEvent {
+                job_id,
+                signer,
+                signature_count: config.current_signatures.len(),
+                signed_at: env.ledger().timestamp(),
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Check if a multisig job has enough signatures
+    pub fn check_multisig_ready(env: Env, job_id: u64) -> Result<bool, EscrowError> {
+        let key = DataKey::Job(job_id);
+        let job: EscrowJob = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::JobNotFound)?;
+
+        if !job.requires_multisig {
+            return Ok(true);
+        }
+
+        let config_key = DataKey::MultisigConfig(job_id);
+        let config: MultisigConfig = env
+            .storage()
+            .persistent()
+            .get(&config_key)
+            .ok_or(EscrowError::InvalidInput)?;
+
+        Ok(config.current_signatures.len() >= config.required_signatures)
     }
 }
 

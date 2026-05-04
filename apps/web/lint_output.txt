@@ -1,0 +1,68 @@
+
+> web@0.1.0 lint
+> eslint
+
+
+/home/knights/Documents/Project/Drips/lance/apps/web/app/jobs/[id]/page.tsx
+   9:3  warning  'Wallet' is defined but never used          @typescript-eslint/no-unused-vars
+  10:3  warning  'Clock' is defined but never used           @typescript-eslint/no-unused-vars
+  11:3  warning  'ArrowRightLeft' is defined but never used  @typescript-eslint/no-unused-vars
+  12:3  warning  'Info' is defined but never used            @typescript-eslint/no-unused-vars
+  13:3  warning  'ShieldCheck' is defined but never used     @typescript-eslint/no-unused-vars
+  14:3  warning  'Zap' is defined but never used             @typescript-eslint/no-unused-vars
+  15:3  warning  'Phone' is defined but never used           @typescript-eslint/no-unused-vars
+  16:3  warning  'AlertCircle' is defined but never used     @typescript-eslint/no-unused-vars
+
+/home/knights/Documents/Project/Drips/lance/apps/web/app/jobs/new/page.tsx
+  43:9  warning  'nextStep' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  44:9  warning  'prevStep' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  46:9  warning  'canGoNext' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/knights/Documents/Project/Drips/lance/apps/web/components/blockchain/sign-transaction-modal.tsx
+   3:21  warning  'useState' is defined but never used            @typescript-eslint/no-unused-vars
+   8:3   warning  'Cpu' is defined but never used                 @typescript-eslint/no-unused-vars
+  17:8   warning  'DecodedTransaction' is defined but never used  @typescript-eslint/no-unused-vars
+  18:8   warning  'DecodedOperation' is defined but never used    @typescript-eslint/no-unused-vars
+  20:10  warning  'useWalletStore' is defined but never used      @typescript-eslint/no-unused-vars
+
+/home/knights/Documents/Project/Drips/lance/apps/web/components/transaction/TransactionDashboard.tsx
+  93:9  warning  'isSuccess' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/home/knights/Documents/Project/Drips/lance/apps/web/hooks/useTransaction.ts
+  23:32  warning  'FeeEstimate' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/knights/Documents/Project/Drips/lance/apps/web/lib/store/transaction-store.ts
+  85:10  warning  'eventToStoredTransaction' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/knights/Documents/Project/Drips/lance/apps/web/lib/transactions/builder.ts
+  17:3  warning  'Operation' is defined but never used              @typescript-eslint/no-unused-vars
+  26:3  warning  'addressToSoroban' is defined but never used       @typescript-eslint/no-unused-vars
+  27:3  warning  'createI128' is defined but never used             @typescript-eslint/no-unused-vars
+  28:3  warning  'createU256' is defined but never used             @typescript-eslint/no-unused-vars
+  29:3  warning  'createBytes' is defined but never used            @typescript-eslint/no-unused-vars
+  30:3  warning  'createBytesFromHex' is defined but never used     @typescript-eslint/no-unused-vars
+  31:3  warning  'createBytesFromString' is defined but never used  @typescript-eslint/no-unused-vars
+  32:3  warning  'createVec' is defined but never used              @typescript-eslint/no-unused-vars
+  33:3  warning  'createMap' is defined but never used              @typescript-eslint/no-unused-vars
+
+/home/knights/Documents/Project/Drips/lance/apps/web/lib/transactions/fee-estimator.ts
+   14:23  warning  'TransactionBuilder' is defined but never used  @typescript-eslint/no-unused-vars
+   14:43  warning  'xdr' is defined but never used                 @typescript-eslint/no-unused-vars
+  222:3   warning  'feeEstimate' is defined but never used         @typescript-eslint/no-unused-vars
+  223:3   warning  'resourceLimits' is defined but never used      @typescript-eslint/no-unused-vars
+
+/home/knights/Documents/Project/Drips/lance/apps/web/lib/transactions/simulator.ts
+  15:23  warning  'xdr' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/knights/Documents/Project/Drips/lance/apps/web/lib/transactions/submitter.ts
+  10:17  warning  'SorobanRpc' is defined but never used     @typescript-eslint/no-unused-vars
+  13:33  warning  'PollingResult' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/knights/Documents/Project/Drips/lance/apps/web/lib/transactions/xdr-encoder.ts
+  12:26  warning  'StellarAddress' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/knights/Documents/Project/Drips/lance/apps/web/lib/wallets/signer.ts
+  21:3  warning  'extractSignedXdr' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 37 problems (0 errors, 37 warnings)
+

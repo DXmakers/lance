@@ -1,240 +1,170 @@
 /**
- * Hook for managing Soroban contract interactions
- * Provides transaction building, signing, submission, and event monitoring
+ * use-soroban-transaction.ts
+ *
+ * React hook that wraps the Soroban 5-step pipeline and exposes:
+ *  - Per-step progress state for UI rendering
+ *  - Raw XDR in dev and simulation diagnostics in all environments
+ *  - A typed execute() function that accepts any contract invocation
+ *  - Automatic UI state refresh callback on success
+ *  - Error state with human-readable messages
  */
 
-import { useState, useCallback } from "react";
-import {
-  buildSorobanTransaction,
-  submitAndPollTransaction,
-  handleSequenceError,
-  filterEvents,
-  getTransactionExplorerUrl,
-  type TransactionResult,
-  type SorobanEvent,
-  type TransactionBuildOptions,
-} from "@/lib/soroban-events";
-import { signTransaction } from "@/lib/stellar";
+"use client";
 
-export interface UseSorobanTransactionOptions {
-  /** Contract ID to interact with */
-  contractId: string;
-  /** Auto-refresh transaction status */
-  autoRefresh?: boolean;
-  /** Polling interval in ms (default: 2000) */
-  pollInterval?: number;
-  /** Transaction timeout in ms (default: 60000) */
-  timeout?: number;
+import { useCallback, useRef, useState } from "react";
+import {
+  invokeContract,
+  type InvokeContractParams,
+  type PipelineProgressEvent,
+  type PipelineResult,
+  type PipelineStep,
+  type SimulationLog,
+} from "@/lib/soroban-pipeline";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface SorobanTransactionState {
+  /** Current pipeline step */
+  step: PipelineStep;
+  /** True while any step is in progress */
+  isPending: boolean;
+  /** Confirmed transaction hash (available after success) */
+  txHash: string | null;
+  /** Human-readable status message */
+  message: string;
+  /** Error message if the pipeline failed */
+  error: string | null;
+  /** Simulation diagnostics from the Soroban simulation step */
+  simulationLog: SimulationLog | null;
+  /** Unsigned transaction XDR — only populated in non-production builds */
+  unsignedXdr: string | null;
+  /** Signed transaction XDR — only populated in non-production builds */
+  signedXdr: string | null;
+  /** Ordered history of all progress events for the current invocation */
+  progressHistory: PipelineProgressEvent[];
 }
 
-export interface UseSorobanTransactionReturn {
-  /** Current transaction result */
-  result: TransactionResult | null;
-  /** Whether a transaction is in progress */
-  isLoading: boolean;
-  /** Error message if transaction failed */
-  error: string | null;
-  /** Parsed events from last transaction */
-  events: SorobanEvent[];
-  /** Execute a contract method */
+export interface ExecuteOptions {
+  /** Called with the confirmed tx hash after a successful pipeline run */
+  onSuccess?: (result: PipelineResult) => void | Promise<void>;
+  /** Called with the thrown error if the pipeline fails */
+  onError?: (error: Error) => void;
+}
+
+export interface UseSorobanTransactionReturn extends SorobanTransactionState {
+  /**
+   * Execute the full Build → Simulate → Sign → Submit → Confirm pipeline.
+   *
+   * @param params  Contract invocation parameters (contractId, method, args, …)
+   * @param options Optional success/error callbacks
+   */
   execute: (
-    method: string,
-    args: unknown[],
-    source: string,
-  ) => Promise<TransactionResult>;
-  /** Reset transaction state */
+    params: Omit<InvokeContractParams, "onProgress">,
+    options?: ExecuteOptions,
+  ) => Promise<PipelineResult | null>;
+  /** Reset all state back to idle */
   reset: () => void;
 }
 
-export function useSorobanTransaction(
-  options: UseSorobanTransactionOptions,
-): UseSorobanTransactionReturn {
-  const { contractId, timeout = 60000, pollInterval = 2000 } = options;
-  
-  const [result, setResult] = useState<TransactionResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+// ─── Initial state ────────────────────────────────────────────────────────────
 
-  const execute = useCallback(
-    async (
-      method: string,
-      args: unknown[],
-      source: string,
-    ): Promise<TransactionResult> => {
-      setIsLoading(true);
-      setError(null);
-      setResult(null);
+const INITIAL_STATE: SorobanTransactionState = {
+  step: "idle",
+  isPending: false,
+  txHash: null,
+  message: "Ready.",
+  error: null,
+  simulationLog: null,
+  unsignedXdr: null,
+  signedXdr: null,
+  progressHistory: [],
+};
 
-      try {
-        // Step 1: Build transaction
-        console.log(`[Soroban] Building transaction: ${method}`);
-        const buildOptions: TransactionBuildOptions = {
-          contractId,
-          method,
-          args,
-          source,
-        };
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
-        const { preparedTransaction } = await handleSequenceError(async () => {
-          return await buildSorobanTransaction(buildOptions);
-        });
+export function useSorobanTransaction(): UseSorobanTransactionReturn {
+  const [state, setState] = useState<SorobanTransactionState>(INITIAL_STATE);
 
-        // Step 2: Sign transaction with wallet
-        console.log(`[Soroban] Signing transaction`);
-        const signedXdr = await signTransaction(preparedTransaction.toXDR());
-
-        // Step 3: Submit and poll for confirmation
-        console.log(`[Soroban] Submitting transaction`);
-        const txResult = await submitAndPollTransaction(
-          signedXdr,
-          timeout,
-          pollInterval,
-        );
-
-        setResult(txResult);
-        
-        if (txResult.status === "FAILED") {
-          setError(txResult.error || "Transaction failed");
-        }
-
-        console.log(
-          `[Soroban] Transaction complete: ${getTransactionExplorerUrl(txResult.hash)}`,
-        );
-
-        return txResult;
-      } catch (err: unknown) {
-        const errorMessage = (err as Error)?.message || "Transaction failed";
-        setError(errorMessage);
-        console.error("[Soroban] Transaction error:", err);
-        throw err;
-      } finally {
-        setIsLoading(false);
+  // Guard against state updates after unmount
+  const mountedRef = useRef(true);
+  const setStateSafe = useCallback(
+    (updater: (prev: SorobanTransactionState) => SorobanTransactionState) => {
+      if (mountedRef.current) {
+        setState(updater);
       }
     },
-    [contractId, timeout, pollInterval],
+    [],
   );
 
   const reset = useCallback(() => {
-    setResult(null);
-    setIsLoading(false);
-    setError(null);
-  }, []);
+    setStateSafe(() => INITIAL_STATE);
+  }, [setStateSafe]);
 
-  return {
-    result,
-    isLoading,
-    error,
-    events: result?.events || [],
-    execute,
-    reset,
-  };
-}
+  const execute = useCallback(
+    async (
+      params: Omit<InvokeContractParams, "onProgress">,
+      options?: ExecuteOptions,
+    ): Promise<PipelineResult | null> => {
+      // Reset to a clean pending state before starting
+      setStateSafe(() => ({
+        ...INITIAL_STATE,
+        step: "building",
+        isPending: true,
+        message: "Building transaction…",
+      }));
 
-/**
- * Hook for monitoring contract events
- */
-export interface UseContractEventsOptions {
-  contractId: string;
-  /** Auto-refresh interval in ms (default: 5000) */
-  refreshInterval?: number;
-  /** Filter by event type */
-  eventType?: string;
-}
+      const onProgress = (event: PipelineProgressEvent) => {
+        setStateSafe((prev) => ({
+          ...prev,
+          step: event.step,
+          isPending: event.step !== "success" && event.step !== "error",
+          message: event.message,
+          txHash: event.txHash ?? prev.txHash,
+          simulationLog: event.simulationLog ?? prev.simulationLog,
+          unsignedXdr: event.unsignedXdr ?? prev.unsignedXdr,
+          signedXdr: event.signedXdr ?? prev.signedXdr,
+          progressHistory: [...prev.progressHistory, event],
+        }));
+      };
 
-export interface UseContractEventsReturn {
-  events: SorobanEvent[];
-  isLoading: boolean;
-  error: string | null;
-  refresh: () => Promise<void>;
-}
+      try {
+        const result = await invokeContract({ ...params, onProgress });
 
-export function useContractEvents(
-  options: UseContractEventsOptions,
-): UseContractEventsReturn {
-  const { contractId, refreshInterval = 5000, eventType } = options;
-  
-  const [events, setEvents] = useState<SorobanEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+        setStateSafe((prev) => ({
+          ...prev,
+          step: "success",
+          isPending: false,
+          txHash: result.txHash,
+          simulationLog: result.simulationLog ?? prev.simulationLog,
+          unsignedXdr: result.unsignedXdr ?? prev.unsignedXdr,
+          signedXdr: result.signedXdr ?? prev.signedXdr,
+          error: null,
+          message: "Transaction confirmed on-chain.",
+        }));
 
-  const fetchEvents = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+        await options?.onSuccess?.(result);
+        return result;
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "An unexpected error occurred.";
 
-    try {
-      // TODO: Implement event fetching from backend or RPC
-      // For now, this is a placeholder
-      console.log(`[Soroban] Fetching events for contract: ${contractId}`);
-      console.log(`Using refresh interval: ${refreshInterval}`);
-      
-      // In production, you would:
-      // 1. Call backend API that indexes Soroban events
-      // 2. Or use Soroban RPC getEvents endpoint
-      // 3. Parse and filter events
-      setEvents([]); // Use setEvents to avoid unused warning
-      
-    } catch (err: unknown) {
-      setError((err as Error)?.message || "Failed to fetch events");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [contractId, refreshInterval]);
+        setStateSafe((prev) => ({
+          ...prev,
+          step: "error",
+          isPending: false,
+          error: message,
+          message,
+        }));
 
-  // Auto-refresh
-   
-  // useEffect(() => {
-  //   fetchEvents();
-  //   const interval = setInterval(fetchEvents, refreshInterval);
-  //   return () => clearInterval(interval);
-  // }, [fetchEvents, refreshInterval]);
+        if (err instanceof Error) {
+          options?.onError?.(err);
+        }
 
-  const refresh = useCallback(async () => {
-    await fetchEvents();
-  }, [fetchEvents]);
-
-  const filteredEvents = eventType
-    ? filterEvents(events, undefined, eventType)
-    : events;
-
-  return {
-    events: filteredEvents,
-    isLoading,
-    error,
-    refresh,
-  };
-}
-
-/**
- * Hook for specific contract operations (milestone release, dispute resolution, etc.)
- */
-export function useEscrowOperations(contractId: string) {
-  const transaction = useSorobanTransaction({ contractId });
-
-  const releaseMilestone = useCallback(
-    async (jobId: string, milestoneIndex: number, source: string) => {
-      return await transaction.execute("release_milestone", [jobId, milestoneIndex], source);
+        return null;
+      }
     },
-    [transaction],
+    [setStateSafe],
   );
 
-  const openDispute = useCallback(
-    async (jobId: string, source: string) => {
-      return await transaction.execute("open_dispute", [jobId], source);
-    },
-    [transaction],
-  );
-
-  const resolveDispute = useCallback(
-    async (jobId: string, freelancerShareBps: number, source: string) => {
-      return await transaction.execute("resolve_dispute", [jobId, freelancerShareBps], source);
-    },
-    [transaction],
-  );
-
-  return {
-    ...transaction,
-    releaseMilestone,
-    openDispute,
-    resolveDispute,
-  };
+  return { ...state, execute, reset };
 }
