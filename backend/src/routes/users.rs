@@ -1,6 +1,5 @@
 use axum::{
-    extract::{Path, State},
-    http::HeaderMap,
+    extract::{Extension, Path, State},
     routing::get,
     Json, Router,
 };
@@ -19,6 +18,7 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(list_users))
         .route("/:address/profile", get(get_profile).put(upsert_profile))
+        .route("/:address/saved-jobs", get(get_saved_jobs))
 }
 
 async fn list_users(State(state): State<AppState>) -> Result<Json<Vec<String>>> {
@@ -148,14 +148,9 @@ async fn get_profile(
 async fn upsert_profile(
     State(state): State<AppState>,
     Path(address): Path<String>,
-    headers: HeaderMap,
+    Extension(actor): Extension<String>,
     Json(req): Json<UpdateProfileRequest>,
 ) -> Result<Json<PublicProfile>> {
-    let actor = headers
-        .get("x-wallet-address")
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or_default();
-
     if actor != address {
         return Err(AppError::BadRequest(
             "only the wallet owner can update this profile".into(),
@@ -189,4 +184,21 @@ async fn upsert_profile(
     .await?;
 
     get_profile(State(state), Path(address)).await
+}
+
+async fn get_saved_jobs(
+    State(state): State<AppState>,
+    Path(address): Path<String>,
+) -> Result<Json<Vec<crate::models::SavedJob>>> {
+    let jobs = sqlx::query_as::<_, crate::models::SavedJob>(
+        r#"SELECT id, job_id, user_address, note, created_at
+           FROM saved_jobs
+           WHERE user_address = $1
+           ORDER BY created_at DESC"#,
+    )
+    .bind(address)
+    .fetch_all(&state.pool)
+    .await?;
+
+    Ok(Json(jobs))
 }

@@ -2,7 +2,7 @@
 
 import { AlertTriangle, Info, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { WalletErrorType } from "@/lib/wallet-errors";
+
 import { cn } from "@/lib/utils";
 
 interface WalletErrorDisplayProps {
