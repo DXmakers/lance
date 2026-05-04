@@ -51,12 +51,10 @@ jobs:
       
       - name: Build ${{ matrix.contract }} contract
         run: |
-          cd contracts/${{ matrix.contract }}
-          cargo build --target wasm32-unknown-unknown --release
+          cargo build --target wasm32-unknown-unknown --release -p ${{ matrix.contract }}
           
       - name: Optimize WASM
         run: |
-          cd contracts/${{ matrix.contract }}
           wasm-opt target/wasm32-unknown-unknown/release/${{ matrix.contract }}.wasm \
             -o target/wasm32-unknown-unknown/release/${{ matrix.contract }}.optimized.wasm \
             -Oz
@@ -65,12 +63,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.contract }}-wasm
-          path: contracts/${{ matrix.contract }}/target/wasm32-unknown-unknown/release/${{ matrix.contract }}.optimized.wasm
+          path: target/wasm32-unknown-unknown/release/${{ matrix.contract }}.optimized.wasm
           retention-days: 30
       
       - name: Generate WASM hash
         run: |
-          cd contracts/${{ matrix.contract }}
           wasm_file="target/wasm32-unknown-unknown/release/${{ matrix.contract }}.optimized.wasm"
           if [ -f "$wasm_file" ]; then
             sha256sum "$wasm_file" > "${{ matrix.contract }}.sha256"
@@ -81,7 +78,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.contract }}-hash
-          path: contracts/${{ matrix.contract }}/${{ matrix.contract }}.sha256
+          path: ${{ matrix.contract }}.sha256
           retention-days: 30
 
   test-contracts:
@@ -104,6 +101,6 @@ jobs:
       
       - name: Run contract tests
         run: |
-          cargo test --workspace
+          cargo test -p escrow -p reputation -p job_registry
         env:
           RUST_BACKTRACE: 1
