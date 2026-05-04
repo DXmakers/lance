@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { SessionSwitcher } from "@/components/auth/session-switcher";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { BlockchainSyncIndicator } from "@/components/ui/blockchain-sync-indicator";
 import { useWalletSession } from "@/hooks/use-wallet-session";
 import { toast } from "@/lib/toast";
 import { WalletConnect } from "@/components/wallet/wallet-connect";
@@ -108,6 +109,9 @@ export function TopNav({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
         </div>
 
         <div className="flex items-center gap-4">
+          <div className="hidden xl:block">
+            <BlockchainSyncIndicator />
+          </div>
           <div className="flex items-center gap-2 md:hidden">
             {isConnected && address ? (
               <button

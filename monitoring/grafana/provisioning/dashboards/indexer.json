@@ -1,0 +1,89 @@
+{
+  "title": "Lance Indexer",
+  "uid": "lance-indexer",
+  "schemaVersion": 38,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Ledger Lag",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "targets": [{ "expr": "indexer_ledger_lag", "legendFormat": "lag" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Last Processed Ledger",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "targets": [{ "expr": "indexer_last_processed_ledger", "legendFormat": "ledger" }]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Total Events Processed",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "targets": [{ "expr": "indexer_total_events_processed", "legendFormat": "events" }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Total Errors",
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+      "targets": [{ "expr": "indexer_total_errors", "legendFormat": "errors" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Event Throughput (events/sec)",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "targets": [{ "expr": "indexer_last_batch_rate_per_second", "legendFormat": "eps" }]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "RPC Latency (ms)",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "indexer_last_rpc_latency_ms", "legendFormat": "rpc latency" },
+        { "expr": "indexer_last_loop_duration_ms", "legendFormat": "loop duration" }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "RPC Retries",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 6 },
+      "targets": [{ "expr": "rate(indexer_rpc_retries_total[1m])", "legendFormat": "retries/min" }]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Error Rate",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 6 },
+      "targets": [{ "expr": "rate(indexer_total_errors[1m])", "legendFormat": "errors/min" }]
+    }
+  ]
+}
