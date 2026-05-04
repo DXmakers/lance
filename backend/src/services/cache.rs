@@ -23,21 +23,22 @@ pub struct CacheService {
 impl CacheService {
     /// Create a new cache service from environment variable `REDIS_URL`
     pub async fn from_env() -> Result<Self> {
-        let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
-        
+        let redis_url =
+            std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
+
         let client = RedisClient::new(
             Config::from_url(&redis_url)?,
             None,
             None,
             Some(ReconnectPolicy::default()),
         );
-        
+
         // Initialize the client
         let _ = client.connect();
         client.wait_for_connect().await?;
-        
+
         tracing::info!("Redis cache connected to {}", redis_url);
-        
+
         Ok(Self { client })
     }
 
@@ -50,21 +51,21 @@ impl CacheService {
             None,
             Some(ReconnectPolicy::default()),
         );
-        
+
         let _ = client.connect();
         client.wait_for_connect().await?;
-        
+
         Ok(Self { client })
     }
 
     /// Get a cached value by key
     pub async fn get<T: DeserializeOwned>(&self, key: &str) -> Result<Option<T>> {
         let value: Option<String> = self.client.get(key).await?;
-        
+
         match value {
             Some(v) => {
                 let parsed: T = serde_json::from_str(&v)
-                    .with_context(|| format!("Failed to parse cached value for key: {}", key))?;
+                    .with_context(|| format!("Failed to parse cached value for key: {key}"))?;
                 Ok(Some(parsed))
             }
             None => Ok(None),
@@ -84,10 +85,18 @@ impl CacheService {
         ttl: Duration,
     ) -> Result<()> {
         let serialized = serde_json::to_string(value)
-            .with_context(|| format!("Failed to serialize value for key: {}", key))?;
-        
-        self.client.set::<(), _, _>(key, serialized, Some(Expiration::EX(ttl.as_secs() as i64)), None, false).await?;
-        
+            .with_context(|| format!("Failed to serialize value for key: {key}"))?;
+
+        self.client
+            .set::<(), _, _>(
+                key,
+                serialized,
+                Some(Expiration::EX(ttl.as_secs() as i64)),
+                None,
+                false,
+            )
+            .await?;
+
         tracing::debug!("Cached key: {} with TTL: {:?}", key, ttl);
         Ok(())
     }
@@ -111,13 +120,13 @@ impl CacheService {
         while let Some(res) = stream.next().await {
             keys.push(res?);
         }
-        
+
         if keys.is_empty() {
             return Ok(0);
         }
-        
+
         let deleted: u64 = self.client.del(keys).await?;
-        tracing::info!("Cleared {} cache entries matching pattern: {}", deleted, pattern);
+        tracing::info!("Cleared {deleted} cache entries matching pattern: {pattern}");
         Ok(deleted)
     }
 
@@ -207,29 +216,29 @@ mod tests {
 
     // Note: These tests require a running Redis instance
     // Run with: cargo test -- --ignored
-    
+
     #[tokio::test]
     #[ignore]
     async fn test_cache_set_and_get() {
         let cache = CacheService::new("redis://localhost:6379")
             .await
             .expect("Failed to connect to Redis");
-        
+
         let job = TestJob {
             id: "test-1".to_string(),
             title: "Test Job".to_string(),
             budget: 1000,
         };
-        
-        cache.set("test:job", &job).await.expect("Failed to set cache");
-        
-        let retrieved: Option<TestJob> = cache
-            .get("test:job")
+
+        cache
+            .set("test:job", &job)
             .await
-            .expect("Failed to get cache");
-        
+            .expect("Failed to set cache");
+
+        let retrieved: Option<TestJob> = cache.get("test:job").await.expect("Failed to get cache");
+
         assert_eq!(retrieved, Some(job));
-        
+
         // Cleanup
         cache.delete("test:job").await.ok();
     }
@@ -240,10 +249,13 @@ mod tests {
         let cache = CacheService::new("redis://localhost:6379")
             .await
             .expect("Failed to connect to Redis");
-        
-        cache.set("test:delete", &"value").await.expect("Failed to set");
+
+        cache
+            .set("test:delete", &"value")
+            .await
+            .expect("Failed to set");
         assert!(cache.exists("test:delete").await.unwrap());
-        
+
         let deleted = cache.delete("test:delete").await.expect("Failed to delete");
         assert!(deleted);
         assert!(!cache.exists("test:delete").await.unwrap());
@@ -255,19 +267,19 @@ mod tests {
         let cache = CacheService::new("redis://localhost:6379")
             .await
             .expect("Failed to connect to Redis");
-        
+
         cache
             .set_with_ttl("test:ttl", &"value", Duration::from_secs(1))
             .await
             .expect("Failed to set with TTL");
-        
+
         assert!(cache.exists("test:ttl").await.unwrap());
-        
+
         // Wait for TTL to expire
         tokio::time::sleep(Duration::from_secs(2)).await;
-        
+
         assert!(!cache.exists("test:ttl").await.unwrap());
-        
+
         // Cleanup
         cache.delete("test:ttl").await.ok();
     }

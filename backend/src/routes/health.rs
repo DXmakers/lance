@@ -91,8 +91,8 @@ pub async fn health(State(state): State<AppState>) -> (StatusCode, Json<Value>) 
         }
         Err(e) => (
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({ 
-                "status": "degraded", 
+            Json(json!({
+                "status": "degraded",
                 "db": e.to_string(),
                 "cache": cache_status
             })),

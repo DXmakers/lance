@@ -19,11 +19,14 @@ impl AppState {
                 Some(c)
             }
             Err(e) => {
-                tracing::warn!("Failed to initialize Redis cache: {}. Running without cache.", e);
+                tracing::warn!(
+                    "Failed to initialize Redis cache: {}. Running without cache.",
+                    e
+                );
                 None
             }
         };
-        
+
         Self {
             pool,
             judge: std::sync::Arc::new(JudgeService::from_env()),
