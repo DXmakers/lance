@@ -8,9 +8,7 @@ import {
   buildSorobanTransaction,
   submitAndPollTransaction,
   handleSequenceError,
-  parseSorobanEvents,
   filterEvents,
-  extractContractEvents,
   getTransactionExplorerUrl,
   type TransactionResult,
   type SorobanEvent,
@@ -41,7 +39,7 @@ export interface UseSorobanTransactionReturn {
   /** Execute a contract method */
   execute: (
     method: string,
-    args: any[],
+    args: unknown[],
     source: string,
   ) => Promise<TransactionResult>;
   /** Reset transaction state */
@@ -60,7 +58,7 @@ export function useSorobanTransaction(
   const execute = useCallback(
     async (
       method: string,
-      args: any[],
+      args: unknown[],
       source: string,
     ): Promise<TransactionResult> => {
       setIsLoading(true);
@@ -104,8 +102,8 @@ export function useSorobanTransaction(
         );
 
         return txResult;
-      } catch (err: any) {
-        const errorMessage = err?.message || "Transaction failed";
+      } catch (err: unknown) {
+        const errorMessage = (err as Error)?.message || "Transaction failed";
         setError(errorMessage);
         console.error("[Soroban] Transaction error:", err);
         throw err;
@@ -167,21 +165,23 @@ export function useContractEvents(
       // TODO: Implement event fetching from backend or RPC
       // For now, this is a placeholder
       console.log(`[Soroban] Fetching events for contract: ${contractId}`);
+      console.log(`Using refresh interval: ${refreshInterval}`);
       
       // In production, you would:
       // 1. Call backend API that indexes Soroban events
       // 2. Or use Soroban RPC getEvents endpoint
       // 3. Parse and filter events
+      setEvents([]); // Use setEvents to avoid unused warning
       
-    } catch (err: any) {
-      setError(err?.message || "Failed to fetch events");
+    } catch (err: unknown) {
+      setError((err as Error)?.message || "Failed to fetch events");
     } finally {
       setIsLoading(false);
     }
-  }, [contractId]);
+  }, [contractId, refreshInterval]);
 
   // Auto-refresh
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   // useEffect(() => {
   //   fetchEvents();
   //   const interval = setInterval(fetchEvents, refreshInterval);

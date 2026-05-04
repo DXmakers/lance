@@ -27,7 +27,7 @@ import {
   Server as SorobanServer,
   Api,
 } from "@stellar/stellar-sdk/rpc";
-import { connectWallet, getConnectedWalletAddress, signTransaction } from "./stellar";
+import { signTransaction } from "./stellar";
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
@@ -104,11 +104,13 @@ function shouldMockCalls(): boolean {
   return false;
 }
 
+/*
 async function getCallerAddress(): Promise<string> {
   const connected = await getConnectedWalletAddress();
   if (connected) return connected;
   return connectWallet();
 }
+*/
 
 /** Encode a UTF-8 string as an ScVal bytes value. */
 function metadataHashToScVal(hash: string): xdr.ScVal {

@@ -26,7 +26,6 @@ import { WalletSelectionModal } from "./wallet-selection-modal";
 export function WalletConnect() {
   const { 
     address, 
-    status, 
     connect, 
     disconnect, 
     isConnected, 

@@ -5,7 +5,7 @@
  * Follows the SIWS specification for cryptographic verification
  */
 
-import { APP_STELLAR_NETWORK, assertValidStellarAddress, signTransaction, StellarNetwork, Networks } from "./stellar";
+import { APP_STELLAR_NETWORK, assertValidStellarAddress, signTransaction, Networks } from "./stellar";
 
 export interface SIWSMessage {
   domain: string;
@@ -217,7 +217,7 @@ export class SIWSService {
       // Use the existing signTransaction function with a mock transaction
       // This is a workaround for the Stellar SDK Account class issues
       const mockXdr = "AAAAAgAAAAA="; // Minimal mock XDR
-      const signedXdr = await signTransaction(mockXdr);
+      await signTransaction(mockXdr);
       
       // For demo purposes, return a simple hash of the message
       // In production, this would be the actual wallet signature
