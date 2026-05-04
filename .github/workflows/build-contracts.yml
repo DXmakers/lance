@@ -36,6 +36,9 @@ jobs:
           cargo install --locked --version 22.0.0 soroban-cli
           soroban --version
       
+      - name: Install binaryen (wasm-opt)
+        run: sudo apt-get update && sudo apt-get install -y binaryen
+      
       - name: Cache cargo registry
         uses: actions/cache@v3
         with:
