@@ -4,6 +4,7 @@ import { SiteShell } from "@/components/site-shell";
 import { RoleOverview } from "@/components/dashboard/role-overview";
 import { ClientDashboard } from "@/components/dashboard/client-dashboard";
 import { useAuthStore } from "@/lib/store/use-auth-store";
+import { WalletConnect } from "@/components/WalletConnect";
 
 export default function Home() {
   const { role, isLoggedIn } = useAuthStore();
@@ -17,6 +18,11 @@ export default function Home() {
       title={title}
       description="Lance is the surface layer for serious clients and elite independents who want payment security, immutable trust signals, and fast dispute resolution."
     >
+      {!isLoggedIn && (
+        <div className="mb-12 flex justify-center">
+          <WalletConnect />
+        </div>
+      )}
       {role === "client" ? <ClientDashboard /> : <RoleOverview />}
     </SiteShell>
   );
