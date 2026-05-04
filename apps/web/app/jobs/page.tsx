@@ -228,6 +228,33 @@ function JobCard({ job }: { job: BoardJob }) {
   );
 }
 
+function SkeletonGrid() {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <JobCardSkeleton key={i} />
+      ))}
+    </div>
+  );
+}
+
+function StatsBar({ total, filtered }: { total: number; filtered: number }) {
+  return (
+    <div className="flex items-center gap-3 text-xs font-medium text-zinc-500">
+      <div className="flex items-center gap-1.5">
+        <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+        <span>{total} Total Listings</span>
+      </div>
+      {filtered !== total && (
+        <div className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-zinc-700" />
+          <span>{filtered} Matched</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function JobsPage() {
@@ -291,7 +318,7 @@ export default function JobsPage() {
         </div>
       </div>
 
-      {/* ── Filter & sort bar ────────────────────────────────────────────── */}
+      {/* Filter & sort bar */}
       <JobFilters
         query={query}
         setQuery={actions.setQuery}
@@ -308,7 +335,7 @@ export default function JobsPage() {
         setFilterStatus={actions.setFilterStatus}
       />
 
-      {/* ── Error banner ─────────────────────────────────────────────────── */}
+      {/* Error banner */}
       {error && (
         <div
           role="alert"
@@ -322,7 +349,7 @@ export default function JobsPage() {
         </div>
       )}
 
-      {/* ── Results header ───────────────────────────────────────────────── */}
+      {/* Results header */}
       {!loading && (
         <div className="flex items-center justify-between gap-4">
           <StatsBar total={totalOpen} filtered={paginatedJobs.length} />
@@ -338,7 +365,7 @@ export default function JobsPage() {
         </div>
       )}
 
-      {/* ── Job grid ─────────────────────────────────────────────────────── */}
+      {/* Job grid */}
       <main aria-label="Job listings">
         {loading ? (
           <SkeletonGrid />
@@ -371,7 +398,7 @@ export default function JobsPage() {
         )}
       </main>
 
-      {/* ── Bottom CTA ───────────────────────────────────────────────────── */}
+      {/* Bottom CTA */}
       {!loading && paginatedJobs.length > 0 && (
         <footer className="relative overflow-hidden rounded-3xl border border-zinc-800/80 bg-zinc-900/60 p-6 backdrop-blur-sm sm:p-8">
           <div
@@ -398,31 +425,8 @@ export default function JobsPage() {
               </div>
             )}
           </div>
-
-          <main>
-            {loading ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <JobCardSkeleton key={i} />
-                ))}
-              </div>
-            ) : jobs.length > 0 ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {jobs.map((job) => (
-                  <JobCard key={job.id} job={job} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                tone="dark"
-                icon={<Briefcase className="h-5 w-5" />}
-                title="No matches found"
-                description="Adjust your filters to discover more open opportunities."
-              />
-            )}
-          </main>
-        </div>
-      </div>
+        </footer>
+      )}
     </div>
   );
 }

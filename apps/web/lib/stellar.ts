@@ -492,7 +492,7 @@ export async function getWalletInfo(
 }
 export interface DecodedOperation {
   type: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface DecodedTransaction {

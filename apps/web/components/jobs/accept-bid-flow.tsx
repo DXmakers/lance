@@ -11,6 +11,7 @@ interface AcceptBidFlowProps {
   job: Job;
   bids: Bid[];
   isClientOwner: boolean;
+  onAccept?: () => void;
   onSuccess?: () => void;
   children: (props: {
     handleAcceptClick: (bidId: string) => void;
