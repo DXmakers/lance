@@ -994,9 +994,7 @@ impl EscrowContract {
         }
 
         config.current_signatures.push_back(signer.clone());
-        env.storage()
-            .persistent()
-            .set(&config_key, &config);
+        env.storage().persistent().set(&config_key, &config);
         Self::bump_job_ttl(&env, &config_key);
 
         env.events().publish(
