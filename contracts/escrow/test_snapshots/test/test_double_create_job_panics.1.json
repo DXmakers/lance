@@ -167,6 +167,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "requires_multisig"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "status"
                       },
                       "val": {
@@ -408,7 +416,7 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'job already exists' from contract function 'Symbol(obj#45)'"
+                  "string": "caught panic 'job already exists' from contract function 'Symbol(obj#47)'"
                 },
                 {
                   "u64": 1

@@ -532,6 +532,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "requires_multisig"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "status"
                       },
                       "val": {
@@ -1957,7 +1965,7 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'job not in releaseable state' from contract function 'Symbol(obj#591)'"
+                  "string": "caught panic 'job not in releaseable state' from contract function 'Symbol(obj#605)'"
                 },
                 {
                   "u64": 1
