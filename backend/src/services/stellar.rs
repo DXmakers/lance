@@ -492,9 +492,7 @@ impl StellarService {
             })?
             .json()
             .await
-            .map_err(|e| {
-                StellarError::InvalidResponse(format!("Failed to parse response: {e}"))
-            })?;
+            .map_err(|e| StellarError::InvalidResponse(format!("Failed to parse response: {e}")))?;
 
         if let Some(err) = resp.error {
             // Classify RPC errors
