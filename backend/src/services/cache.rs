@@ -4,6 +4,8 @@
 
 use anyhow::{Context, Result};
 use fred::prelude::*;
+use fred::types::RedisConfig as Config;
+use futures::StreamExt;
 use serde::{de::DeserializeOwned, Serialize};
 use std::time::Duration;
 
@@ -24,11 +26,11 @@ impl CacheService {
         let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
         
         let client = RedisClient::new(
-            Config::from_url(&redis_url),
+            Config::from_url(&redis_url)?,
             None,
             None,
             Some(ReconnectPolicy::default()),
-        )?;
+        );
         
         // Initialize the client
         let _ = client.connect();
@@ -43,11 +45,11 @@ impl CacheService {
     #[cfg(test)]
     pub async fn new(redis_url: &str) -> Result<Self> {
         let client = RedisClient::new(
-            Config::from_url(redis_url),
+            Config::from_url(redis_url)?,
             None,
             None,
             Some(ReconnectPolicy::default()),
-        )?;
+        );
         
         let _ = client.connect();
         client.wait_for_connect().await?;
@@ -84,7 +86,7 @@ impl CacheService {
         let serialized = serde_json::to_string(value)
             .with_context(|| format!("Failed to serialize value for key: {}", key))?;
         
-        self.client.set_ex(key, serialized, ttl.as_secs()).await?;
+        self.client.set::<(), _, _>(key, serialized, Some(Expiration::EX(ttl.as_secs() as i64)), None, false).await?;
         
         tracing::debug!("Cached key: {} with TTL: {:?}", key, ttl);
         Ok(())
@@ -104,7 +106,11 @@ impl CacheService {
 
     /// Clear all cache entries matching a pattern
     pub async fn clear_pattern(&self, pattern: &str) -> Result<u64> {
-        let keys: Vec<String> = self.client.keys(pattern).await?;
+        let mut stream = self.client.scan_buffered(pattern, None, None);
+        let mut keys = Vec::new();
+        while let Some(res) = stream.next().await {
+            keys.push(res?);
+        }
         
         if keys.is_empty() {
             return Ok(0);
