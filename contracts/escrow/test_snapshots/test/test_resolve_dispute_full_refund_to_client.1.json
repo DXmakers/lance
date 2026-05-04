@@ -595,6 +595,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "requires_multisig"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "status"
                       },
                       "val": {
@@ -2148,6 +2156,14 @@
                       "hi": 0,
                       "lo": 8000
                     }
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "requires_multisig"
+                  },
+                  "val": {
+                    "bool": false
                   }
                 },
                 {

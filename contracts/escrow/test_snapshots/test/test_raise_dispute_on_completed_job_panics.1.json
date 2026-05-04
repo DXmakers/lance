@@ -529,6 +529,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "requires_multisig"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "status"
                       },
                       "val": {
@@ -1987,7 +1995,7 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'dispute cannot be raised: job is not in active state' from contract function 'Symbol(obj#601)'"
+                  "string": "caught panic 'dispute cannot be raised: job is not in active state' from contract function 'Symbol(obj#615)'"
                 },
                 {
                   "u64": 1

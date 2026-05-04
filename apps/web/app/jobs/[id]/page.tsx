@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   FileUp,
   ShieldAlert,
+  Wallet,
+  Clock,
+  ArrowRightLeft,
+  Info,
+  ShieldCheck,
+  Zap,
+  Phone,
+  AlertCircle
 } from "lucide-react";
 import { BidList } from "@/components/jobs/bid-list";
 import { SaveJobButton } from "@/components/jobs/save-job-button";
@@ -27,6 +35,18 @@ import { SubmitBidErrorBoundary } from "@/components/jobs/submit-bid-error-bound
 import { SubmitBidModal } from "@/components/jobs/submit-bid-modal";
 import { useAcceptBid } from "@/hooks/use-accept-bid";
 
+function MetadataCard({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+        {label}
+      </p>
+      <p className={`font-mono text-sm font-medium ${accent ? 'text-indigo-600' : 'text-slate-900'}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
 
 export default function JobDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -34,13 +54,11 @@ export default function JobDetailsPage() {
   const workspace = useLiveJobWorkspace(id);
   const { transaction: acceptTransaction } = useAcceptBid();
 
-  // useLiveJobWorkspace provides data and a `refresh()` helper
   const [viewerAddress, setViewerAddress] = useState<string | null>(null);
   const [deliverableLabel, setDeliverableLabel] = useState("");
   const [deliverableLink, setDeliverableLink] = useState("");
   const [deliverableFile, setDeliverableFile] = useState<File | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [proposal, setProposal] = useState<string | null>(null);
 
   useEffect(() => {
     void getConnectedWalletAddress().then(setViewerAddress);
@@ -52,8 +70,6 @@ export default function JobDetailsPage() {
     setViewerAddress(connected);
     return connected;
   }
-
-  
 
 
   async function handleSubmitDeliverable(event: React.FormEvent) {
@@ -162,7 +178,7 @@ export default function JobDetailsPage() {
                 </div>
               </div>
 
-              <div className="mt-8 grid gap-4 border-t border-white/5 pt-8 sm:grid-cols-3">
+              <div className="mt-8 grid gap-4 border-t border-slate-100 pt-8 sm:grid-cols-3">
                 <MetadataCard label="Client" value={shortenAddress(job.client_address)} />
                 <MetadataCard label="Freelancer" value={job.freelancer_address ? shortenAddress(job.freelancer_address) : "Unassigned"} accent={!!job.freelancer_address} />
                 <MetadataCard label="Last Pulse" value={formatDateTime(job.updated_at)} />
@@ -200,58 +216,9 @@ export default function JobDetailsPage() {
                 </div>
               ) : null}
             </div>
-
-            {job.status === "open" ? (
-              <div className="grid gap-8 xl:grid-cols-[1fr_0.95fr]">
-                <section className="rounded-[12px] border border-indigo-500/30 bg-indigo-500/5 p-8 shadow-[0_20px_60px_-48px_rgba(0,0,0,0.8)]">
-                  <h2 className="text-xl font-bold text-white">
-                    Secure This Project
-                  </h2>
-                  <p className="mt-2 text-[13px] leading-relaxed text-zinc-400">
-                    Pitch your technical approach and previous on-chain experience to the client.
-                  </p>
-                  <div className="mt-6">
-                    <SubmitBidErrorBoundary>
-                      <SubmitBidModal
-                        jobId={id}
-                        onChainJobId={BigInt(workspace.job?.on_chain_job_id ?? 0)}
-                        disabled={busyAction !== null}
-                        onSubmitted={workspace.refresh}
-                      />
-                    </SubmitBidErrorBoundary>
-                  </div>
-                </section>
-
-                <section className="rounded-[12px] border border-zinc-800/50 bg-zinc-900/40 p-8 backdrop-blur-md">
-                  <div className="mb-6 flex items-center justify-between gap-4">
-                    <h2 className="text-xl font-bold text-white">
-                      Bids
-                    </h2>
-                    <span className="rounded-full bg-zinc-800/80 px-3 py-1 text-[10px] font-bold text-zinc-500">
-                      {workspace.bids.length} Proposals
-                    </span>
-                  </div>
-                  <BidList
-                    bids={workspace.bids}
-                    isClientOwner={
-                      Boolean(viewerAddress) &&
-                      viewerAddress === workspace.job?.client_address
-                    }
-                    jobStatus={job.status}
-                    acceptingBidId={
-                      busyAction?.startsWith("accept-")
-                        ? busyAction.replace("accept-", "")
-                        : null
-                    }
-                    onAccept={handleAcceptBid}
-                  />
-                </section>
-              </div>
-            ) : <div> p </div>}
           </div>
-          <section/>
 
-          {job.status === "open" ? (
+          {job.status === "open" && (
             <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
               <section className="rounded-[2rem] border border-zinc-700/60 bg-zinc-950/90 p-6 shadow-[0_20px_60px_-48px_rgba(0,0,0,0.8)]">
                 <h2 className="text-xl font-semibold text-zinc-50">
@@ -260,23 +227,23 @@ export default function JobDetailsPage() {
                 <p className="mt-2 text-sm leading-6 text-zinc-300">
                   Pitch your approach, timing, and why your previous work maps cleanly to this brief.
                 </p>
-                {isClientOwner ? (
+                {isClientOwner && (
                   <div className="mt-5 rounded-[1.6rem] border border-slate-700/40 bg-slate-900/80 p-5 text-sm text-slate-200">
                     <p className="font-semibold text-slate-100">Clients cannot submit proposals</p>
                     <p className="mt-2 text-slate-300/90">
                       This job is owned by your account. Freelancers can submit bids and you can accept the strongest proposal from the shortlist.
                     </p>
                   </div>
-                ) : null}
-                {viewerBid ? (
+                )}
+                {viewerBid && (
                   <div className="mt-5 rounded-[1.6rem] border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-100">
                     <p className="font-semibold text-amber-200">Your bid is pending review</p>
                     <p className="mt-2 text-amber-100/90">
                       You have already submitted a proposal for this job. The client is reviewing your pitch and will assign the winning freelancer once a bid is accepted.
                     </p>
                   </div>
-                ) : null}
-                {!isClientOwner ? (
+                )}
+                {!isClientOwner && (
                   <div className="mt-5">
                     <SubmitBidErrorBoundary>
                       <SubmitBidModal
@@ -287,7 +254,7 @@ export default function JobDetailsPage() {
                       />
                     </SubmitBidErrorBoundary>
                   </div>
-                ) : null}
+                )}
               </section>
 
               <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
@@ -302,12 +269,10 @@ export default function JobDetailsPage() {
                 <BidList
                   job={job}
                   bids={workspace.bids}
-                  isClientOwner={
-                    Boolean(viewerAddress) &&
-                    viewerAddress === workspace.job?.client_address
-                  }
+                  isClientOwner={isClientOwner}
+                  onSuccess={workspace.refresh}
                 />
-                {acceptTransaction.step !== "idle" ? (
+                {acceptTransaction.step !== "idle" && (
                   <div className="mt-6 rounded-[1.6rem] border border-indigo-600/20 bg-indigo-950/10 p-5">
                     <h3 className="text-sm font-semibold text-indigo-100">
                       Accept bid transaction
@@ -327,24 +292,21 @@ export default function JobDetailsPage() {
                       />
                     </div>
                   </div>
-                ) : null}
+                )}
               </section>
             </div>
-          ) : null}
+          )}
 
-          {job.status !== "open" ? (
+          {job.status !== "open" && (
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-              <section>
+              <section className="space-y-6">
                 <MilestoneTracker
                   milestones={workspace.milestones}
                   deliverables={workspace.deliverables}
                   jobStatus={job.status}
                   loading={workspace.loading}
-                  isClient={
-                    Boolean(viewerAddress) &&
-                    viewerAddress === job.client_address
-                  }
-                  workflowLocked  ={workflowLocked}
+                  isClient={isClientOwner}
+                  workflowLocked={workflowLocked}
                   busyMilestoneId={
                     busyAction?.startsWith("release-")
                       ? busyAction.replace("release-", "")
@@ -369,80 +331,72 @@ export default function JobDetailsPage() {
                     } finally {
                       setBusyAction(null);
                     }
-                    workflowLocked={workflowLocked}
-                    busyMilestoneId={
-                      busyAction?.startsWith("release-")
-                        ? busyAction.replace("release-", "")
-                        : null
-                    }
-                    onRelease={async (milestoneId) => {
-                      if (!workspace.job) return;
-                      const milestone = workspace.milestones.find(
-                        (m) => m.id === milestoneId,
-                      );
-                      if (!milestone) return;
-                      setBusyAction(`release-${milestoneId}`);
-                      try {
-                        await releaseFunds(
-                          BigInt(workspace.job.on_chain_job_id ?? 0),
-                          Math.max(0, milestone.index - 1),
-                        );
-                        await api.jobs.releaseMilestone(id, milestoneId);
-                        await workspace.refresh();
-                      } catch {
-                        alert("Failed to release milestone");
-                      } finally {
-                        setBusyAction(null);
-                      }
-                    }}
-                  />
-                </section>
+                  }}
+                />
 
-                <section className="rounded-[12px] border border-zinc-800/50 bg-zinc-900/40 p-8 backdrop-blur-md">
+                <section className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <h2 className="text-xl font-bold text-white">
+                      <h2 className="text-xl font-bold text-slate-950">
                         Evidence Submission
                       </h2>
-                      <p className="mt-2 text-[12px] leading-relaxed text-zinc-500">
+                      <p className="mt-2 text-[12px] leading-relaxed text-slate-500">
                         Pin deliverables to IPFS to trigger a formal approval moment.
                       </p>
                     </div>
                     <FileUp className="h-5 w-5 text-indigo-400" />
                   </div>
 
-                {!workflowLocked ? (
-                  <form onSubmit={handleSubmitDeliverable} className="mt-5 space-y-4">
-                    <input
-                      value={deliverableLabel}
-                      onChange={(event) => setDeliverableLabel(event.target.value)}
-                      placeholder="Submission title"
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
-                    />
-                    <input
-                      value={deliverableLink}
-                      onChange={(event) => setDeliverableLink(event.target.value)}
-                      placeholder="GitHub repo, Figma file, hosted ZIP link, or leave blank to upload a file"
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-amber-400"
-                    />
-                    <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                      <FileUp className="h-4 w-4 text-amber-600" />
-                      <span>{deliverableFile ? deliverableFile.name : "Upload ZIP, image, JSON, or PDF evidence"}</span>
-                    </label>
-                    <input
-                      type="file"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) setDeliverableFile(file);
-                      }}
-                      className="hidden"
-                      id="deliverable-file"
-                    />
-                  </form>
-                ) : null}
+                  {!workflowLocked && (
+                    <form onSubmit={handleSubmitDeliverable} className="mt-5 space-y-4">
+                      <input
+                        value={deliverableLabel}
+                        onChange={(event) => setDeliverableLabel(event.target.value)}
+                        placeholder="Submission title"
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-indigo-400"
+                      />
+                      <input
+                        value={deliverableLink}
+                        onChange={(event) => setDeliverableLink(event.target.value)}
+                        placeholder="GitHub repo, Figma file, or hosted ZIP link"
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-950 outline-none transition focus:border-indigo-400"
+                      />
+                      <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        <FileUp className="h-4 w-4 text-indigo-600" />
+                        <span>{deliverableFile ? deliverableFile.name : "Upload ZIP, image, or PDF evidence"}</span>
+                        <input
+                          type="file"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) setDeliverableFile(file);
+                          }}
+                          className="hidden"
+                          id="deliverable-file"
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        disabled={busyAction !== null}
+                        className="w-full rounded-2xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {busyAction === "deliverable" ? "Submitting..." : "Submit Evidence"}
+                      </button>
+                    </form>
+                  )}
+                </section>
               </section>
+
+              <aside className="space-y-6">
+                <div className="rounded-[2rem] border border-slate-200 bg-white/85 p-6 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)]">
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">Budget Details</h3>
+                  <div className="mt-4 flex items-baseline gap-2">
+                    <span className="text-4xl font-bold text-slate-950">{formatUsdc(job.budget_usdc)}</span>
+                    <span className="text-sm font-medium text-slate-500 uppercase">USDC</span>
+                  </div>
+                </div>
+              </aside>
             </div>
-          ) : null}
+          )}
         </div>
       </section>
     </SiteShell>

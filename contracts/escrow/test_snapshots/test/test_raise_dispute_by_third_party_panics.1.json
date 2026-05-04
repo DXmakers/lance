@@ -474,6 +474,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "requires_multisig"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "status"
                       },
                       "val": {
@@ -1641,7 +1649,7 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'unauthorized: only client or freelancer can raise a dispute' from contract function 'Symbol(obj#439)'"
+                  "string": "caught panic 'unauthorized: only client or freelancer can raise a dispute' from contract function 'Symbol(obj#449)'"
                 },
                 {
                   "u64": 1

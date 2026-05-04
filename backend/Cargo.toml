@@ -32,6 +32,8 @@ base64       = "0.22"
 sha2         = "0.10"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 fastrand = "2.4.1"
+fred = { version = "9", features = ["enable-rustls", "i-all"] }
+futures      = { workspace = true }
 hex          = "0.4"
 governor     = { version = "0.6", features = ["std"] }
 futures-util = "0.3"

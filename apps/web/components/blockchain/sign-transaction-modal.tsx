@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { 
   ShieldCheck, 
   X, 
@@ -26,25 +26,25 @@ interface SignTransactionModalProps {
 }
 
 export function SignTransactionModal({ xdr, onConfirm, onCancel }: SignTransactionModalProps) {
-  const [decoded, setDecoded] = useState<DecodedTransaction | null>(null);
-  const [isVisible, setIsVisible] = useState(false);
-  const { network } = useWalletStore();
+  const decoded = useMemo(() => {
+    if (!xdr) return null;
+    try {
+      return decodeTransaction(xdr);
+    } catch (err) {
+      console.error("Failed to decode XDR:", err);
+      return null;
+    }
+  }, [xdr]);
 
   useEffect(() => {
-    if (xdr) {
-      try {
-        const decodedTx = decodeTransaction(xdr);
-        setDecoded(decodedTx);
-        // Small delay to trigger entry animation
-        const timer = setTimeout(() => setIsVisible(true), 10);
-        return () => clearTimeout(timer);
-      } catch (err) {
-        console.error("Failed to decode XDR:", err);
-      }
+    if (xdr && decoded) {
+      // Small delay to trigger entry animation
+      const timer = setTimeout(() => setIsVisible(true), 10);
+      return () => clearTimeout(timer);
     } else {
       setIsVisible(false);
     }
-  }, [xdr]);
+  }, [xdr, decoded]);
 
   if (!xdr || !decoded) return null;
 

@@ -392,6 +392,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "requires_multisig"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "status"
                       },
                       "val": {
