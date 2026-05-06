@@ -1,50 +1,28 @@
-"use client";
-
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Clock, XCircle } from "lucide-react";
 
-export type JobStatus = "pending" | "success" | "failed";
+export type JobStatus = "pending" | "success" | "rejected" | "completed" | "in_progress";
 
-interface StatusBadgeProps extends React.HTMLAttributes<HTMLDivElement> {
+interface StatusBadgeProps {
   status: JobStatus;
-  label?: string;
+  className?: string;
 }
 
-export function StatusBadge({ status, label, className, ...props }: StatusBadgeProps) {
-  const statusConfig = {
-    pending: {
-      color: "border-amber-500/30 bg-amber-500/10 text-amber-500",
-      icon: <Clock className="w-3.5 h-3.5 mr-1.5" />,
-      text: label || "Pending",
-    },
-    success: {
-      color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-500",
-      icon: <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />,
-      text: label || "Success",
-    },
-    failed: {
-      color: "border-red-500/30 bg-red-500/10 text-red-500",
-      icon: <XCircle className="w-3.5 h-3.5 mr-1.5" />,
-      text: label || "Failed",
-    },
+export function StatusBadge({ status, className }: StatusBadgeProps) {
+  const statusConfig: Record<JobStatus, { label: string; bg: string }> = {
+    pending: { label: "Pending", bg: "bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30" },
+    success: { label: "Success", bg: "bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30" },
+    completed: { label: "Completed", bg: "bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30" },
+    rejected: { label: "Rejected", bg: "bg-red-500/20 text-red-500 hover:bg-red-500/30" },
+    in_progress: { label: "In Progress", bg: "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30" },
   };
 
-  const config = statusConfig[status];
+  const config = statusConfig[status] || statusConfig.pending;
 
   return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "rounded-full px-3 py-1 font-inter border shadow-sm backdrop-blur-sm transition-all duration-150",
-        config.color,
-        className
-      )}
-      {...props}
-    >
-      {config.icon}
-      <span className="font-medium tracking-tight text-[13px]">{config.text}</span>
+    <Badge variant="outline" className={cn("border-none capitalize font-medium rounded-full px-2.5 py-0.5 text-xs", config.bg, className)}>
+      {config.label}
     </Badge>
   );
 }

@@ -1,3 +1,5 @@
+pub mod activity;
+pub mod admin;
 pub mod appeals;
 pub mod auth;
 pub mod bids;
@@ -14,7 +16,7 @@ pub mod verdicts;
 use crate::db::AppState;
 use axum::{routing::get, Router};
 
-pub fn api_router() -> Router<AppState> {
+pub fn api_router(_state: AppState) -> Router<AppState> {
     Router::new()
         // health checks — outside versioned prefix so load balancers can reach them
         .route("/health/live", get(health::liveness))
@@ -27,10 +29,12 @@ pub fn api_router() -> Router<AppState> {
             "/v1",
             Router::new()
                 .nest("/jobs", jobs::router())
+                .nest("/activity", activity::router())
                 .nest("/disputes", disputes::router())
                 .nest("/appeals", appeals::router())
                 .nest("/users", users::router())
                 .nest("/auth", auth::router())
-                .nest("/uploads", uploads::router()),
+                .nest("/uploads", uploads::router())
+                .nest("/admin", admin::router()),
         )
 }
