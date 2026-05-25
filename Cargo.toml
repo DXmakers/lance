@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "backend",
     "contracts/escrow",
     "contracts/reputation",
     "contracts/job_registry",
