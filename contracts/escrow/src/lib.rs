@@ -438,19 +438,7 @@ impl EscrowContract {
         Ok(())
     }
 
-    pub fn get_admin(env: Env) -> Result<Address, EscrowError> {
-        env.storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(EscrowError::NotInitialized)
-    }
 
-    pub fn get_agent_judge(env: Env) -> Result<Address, EscrowError> {
-        env.storage()
-            .instance()
-            .get(&DataKey::AgentJudge)
-            .ok_or(EscrowError::NotInitialized)
-    }
 
     pub fn get_job_registry(env: Env) -> Option<Address> {
         env.storage().instance().get(&DataKey::JobRegistry)
