@@ -68,6 +68,24 @@ impl BadgeLevel {
     }
 }
 
+/// Badge tiers keyed in the metadata map.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BadgeTier {
+    Bronze,
+    Silver,
+    Gold,
+    Platinum,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct BadgeMetadataEntry {
+    pub tier: BadgeTier,
+    /// IPFS CID (or any URI) pointing to the badge image / JSON metadata.
+    pub uri: Bytes,
+}
+
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Profile {
@@ -76,6 +94,8 @@ pub struct Profile {
     pub freelancer: RoleMetrics,
     pub is_blacklisted: bool,
     pub metadata_hash: Option<Bytes>,
+    /// Per-tier badge metadata URIs set by the admin.
+    pub badge_metadata: soroban_sdk::Vec<BadgeMetadataEntry>,
 }
 
 impl Profile {
@@ -86,6 +106,7 @@ impl Profile {
             freelancer: RoleMetrics::new(),
             is_blacklisted: false,
             metadata_hash: None,
+            badge_metadata: soroban_sdk::Vec::new(_env),
         }
     }
 }
