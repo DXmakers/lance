@@ -99,14 +99,14 @@ pub struct Profile {
 }
 
 impl Profile {
-    pub fn new(address: Address) -> Self {
+    pub fn new(env: &soroban_sdk::Env, address: Address) -> Self {
         Self {
             address,
             client: RoleMetrics::new(),
             freelancer: RoleMetrics::new(),
             is_blacklisted: false,
             metadata_hash: None,
-            badge_metadata: soroban_sdk::Vec::new(_env),
+            badge_metadata: soroban_sdk::Vec::new(env),
         }
     }
 }
