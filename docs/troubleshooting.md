@@ -323,8 +323,8 @@ For development and debugging, enable verbose logging:
 # Frontend (Next.js)
 export NODE_ENV=development
 
-# Backend (Rust)
-export RUST_LOG=debug
+# Backend (Node.js/Express)
+export NODE_ENV=development
 ```
 
 **What gets logged:**

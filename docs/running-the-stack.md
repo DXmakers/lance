@@ -1,21 +1,18 @@
 # Running the Stack
 
-This guide explains how to run the Lance platform locally, validate background workers, and check system health and sync status.
+This guide explains how to run the Lance platform locally, including the frontend, the new Node.js backend, and the backing databases.
 
 ## What You Are Starting
 
-- Frontend: Next.js app in `apps/web`
-- Backend API: Axum service in `backend`
-- Postgres: backing store for jobs, disputes, and indexer checkpoints
-- Workers:
-  - Judge worker for dispute automation
-  - Soroban indexer worker for ledger event ingestion
+- **Frontend:** Next.js app in `apps/web` (runs on port 3000)
+- **Backend API:** Express.js service in `backend` (runs on port 3001)
+- **Postgres:** Backing store for jobs, users, bids, and disputes.
+- **Redis:** In-memory store for future BullMQ background indexing jobs.
 
 ## Prerequisites
 
 - Node.js 20+
-- Rust stable toolchain
-- Docker (recommended for local Postgres)
+- Docker (required for local Postgres & Redis)
 - A funded Stellar Testnet account if testing real on-chain flows
 
 ## 1. Clone And Install
@@ -24,153 +21,110 @@ This guide explains how to run the Lance platform locally, validate background w
 git clone https://github.com/DXmakers/lance.git
 cd lance
 
+# Install Frontend
 cd apps/web
 npm install
 cd ../..
 
-cargo build -p backend
+# Install Backend
+cd backend
+npm install
+cd ..
 ```
 
 ## 2. Configure Environment
 
-Create backend env file:
-
+**Backend environment:**
 ```bash
 cp backend/.env.example backend/.env
 ```
+Important backend variables:
+- `DATABASE_URL`: Postgres connection string (should point to local Docker instance for dev)
+- `STELLAR_RPC_URL`: Soroban RPC endpoint
+- `JUDGE_AUTHORITY_SECRET`: Signing key used by backend judge/contract actions
+- `PORT`: API Port (default `3001`)
 
-Create web env file:
-
+**Frontend environment:**
 ```bash
 cp apps/web/.env.example apps/web/.env.local
 ```
+Important frontend variables:
+- `NEXT_PUBLIC_API_URL`: Points to the backend (default `http://localhost:3001`)
 
-Important backend variables:
+## 3. Start Local Databases (Postgres & Redis)
 
-- `DATABASE_URL`: Postgres connection string
-- `SOROBAN_RPC_URL` or `STELLAR_RPC_URL`: Soroban RPC endpoint
-- `JUDGE_AUTHORITY_SECRET`: signing key used by backend judge/contract actions
-- `ESCROW_CONTRACT_ID`, `JOB_REGISTRY_CONTRACT_ID`, `REPUTATION_CONTRACT_ID`: deployed contract IDs
-
-## 3. Start Postgres
+Use the provided Docker Compose file to start the required infrastructure in the background:
 
 ```bash
-docker run --rm \
-  --name lance-postgres \
-  -p 5432:5432 \
-  -e POSTGRES_USER=lance \
-  -e POSTGRES_PASSWORD=lance \
-  -e POSTGRES_DB=lance \
-  postgres:16
+docker compose up -d
 ```
+*Note: This starts PostgreSQL on port `5432` and Redis on port `6379`.*
 
-## 4. Start Backend
+## 4. Start the Backend API
 
-In a second terminal:
+In a second terminal, start the Express development server:
 
 ```bash
 cd backend
-cargo run
+npm run dev
 ```
 
-On startup, backend will:
+On startup, `nodemon` will run the TypeScript backend and automatically restart when you save files. You should see:
+`️[server]: Server is running at http://localhost:3001`
 
-- apply SQL migrations
-- start API server on `PORT` (default `3001`)
-- spawn judge worker
-- spawn Soroban indexer worker
+*(Note: The database schema must be initialized. If you haven't yet, run `npx prisma db push` inside the `backend` folder).*
 
-## 5. Start Frontend
+## 5. Start the Frontend
 
-In a third terminal:
+In a third terminal, start the Next.js development server:
 
 ```bash
 cd apps/web
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000` in your browser.
 
-## 6. Health, Readiness, Sync, And Metrics
+## 6. Health and Readiness
 
-All endpoints below are prefixed with `/api` because backend mounts router at `/api`.
-
-- Liveness: `GET /api/health/live`
-- Readiness: `GET /api/health/ready`
-- Aggregate health: `GET /api/health`
-- Indexer sync status: `GET /api/sync-status`
-- Prometheus metrics: `GET /api/metrics`
-
-Examples:
+To check if the backend is successfully connected to the database, ping the health endpoint:
 
 ```bash
-curl -s http://localhost:3001/api/health/live | jq
-curl -s http://localhost:3001/api/health/ready | jq
-curl -s http://localhost:3001/api/health | jq
-curl -s http://localhost:3001/api/sync-status | jq
-curl -s http://localhost:3001/api/metrics
+curl -s http://localhost:3001/health
 ```
 
-`/api/sync-status` includes:
-
-- latest processed ledger
-- latest network ledger (when RPC is reachable)
-- ledger lag
-- configured max allowed lag (`INDEXER_MAX_LEDGER_LAG`, default `5`)
-- RPC reachability details
-
-## 7. Verifying Worker Recovery
-
-To test indexer resilience:
-
-1. Start backend normally.
-2. Temporarily break RPC connectivity (for example, set an invalid `SOROBAN_RPC_URL`).
-3. Confirm retries and backoff in backend logs.
-4. Restore RPC URL.
-5. Confirm worker resumes from checkpoint in `indexer_state` table.
-
-Useful SQL:
-
-```sql
-SELECT id, last_processed_ledger, updated_at FROM indexer_state;
-SELECT COUNT(*) FROM indexed_events;
+Expected output:
+```json
+{"status":"ok","db":"connected"}
 ```
 
-## 8. Monitoring In Docker/Kubernetes
+## 7. Cloud Deployment
 
-### Docker Compose Pattern
+The backend is fully containerized and automated for deployment to **Google Cloud Run** and **Google Cloud SQL**.
 
-- `backend` service
-- `postgres` service
-- optional `prometheus` and `grafana` services scraping `/api/metrics`
+To provision the cloud database and deploy the API:
+```bash
+cd backend
+./setup-cloud-db.sh
+./deploy-gcp.sh
+```
 
-### Kubernetes Runbook Notes
+## 8. Common Local Issues
 
-- Use readiness probe against `/api/health/ready`
-- Use liveness probe against `/api/health/live`
-- Scrape `/api/metrics` via Prometheus annotations or ServiceMonitor
-- Keep only one indexer instance unless leader election is introduced
-- Set resource requests/limits and watch:
-  - event processing rate
-  - error count
-  - sync lag
+- **Wallet Auth Errors ("Invalid Signature"):** Ensure you are using the correct active network in your Freighter wallet (Testnet). The backend verifies signatures by explicitly checking the exact message format.
+- **RPC unreachable:** Verify `STELLAR_RPC_URL` is reachable or wait a few minutes if the public testnet is rate-limiting.
+- **Prisma "Engine" Errors:** If you hit `PrismaClientConstructorValidationError`, ensure your Node version is 20+ and that you ran `npm install` inside the `backend` folder so it has the `@prisma/adapter-pg` dependencies.
+- **Frontend cannot call backend:** Check `NEXT_PUBLIC_API_URL` and ensure the backend is actually running on port `3001`.
 
-## 9. Common Local Issues
+## 9. Suggested Development Workflow
 
-- Sequence mismatch errors: wait briefly and retry transaction flow
-- RPC unreachable: verify `SOROBAN_RPC_URL` and firewall rules
-- DB connection errors: verify `DATABASE_URL` and that Postgres is running
-- Frontend cannot call backend: check CORS and port alignment
-
-## 10. Suggested Development Workflow
-
-1. Run backend and frontend together.
-2. Trigger a job flow from UI.
-3. Watch toast progress and verify explorer links.
-4. Check `/api/sync-status` and `/api/metrics` while processing events.
+1. Run the database via `docker compose`.
+2. Run backend and frontend together using `npm run dev` in their respective folders.
+3. Trigger a job flow from UI.
+4. Watch the `nodemon` backend terminal for `console.log` output.
 5. Run tests before opening PR:
 
 ```bash
-cargo test -p backend
+cd backend && npm run build
 cd apps/web && npm test
 ```
