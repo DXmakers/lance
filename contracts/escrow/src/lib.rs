@@ -125,6 +125,7 @@ pub enum EscrowError {
     MultisigRequired = 13,
     InsufficientSignatures = 14,
     AlreadySigned = 15,
+    ArithmeticOverflow = 16,
 }
 
 #[contracttype]
@@ -490,7 +491,9 @@ impl EscrowContract {
 
         let mut total_milestones_amount = 0i128;
         for m in job.milestones.iter() {
-            total_milestones_amount = total_milestones_amount.saturating_add(m.amount);
+            total_milestones_amount = total_milestones_amount
+                .checked_add(m.amount)
+                .ok_or(EscrowError::ArithmeticOverflow)?;
         }
 
         if total_milestones_amount != amount {
@@ -563,7 +566,15 @@ impl EscrowContract {
         milestone.status = MilestoneStatus::Released;
         job.milestones.set(idx, milestone.clone());
 
-        job.released_amount = job.released_amount.saturating_add(milestone.amount);
+        job.released_amount = job
+            .released_amount
+            .checked_add(milestone.amount)
+            .ok_or(EscrowError::ArithmeticOverflow)?;
+
+        // Idempotency invariant: released can never exceed total
+        if job.released_amount > job.total_amount {
+            return Err(EscrowError::InvalidState);
+        }
 
         let next_status = if job.released_amount == job.total_amount {
             EscrowStatus::Completed
@@ -633,7 +644,17 @@ impl EscrowContract {
         milestone.status = MilestoneStatus::Released;
         job.milestones.set(milestone_index, milestone.clone());
 
-        job.released_amount += milestone.amount;
+        job.released_amount = job
+            .released_amount
+            .checked_add(milestone.amount)
+            .expect("released_amount overflow");
+
+        // Idempotency invariant: released can never exceed total
+        assert!(
+            job.released_amount <= job.total_amount,
+            "double-spend: released exceeds total"
+        );
+
         let next_status = if job.released_amount == job.total_amount {
             EscrowStatus::Completed
         } else {
@@ -791,14 +812,24 @@ impl EscrowContract {
         assert!(job.status == EscrowStatus::Disputed, "job not disputed");
 
         let remaining = job.total_amount - job.released_amount;
-        let total_payout = payee_amount + payer_amount;
+        let total_payout = payee_amount
+            .checked_add(payer_amount)
+            .expect("payout overflow");
         assert!(total_payout <= remaining, "payout exceeds remaining funds");
 
         let next_status = EscrowStatus::Resolved;
         job.status
             .validate_transition(&next_status)
             .expect("invalid state transition");
-        job.released_amount += total_payout;
+        job.released_amount = job
+            .released_amount
+            .checked_add(total_payout)
+            .expect("released_amount overflow");
+        // Idempotency invariant: released can never exceed total
+        assert!(
+            job.released_amount <= job.total_amount,
+            "double-spend: released exceeds total"
+        );
         job.status = next_status;
 
         enter_reentrancy_guard(&env);
@@ -2162,5 +2193,72 @@ mod test {
         assert_eq!(job.status, EscrowStatus::Disputed);
         assert_eq!(job.total_amount, 5000);
         assert_eq!(job.released_amount, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #8)")]
+    fn test_double_release_milestone_is_blocked() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&1u64, &5000i128);
+        cc.deposit(&1u64, &5000i128);
+
+        // First release succeeds
+        cc.release_milestone(&1u64, &client);
+        // Second release: no pending milestones — NoPendingMilestones (#8)
+        cc.release_milestone(&1u64, &client);
+    }
+
+    #[test]
+    fn test_released_amount_matches_transferred_on_sequential_release() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&1u64, &3000i128);
+        cc.add_milestone(&1u64, &3000i128);
+        cc.add_milestone(&1u64, &4000i128);
+        cc.deposit(&1u64, &10000i128);
+
+        let tc = token::Client::new(&env, &token_addr);
+
+        cc.release_milestone(&1u64, &client);
+        let job = cc.get_job(&1u64);
+        assert_eq!(job.released_amount, tc.balance(&freelancer));
+
+        cc.release_milestone(&1u64, &client);
+        let job = cc.get_job(&1u64);
+        assert_eq!(job.released_amount, tc.balance(&freelancer));
+
+        cc.release_milestone(&1u64, &client);
+        let job = cc.get_job(&1u64);
+        assert_eq!(job.released_amount, job.total_amount);
+        assert_eq!(job.released_amount, tc.balance(&freelancer));
     }
 }
