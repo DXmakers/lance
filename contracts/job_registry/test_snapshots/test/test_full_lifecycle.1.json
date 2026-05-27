@@ -46,6 +46,9 @@
                     "hi": 0,
                     "lo": 5000
                   }
+                },
+                {
+                  "u64": 60
                 }
               ]
             }
@@ -72,6 +75,15 @@
                 },
                 {
                   "bytes": "516d50726f706f73616c48617368"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 5000
+                  }
+                },
+                {
+                  "symbol": "USDC"
                 }
               ]
             }
@@ -351,6 +363,25 @@
                       "map": [
                         {
                           "key": {
+                            "symbol": "amount"
+                          },
+                          "val": {
+                            "i128": {
+                              "hi": 0,
+                              "lo": 5000
+                            }
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "currency"
+                          },
+                          "val": {
+                            "symbol": "USDC"
+                          }
+                        },
+                        {
+                          "key": {
                             "symbol": "freelancer"
                           },
                           "val": {
@@ -475,6 +506,14 @@
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "expires_at"
+                      },
+                      "val": {
+                        "u64": 60
                       }
                     },
                     {
@@ -723,6 +762,9 @@
                     "hi": 0,
                     "lo": 5000
                   }
+                },
+                {
+                  "u64": 60
                 }
               ]
             }
@@ -885,6 +927,14 @@
                 },
                 {
                   "key": {
+                    "symbol": "expires_at"
+                  },
+                  "val": {
+                    "u64": 60
+                  }
+                },
+                {
+                  "key": {
                     "symbol": "freelancer"
                   },
                   "val": "void"
@@ -944,6 +994,15 @@
                 },
                 {
                   "bytes": "516d50726f706f73616c48617368"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 5000
+                  }
+                },
+                {
+                  "symbol": "USDC"
                 }
               ]
             }
@@ -1071,6 +1130,25 @@
               "vec": [
                 {
                   "map": [
+                    {
+                      "key": {
+                        "symbol": "amount"
+                      },
+                      "val": {
+                        "i128": {
+                          "hi": 0,
+                          "lo": 5000
+                        }
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "currency"
+                      },
+                      "val": {
+                        "symbol": "USDC"
+                      }
+                    },
                     {
                       "key": {
                         "symbol": "freelancer"
@@ -1273,6 +1351,14 @@
                 },
                 {
                   "key": {
+                    "symbol": "expires_at"
+                  },
+                  "val": {
+                    "u64": 60
+                  }
+                },
+                {
+                  "key": {
                     "symbol": "freelancer"
                   },
                   "val": {
@@ -1294,7 +1380,7 @@
                   "val": {
                     "vec": [
                       {
-                        "symbol": "InProgress"
+                        "symbol": "Assigned"
                       }
                     ]
                   }
@@ -1476,6 +1562,14 @@
                   },
                   "val": {
                     "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "expires_at"
+                  },
+                  "val": {
+                    "u64": 60
                   }
                 },
                 {

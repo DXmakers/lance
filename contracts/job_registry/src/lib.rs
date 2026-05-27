@@ -2,7 +2,7 @@
 
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, log, panic_with_error, symbol_short,
-    Address, Bytes, Env, Vec,
+    Address, Bytes, Env, Symbol, Vec,
 };
 
 const MAX_HASH_LEN: u32 = 96;
@@ -28,6 +28,7 @@ pub enum JobRegistryError {
     InvalidExpiration = 15,
     JobExpired = 16,
     JobNotExpired = 17,
+    InvalidAmount = 18,
 }
 
 #[contracttype]
@@ -52,14 +53,16 @@ pub struct JobRecord {
     pub status: JobStatus,
 }
 
+// Requirement [SC-REG-029]: Multi-currency bid matrix. Each bid carries its own
+// currency identifier and amount alongside the IPFS proposal CID.
 // Requirement [SC-REG-036]: Storage Packing for Bid Struct Instance Allocations.
-// Groups `freelancer` address and `proposal_hash` (IPFS CID) into a single packed struct
-// to minimize Soroban ledger footprint and reduce instance/persistent storage write charges.
 #[contracttype]
 #[derive(Clone)]
 pub struct BidRecord {
     pub freelancer: Address,
     pub proposal_hash: Bytes,
+    pub amount: i128,
+    pub currency: Symbol,
 }
 
 #[contracttype]
@@ -175,10 +178,20 @@ impl JobRegistryContract {
         job_id
     }
 
-    /// Freelancer submits a bid.
-    pub fn submit_bid(env: Env, job_id: u64, freelancer: Address, proposal_hash: Bytes) {
+    /// Freelancer submits a bid with a currency-denominated amount.
+    pub fn submit_bid(
+        env: Env,
+        job_id: u64,
+        freelancer: Address,
+        proposal_hash: Bytes,
+        amount: i128,
+        currency: Symbol,
+    ) {
         ensure_initialized(&env);
         validate_hash(&env, &proposal_hash);
+        if amount <= 0 {
+            panic_with_error!(&env, JobRegistryError::InvalidAmount);
+        }
         freelancer.require_auth();
 
         let key = DataKey::Job(job_id);
@@ -215,6 +228,8 @@ impl JobRegistryContract {
         bids.push_back(BidRecord {
             freelancer: freelancer.clone(),
             proposal_hash,
+            amount,
+            currency,
         });
         env.storage().persistent().set(&bids_key, &bids);
 
@@ -481,7 +496,7 @@ fn post_job_with_id(
 mod test {
     use super::*;
     use soroban_sdk::testutils::{Address as _, Ledger as _};
-    use soroban_sdk::{Address, Bytes, Env};
+    use soroban_sdk::{Address, Bytes, Env, Symbol};
 
     fn setup() -> (
         Env,
@@ -602,7 +617,7 @@ mod test {
         assert_eq!(job.freelancer, None);
 
         let proposal = Bytes::from_slice(&env, b"QmProposalHash");
-        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.submit_bid(&1u64, &freelancer, &proposal, &5000i128, &Symbol::new(&env, "USDC"));
 
         let bids = cc.get_bids(&1u64);
         assert_eq!(bids.len(), 1);
@@ -633,8 +648,8 @@ mod test {
         cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         let proposal = Bytes::from_slice(&env, b"QmProposal");
-        cc.submit_bid(&1u64, &freelancer, &proposal);
-        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.submit_bid(&1u64, &freelancer, &proposal, &5000i128, &Symbol::new(&env, "USDC"));
+        cc.submit_bid(&1u64, &freelancer, &proposal, &5000i128, &Symbol::new(&env, "USDC"));
     }
 
     #[test]
@@ -660,7 +675,7 @@ mod test {
         cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         let proposal = Bytes::from_slice(&env, b"QmProposal");
-        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.submit_bid(&1u64, &freelancer, &proposal, &5000i128, &Symbol::new(&env, "USDC"));
         cc.accept_bid(&1u64, &client, &freelancer);
 
         cc.mark_disputed(&1u64);
@@ -694,7 +709,7 @@ mod test {
         env.ledger().set_timestamp(expires_at + 1);
 
         let proposal = Bytes::from_slice(&env, b"QmProposal");
-        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.submit_bid(&1u64, &freelancer, &proposal, &5000i128, &Symbol::new(&env, "USDC"));
     }
 
     #[test]
@@ -708,7 +723,7 @@ mod test {
         cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         let proposal = Bytes::from_slice(&env, b"QmProposal");
-        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.submit_bid(&1u64, &freelancer, &proposal, &5000i128, &Symbol::new(&env, "USDC"));
 
         env.ledger().set_timestamp(expires_at + 1);
         cc.accept_bid(&1u64, &client, &freelancer);
@@ -754,5 +769,130 @@ mod test {
         cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         cc.get_deliverable(&1u64);
+    }
+
+    // SC-REG-029: Multi-currency bidding matrix tests
+
+    #[test]
+    fn test_submit_bid_stores_currency_and_amount() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        let currency = Symbol::new(&env, "USDC");
+        cc.submit_bid(&1u64, &freelancer, &proposal, &1000i128, &currency);
+
+        let bids = cc.get_bids(&1u64);
+        assert_eq!(bids.len(), 1);
+        let bid = bids.get(0).unwrap();
+        assert_eq!(bid.amount, 1000i128);
+        assert_eq!(bid.currency, currency);
+        assert_eq!(bid.freelancer, freelancer);
+    }
+
+    #[test]
+    fn test_multiple_bids_different_currencies() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+        let freelancer2 = Address::generate(&env);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let p1 = Bytes::from_slice(&env, b"QmProposal1");
+        let p2 = Bytes::from_slice(&env, b"QmProposal2");
+        cc.submit_bid(&1u64, &freelancer, &p1, &1000i128, &Symbol::new(&env, "USDC"));
+        cc.submit_bid(&1u64, &freelancer2, &p2, &2000i128, &Symbol::new(&env, "XLM"));
+
+        let bids = cc.get_bids(&1u64);
+        assert_eq!(bids.len(), 2);
+        assert_eq!(bids.get(0).unwrap().currency, Symbol::new(&env, "USDC"));
+        assert_eq!(bids.get(1).unwrap().currency, Symbol::new(&env, "XLM"));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_submit_bid_zero_amount_panics() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        cc.submit_bid(&1u64, &freelancer, &proposal, &0i128, &Symbol::new(&env, "USDC"));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_submit_bid_negative_amount_panics() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        cc.submit_bid(&1u64, &freelancer, &proposal, &-1i128, &Symbol::new(&env, "USDC"));
+    }
+
+    #[test]
+    fn test_accept_bid_transitions_to_assigned() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        cc.submit_bid(&1u64, &freelancer, &proposal, &1000i128, &Symbol::new(&env, "USDC"));
+        cc.accept_bid(&1u64, &client, &freelancer);
+
+        let job = cc.get_job(&1u64);
+        assert_eq!(job.status, JobStatus::Assigned);
+        assert_eq!(job.freelancer, Some(freelancer));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_non_owner_cannot_accept_bid() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+        let other = Address::generate(&env);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        cc.submit_bid(&1u64, &freelancer, &proposal, &1000i128, &Symbol::new(&env, "USDC"));
+        cc.accept_bid(&1u64, &other, &freelancer);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_submit_bid_on_assigned_job_panics() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+        let freelancer2 = Address::generate(&env);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let p1 = Bytes::from_slice(&env, b"QmProposal1");
+        cc.submit_bid(&1u64, &freelancer, &p1, &1000i128, &Symbol::new(&env, "USDC"));
+        cc.accept_bid(&1u64, &client, &freelancer);
+
+        let p2 = Bytes::from_slice(&env, b"QmProposal2");
+        cc.submit_bid(&1u64, &freelancer2, &p2, &900i128, &Symbol::new(&env, "XLM"));
     }
 }
