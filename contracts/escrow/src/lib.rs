@@ -78,6 +78,7 @@ pub struct EscrowJob {
     pub created_at: u64,
     pub expires_at: u64,
     pub milestones: Vec<Milestone>,
+    pub token_decimals: u32,
     pub requires_multisig: bool,
 }
 
@@ -125,6 +126,7 @@ pub enum EscrowError {
     MultisigRequired = 13,
     InsufficientSignatures = 14,
     AlreadySigned = 15,
+    TokenDecimalsMismatch = 16,
 }
 
 #[contracttype]
@@ -431,6 +433,7 @@ impl EscrowContract {
             created_at: now,
             expires_at,
             milestones: Vec::new(&env),
+            token_decimals: 0,
             requires_multisig: false,
         };
         log!(
@@ -488,9 +491,20 @@ impl EscrowContract {
             return Err(EscrowError::InvalidInput);
         }
 
+        // Query token decimals dynamically; custom assets (USDC=6, XLM=7, etc.) vary
+        let decimals = token::Client::new(&env, &job.token).decimals();
+        job.token_decimals = decimals;
+
+        // Validate milestone amounts are whole units to prevent precision discrepancies
+        let base_unit = 10i128.pow(decimals);
         let mut total_milestones_amount = 0i128;
         for m in job.milestones.iter() {
-            total_milestones_amount = total_milestones_amount.saturating_add(m.amount);
+            if m.amount % base_unit != 0 {
+                return Err(EscrowError::TokenDecimalsMismatch);
+            }
+            total_milestones_amount = total_milestones_amount
+                .checked_add(m.amount)
+                .ok_or(EscrowError::InvalidInput)?;
         }
 
         if total_milestones_amount != amount {
@@ -881,6 +895,14 @@ impl EscrowContract {
         let job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
         Self::bump_job_ttl(&env, &key);
         job
+    }
+
+    /// Retrieve the token decimals stored for a given job (populated during deposit).
+    pub fn get_token_decimals(env: Env, job_id: u64) -> u32 {
+        let key = DataKey::Job(job_id);
+        let job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
+        Self::bump_job_ttl(&env, &key);
+        job.token_decimals
     }
 
     /// Retrieve the status of all milestones for a given job.
@@ -2162,5 +2184,30 @@ mod test {
         assert_eq!(job.status, EscrowStatus::Disputed);
         assert_eq!(job.total_amount, 5000);
         assert_eq!(job.released_amount, 0);
+    }
+
+    #[test]
+    fn test_token_decimals_stored_on_deposit() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&1u64, &5000i128);
+        cc.deposit(&1u64, &5000i128);
+
+        // Stellar asset contract has 7 decimals; verify they are captured during deposit
+        assert_eq!(cc.get_token_decimals(&1u64), 7);
     }
 }
