@@ -28,6 +28,7 @@ pub enum JobRegistryError {
     InvalidExpiration = 15,
     JobExpired = 16,
     JobNotExpired = 17,
+    InvalidCollateral = 18,
 }
 
 #[contracttype]
@@ -39,6 +40,7 @@ pub enum JobStatus {
     Completed,
     Disputed,
     Expired,
+    Defaulted,
 }
 
 #[contracttype]
@@ -60,6 +62,7 @@ pub struct JobRecord {
 pub struct BidRecord {
     pub freelancer: Address,
     pub proposal_hash: Bytes,
+    pub collateral_stroops: i128,
 }
 
 #[contracttype]
@@ -176,9 +179,18 @@ impl JobRegistryContract {
     }
 
     /// Freelancer submits a bid.
-    pub fn submit_bid(env: Env, job_id: u64, freelancer: Address, proposal_hash: Bytes) {
+    pub fn submit_bid(
+        env: Env,
+        job_id: u64,
+        freelancer: Address,
+        proposal_hash: Bytes,
+        collateral_stroops: i128,
+    ) {
         ensure_initialized(&env);
         validate_hash(&env, &proposal_hash);
+        if collateral_stroops < 0 {
+            panic_with_error!(&env, JobRegistryError::InvalidCollateral);
+        }
         freelancer.require_auth();
 
         let key = DataKey::Job(job_id);
@@ -215,10 +227,17 @@ impl JobRegistryContract {
         bids.push_back(BidRecord {
             freelancer: freelancer.clone(),
             proposal_hash,
+            collateral_stroops,
         });
         env.storage().persistent().set(&bids_key, &bids);
 
-        log!(&env, "submit_bid: id {} freelancer {}", job_id, freelancer);
+        log!(
+            &env,
+            "submit_bid: id {} freelancer {} collateral {}",
+            job_id,
+            freelancer,
+            collateral_stroops
+        );
         env.events()
             .publish((symbol_short!("bid"), job_id), freelancer);
     }
@@ -374,6 +393,83 @@ impl JobRegistryContract {
 
         log!(&env, "mark_disputed: id {}", job_id);
         env.events().publish((symbol_short!("dispute"), job_id), ());
+    }
+
+    pub fn enforce_default_slashing(env: Env, job_id: u64, client: Address) -> i128 {
+        ensure_initialized(&env);
+        client.require_auth();
+
+        let key = DataKey::Job(job_id);
+        let mut job: JobRecord = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::JobNotFound));
+
+        // Strict ownership validation: only the job creator can enforce slashing
+        if client != job.client {
+            panic_with_error!(&env, JobRegistryError::Unauthorized);
+        }
+
+        // Must be in Assigned state to default/slash
+        if job.status != JobStatus::Assigned {
+            panic_with_error!(&env, JobRegistryError::InvalidStateTransition);
+        }
+
+        // Must be expired
+        let now = env.ledger().timestamp();
+        if now < job.expires_at {
+            panic_with_error!(&env, JobRegistryError::JobNotExpired);
+        }
+
+        let freelancer = job.freelancer.clone().unwrap_or_else(|| {
+            panic_with_error!(&env, JobRegistryError::Unauthorized)
+        });
+
+        // Find the accepted freelancer's bid to get their collateral amount
+        let bids: Vec<BidRecord> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Bids(job_id))
+            .unwrap_or(Vec::new(&env));
+
+        let mut collateral_stroops: i128 = 0;
+        let mut found = false;
+        for bid in bids.iter() {
+            if bid.freelancer == freelancer {
+                collateral_stroops = bid.collateral_stroops;
+                found = true;
+                break;
+            }
+        }
+
+        if !found {
+            panic_with_error!(&env, JobRegistryError::BidNotFound);
+        }
+
+        // Checked math operations for penalty slashing (100% of collateral)
+        let penalty_bps: i128 = 10_000;
+        let slashed_amount = collateral_stroops
+            .checked_mul(penalty_bps)
+            .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::Overflow))
+            .checked_div(10_000)
+            .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::Overflow));
+
+        // Clean state transition to Defaulted
+        job.status = JobStatus::Defaulted;
+        env.storage().persistent().set(&key, &job);
+
+        log!(
+            &env,
+            "enforce_default_slashing: id {} freelancer {} slashed {}",
+            job_id,
+            freelancer,
+            slashed_amount
+        );
+        env.events()
+            .publish((symbol_short!("slash"), job_id), (freelancer, slashed_amount));
+
+        slashed_amount
     }
 
     pub fn get_job(env: Env, job_id: u64) -> JobRecord {
@@ -602,10 +698,11 @@ mod test {
         assert_eq!(job.freelancer, None);
 
         let proposal = Bytes::from_slice(&env, b"QmProposalHash");
-        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.submit_bid(&1u64, &freelancer, &proposal, &1000i128);
 
         let bids = cc.get_bids(&1u64);
         assert_eq!(bids.len(), 1);
+        assert_eq!(bids.get(0).unwrap().collateral_stroops, 1000i128);
 
         cc.accept_bid(&1u64, &client, &freelancer);
         let job = cc.get_job(&1u64);
@@ -633,8 +730,8 @@ mod test {
         cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         let proposal = Bytes::from_slice(&env, b"QmProposal");
-        cc.submit_bid(&1u64, &freelancer, &proposal);
-        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.submit_bid(&1u64, &freelancer, &proposal, &500i128);
+        cc.submit_bid(&1u64, &freelancer, &proposal, &500i128);
     }
 
     #[test]
@@ -660,7 +757,7 @@ mod test {
         cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         let proposal = Bytes::from_slice(&env, b"QmProposal");
-        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.submit_bid(&1u64, &freelancer, &proposal, &0i128);
         cc.accept_bid(&1u64, &client, &freelancer);
 
         cc.mark_disputed(&1u64);
@@ -694,7 +791,7 @@ mod test {
         env.ledger().set_timestamp(expires_at + 1);
 
         let proposal = Bytes::from_slice(&env, b"QmProposal");
-        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.submit_bid(&1u64, &freelancer, &proposal, &100i128);
     }
 
     #[test]
@@ -708,7 +805,7 @@ mod test {
         cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         let proposal = Bytes::from_slice(&env, b"QmProposal");
-        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.submit_bid(&1u64, &freelancer, &proposal, &200i128);
 
         env.ledger().set_timestamp(expires_at + 1);
         cc.accept_bid(&1u64, &client, &freelancer);
@@ -754,5 +851,105 @@ mod test {
         cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         cc.get_deliverable(&1u64);
+    }
+
+    #[test]
+    fn test_enforce_default_slashing_success() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        cc.submit_bid(&1u64, &freelancer, &proposal, &12345i128);
+
+        cc.accept_bid(&1u64, &client, &freelancer);
+
+        let job = cc.get_job(&1u64);
+        assert_eq!(job.status, JobStatus::Assigned);
+
+        // Advance ledger timestamp to default threshold
+        env.ledger().set_timestamp(expires_at + 1);
+
+        // Client triggers default and gets 100% of collateral slashed
+        let slashed = cc.enforce_default_slashing(&1u64, &client);
+        assert_eq!(slashed, 12345i128);
+
+        let updated_job = cc.get_job(&1u64);
+        assert_eq!(updated_job.status, JobStatus::Defaulted);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_enforce_default_slashing_before_expiration_panics() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        cc.submit_bid(&1u64, &freelancer, &proposal, &100i128);
+        cc.accept_bid(&1u64, &client, &freelancer);
+
+        // Calling enforce default slashing before job expires must fail
+        cc.enforce_default_slashing(&1u64, &client);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_enforce_default_slashing_unauthorized_panics() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        cc.submit_bid(&1u64, &freelancer, &proposal, &200i128);
+        cc.accept_bid(&1u64, &client, &freelancer);
+
+        env.ledger().set_timestamp(expires_at + 1);
+
+        // A third-party address (represented by freelancer here) attempts to default
+        cc.enforce_default_slashing(&1u64, &freelancer);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_enforce_default_slashing_invalid_state_panics() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        cc.submit_bid(&1u64, &freelancer, &proposal, &300i128);
+
+        env.ledger().set_timestamp(expires_at + 1);
+
+        // The job status is Open (not Assigned). Enforce default slashing should fail.
+        cc.enforce_default_slashing(&1u64, &client);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_submit_bid_negative_collateral_panics() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        // Bid with negative collateral must panic
+        cc.submit_bid(&1u64, &freelancer, &proposal, &-100i128);
     }
 }
