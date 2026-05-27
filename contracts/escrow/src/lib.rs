@@ -79,6 +79,7 @@ pub struct EscrowJob {
     pub expires_at: u64,
     pub milestones: Vec<Milestone>,
     pub requires_multisig: bool,
+    pub dispute_deadline: u64, // 0 means no active dispute; set when dispute is raised/opened
 }
 
 #[contracttype]
@@ -125,6 +126,7 @@ pub enum EscrowError {
     MultisigRequired = 13,
     InsufficientSignatures = 14,
     AlreadySigned = 15,
+    DisputeResolutionExpired = 16,
 }
 
 #[contracttype]
@@ -211,6 +213,15 @@ pub struct MultisigSignedEvent {
     pub signed_at: u64,
 }
 
+#[contracttype]
+#[derive(Clone)]
+pub struct DisputeExpiredEvent {
+    pub job_id: u64,
+    pub refunded_to: Address,
+    pub amount: i128,
+    pub expired_at: u64,
+}
+
 fn enter_reentrancy_guard(env: &Env) {
     if env.storage().instance().has(&DataKey::Locked) {
         panic_with_error!(env, EscrowError::ReentrancyDetected);
@@ -231,6 +242,8 @@ impl EscrowContract {
     const INSTANCE_TTL_EXTEND_TO: u32 = 150_000;
     const PERSISTENT_TTL_THRESHOLD: u32 = 50_000;
     const PERSISTENT_TTL_EXTEND_TO: u32 = 150_000;
+    /// 7-day window for agent judge to resolve a dispute after it is raised.
+    const DISPUTE_RESOLUTION_WINDOW: u64 = 7 * 24 * 60 * 60;
 
     fn bump_instance_ttl(env: &Env) {
         env.storage()
@@ -432,6 +445,7 @@ impl EscrowContract {
             expires_at,
             milestones: Vec::new(&env),
             requires_multisig: false,
+            dispute_deadline: 0,
         };
         log!(
             &env,
@@ -688,6 +702,9 @@ impl EscrowContract {
         let next_status = EscrowStatus::Disputed;
         job.status.validate_transition(&next_status)?;
         job.status = next_status;
+        // Stamp deadline so resolve_dispute can enforce the 7-day window
+        job.dispute_deadline =
+            env.ledger().timestamp() + Self::DISPUTE_RESOLUTION_WINDOW;
         log!(&env, "open_dispute: job {}", job_id);
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
@@ -742,6 +759,8 @@ impl EscrowContract {
         let next_status = EscrowStatus::Disputed;
         job.status.validate_transition(&next_status)?;
         job.status = next_status;
+        // Stamp deadline so resolve_dispute can enforce the 7-day window
+        job.dispute_deadline = now + Self::DISPUTE_RESOLUTION_WINDOW;
         log!(&env, "raise_dispute: job {}", job_id);
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
@@ -789,6 +808,12 @@ impl EscrowContract {
         let mut job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
         Self::bump_job_ttl(&env, &key);
         assert!(job.status == EscrowStatus::Disputed, "job not disputed");
+
+        // Enforce strict timeout: resolution must occur within the dispute window
+        let now = env.ledger().timestamp();
+        if job.dispute_deadline > 0 && now > job.dispute_deadline {
+            panic_with_error!(&env, EscrowError::DisputeResolutionExpired);
+        }
 
         let remaining = job.total_amount - job.released_amount;
         let total_payout = payee_amount + payer_amount;
@@ -881,6 +906,74 @@ impl EscrowContract {
         let job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
         Self::bump_job_ttl(&env, &key);
         job
+    }
+
+    /// Returns the dispute resolution deadline (unix timestamp). 0 = no active dispute.
+    pub fn get_dispute_deadline(env: Env, job_id: u64) -> u64 {
+        let key = DataKey::Job(job_id);
+        let job: EscrowJob = env.storage().persistent().get(&key).expect("job not found");
+        Self::bump_job_ttl(&env, &key);
+        job.dispute_deadline
+    }
+
+    /// Admin callable: force-expire an unresolved dispute whose deadline has passed.
+    /// Refunds all remaining locked funds to the client.
+    pub fn expire_dispute(env: Env, job_id: u64) -> Result<(), EscrowError> {
+        Self::bump_instance_ttl(&env);
+        let agent_judge: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::AgentJudge)
+            .ok_or(EscrowError::NotInitialized)?;
+        agent_judge.require_auth();
+
+        let key = DataKey::Job(job_id);
+        let mut job: EscrowJob = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::JobNotFound)?;
+        Self::bump_job_ttl(&env, &key);
+
+        if job.status != EscrowStatus::Disputed {
+            return Err(EscrowError::InvalidState);
+        }
+
+        let now = env.ledger().timestamp();
+        if job.dispute_deadline == 0 || now <= job.dispute_deadline {
+            return Err(EscrowError::InvalidState);
+        }
+
+        let remaining = job.total_amount - job.released_amount;
+        let next_status = EscrowStatus::Refunded;
+        job.status.validate_transition(&next_status)?;
+        job.released_amount = job.total_amount;
+        job.status = next_status;
+
+        enter_reentrancy_guard(&env);
+
+        if remaining > 0 {
+            let token_client = token::Client::new(&env, &job.token);
+            token_client.transfer(&env.current_contract_address(), &job.client, &remaining);
+        }
+
+        log!(&env, "expire_dispute: job {} refunded {}", job_id, remaining);
+        env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
+
+        exit_reentrancy_guard(&env);
+
+        env.events().publish(
+            ("escrow", "DisputeExpired"),
+            DisputeExpiredEvent {
+                job_id,
+                refunded_to: job.client,
+                amount: remaining,
+                expired_at: now,
+            },
+        );
+
+        Ok(())
     }
 
     /// Retrieve the status of all milestones for a given job.
@@ -2162,5 +2255,134 @@ mod test {
         assert_eq!(job.status, EscrowStatus::Disputed);
         assert_eq!(job.total_amount, 5000);
         assert_eq!(job.released_amount, 0);
+    }
+
+    #[test]
+    fn test_dispute_deadline_set_on_raise() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&1u64, &5000i128);
+        cc.deposit(&1u64, &5000i128);
+
+        let ts_before = env.ledger().timestamp();
+        cc.raise_dispute(&1u64, &client);
+
+        let deadline = cc.get_dispute_deadline(&1u64);
+        // Deadline must be 7 days after dispute was raised
+        assert_eq!(deadline, ts_before + 7 * 24 * 60 * 60);
+    }
+
+    #[test]
+    fn test_resolve_before_deadline_succeeds() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&1u64, &6000i128);
+        cc.deposit(&1u64, &6000i128);
+
+        cc.raise_dispute(&1u64, &client);
+
+        // Advance time by 3 days — still within the 7-day window
+        env.ledger().with_mut(|l| l.timestamp += 3 * 24 * 60 * 60);
+
+        // Resolution within the deadline should succeed
+        cc.resolve_dispute(&1u64, &6000i128, &0i128);
+        let job = cc.get_job(&1u64);
+        assert_eq!(job.status, EscrowStatus::Resolved);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #16)")]
+    fn test_resolve_after_deadline_fails() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&1u64, &5000i128);
+        cc.deposit(&1u64, &5000i128);
+
+        cc.raise_dispute(&1u64, &client);
+
+        // Advance past the 7-day window
+        env.ledger().with_mut(|l| l.timestamp += 8 * 24 * 60 * 60);
+
+        // Resolution after deadline must fail with DisputeResolutionExpired (#16)
+        cc.resolve_dispute(&1u64, &5000i128, &0i128);
+    }
+
+    #[test]
+    fn test_expire_dispute_refunds_client_after_deadline() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&1u64, &8000i128);
+        cc.deposit(&1u64, &8000i128);
+
+        let tc = token::Client::new(&env, &token_addr);
+        assert_eq!(tc.balance(&client), 92000);
+
+        cc.raise_dispute(&1u64, &client);
+
+        // Advance past the 7-day window
+        env.ledger().with_mut(|l| l.timestamp += 8 * 24 * 60 * 60);
+
+        // Admin force-expires: client should get full refund
+        cc.expire_dispute(&1u64);
+
+        let job = cc.get_job(&1u64);
+        assert_eq!(job.status, EscrowStatus::Refunded);
+        assert_eq!(tc.balance(&client), 100000);
     }
 }
