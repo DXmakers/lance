@@ -181,6 +181,18 @@ pub struct ReleaseMilestoneEvent {
     pub released_at: u64,
 }
 
+/// Structured release event emitted by both release_milestone and release_funds.
+/// sequence_nonce is a per-job monotonically incrementing counter that lets
+/// off-chain indexers detect duplicate processing attempts.
+#[contracttype]
+#[derive(Clone)]
+pub struct ReleaseEvent {
+    pub job_id: u64,
+    pub released_amount: i128,
+    pub sequence_nonce: u64,
+    pub recipient: Address,
+}
+
 #[contracttype]
 #[derive(Clone)]
 pub struct OpenDisputeEvent {
@@ -307,6 +319,18 @@ impl EscrowContract {
             log!(env, "checked_sub_i128 underflow: {} - {}", a, b);
             EscrowError::InvalidInput
         })
+    }
+
+    /// Increments and returns the per-job release sequence nonce.
+    /// Uses checked arithmetic; panics with ArithmeticOverflow on u64 wrap.
+    fn next_nonce(env: &Env, job_id: u64) -> u64 {
+        let key = DataKey::SequenceNonce(job_id);
+        let current: u64 = env.storage().instance().get(&key).unwrap_or(0u64);
+        let next = current
+            .checked_add(1)
+            .unwrap_or_else(|| panic_with_error!(env, EscrowError::ArithmeticOverflow));
+        env.storage().instance().set(&key, &next);
+        next
     }
 
     fn sync_dispute_to_job_registry(env: &Env, job_id: u64) -> Result<(), EscrowError> {
@@ -750,10 +774,16 @@ impl EscrowContract {
 
         exit_reentrancy_guard(&env);
 
-        // Emit event
+        // Emit structured release event for idempotent off-chain indexers
+        let nonce = Self::next_nonce(&env, job_id);
         env.events().publish(
-            ("escrow", "ReleaseMilestone"),
-            (job_id, idx, milestone.amount, env.ledger().timestamp()),
+            ("escrow", "Release"),
+            ReleaseEvent {
+                job_id,
+                released_amount: milestone.amount,
+                sequence_nonce: nonce,
+                recipient: job.freelancer,
+            },
         );
 
         Ok(())

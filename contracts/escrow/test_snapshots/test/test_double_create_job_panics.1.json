@@ -132,6 +132,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "dispute_deadline"
+                      },
+                      "val": {
+                        "u64": 0
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "expires_at"
                       },
                       "val": {
@@ -191,6 +199,14 @@
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "token_decimals"
+                      },
+                      "val": {
+                        "u32": 0
                       }
                     },
                     {
@@ -416,7 +432,7 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'job already exists' from contract function 'Symbol(obj#47)'"
+                  "string": "caught panic 'job already exists' from contract function 'Symbol(obj#51)'"
                 },
                 {
                   "u64": 1
