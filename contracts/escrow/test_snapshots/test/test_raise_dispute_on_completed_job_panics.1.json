@@ -2063,7 +2063,7 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'dispute cannot be raised: job is not in active state' from contract function 'Symbol(obj#647)'"
+                  "string": "caught panic 'dispute cannot be raised: job is not in active state' from contract function 'Symbol(obj#619)'"
                 },
                 {
                   "u64": 1
