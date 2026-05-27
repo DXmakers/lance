@@ -1,0 +1,519 @@
+/**
+ * transaction.css
+ *
+ * Styling for transaction components with animations and theme support.
+ * Includes monospace typography, high-contrast colors, and smooth animations.
+ */
+
+/* ─── Monospace Typography ─────────────────────────────────────────────────── */
+
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Fira+Code:wght@400;500;600;700&display=swap");
+
+.tx-monospace {
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-feature-settings: "zero" 1;
+}
+
+code,
+pre {
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-feature-settings: "zero" 1;
+}
+
+/* ─── Color Scheme ─────────────────────────────────────────────────────────── */
+
+:root {
+  /* Success colors */
+  --tx-success: #00c853;
+  --tx-success-light: #e8f5e9;
+  --tx-success-dark: #00a040;
+
+  /* Error colors */
+  --tx-error: #d32f2f;
+  --tx-error-light: #ffebee;
+  --tx-error-dark: #b71c1c;
+
+  /* Warning colors */
+  --tx-warning: #ffa726;
+  --tx-warning-light: #fff3e0;
+  --tx-warning-dark: #f57c00;
+
+  /* Neutral colors */
+  --tx-neutral-50: #fafafa;
+  --tx-neutral-100: #f5f5f5;
+  --tx-neutral-200: #eeeeee;
+  --tx-neutral-300: #e0e0e0;
+  --tx-neutral-400: #bdbdbd;
+  --tx-neutral-500: #9e9e9e;
+  --tx-neutral-600: #757575;
+  --tx-neutral-700: #616161;
+  --tx-neutral-800: #424242;
+  --tx-neutral-900: #212121;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tx-neutral-50: #212121;
+    --tx-neutral-100: #424242;
+    --tx-neutral-200: #616161;
+    --tx-neutral-300: #757575;
+    --tx-neutral-400: #9e9e9e;
+    --tx-neutral-500: #bdbdbd;
+    --tx-neutral-600: #e0e0e0;
+    --tx-neutral-700: #eeeeee;
+    --tx-neutral-800: #f5f5f5;
+    --tx-neutral-900: #fafafa;
+  }
+}
+
+/* ─── Progress Tracker Animations ──────────────────────────────────────────── */
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(251, 191, 36, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+  }
+}
+
+@keyframes pulse-subtle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes progress-fill {
+  from {
+    width: 0;
+  }
+}
+
+/* ─── Progress Tracker Styles ──────────────────────────────────────────────── */
+
+.tx-progress-tracker {
+  animation: slide-in 0.3s ease-out;
+}
+
+.tx-progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.tx-progress-circle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  border: 2px solid;
+  transition: all 0.3s ease;
+}
+
+.tx-progress-circle.active {
+  animation: pulse-ring 2s infinite;
+}
+
+.tx-progress-circle.completed {
+  background-color: var(--tx-success-light);
+  border-color: var(--tx-success);
+  color: var(--tx-success);
+}
+
+.tx-progress-circle.active {
+  background-color: var(--tx-warning-light);
+  border-color: var(--tx-warning);
+  color: var(--tx-warning);
+}
+
+.tx-progress-circle.failed {
+  background-color: var(--tx-error-light);
+  border-color: var(--tx-error);
+  color: var(--tx-error);
+}
+
+.tx-progress-circle.pending {
+  background-color: var(--tx-neutral-100);
+  border-color: var(--tx-neutral-300);
+  color: var(--tx-neutral-400);
+}
+
+.tx-progress-bar {
+  height: 0.5rem;
+  width: 100%;
+  border-radius: 9999px;
+  background-color: var(--tx-neutral-200);
+  overflow: hidden;
+  margin-top: 0.75rem;
+}
+
+.tx-progress-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.5s ease;
+  animation: progress-fill 0.5s ease;
+}
+
+.tx-progress-bar-fill.success {
+  background-color: var(--tx-success);
+}
+
+.tx-progress-bar-fill.error {
+  background-color: var(--tx-error);
+}
+
+.tx-progress-bar-fill.active {
+  background-color: var(--tx-warning);
+}
+
+/* ─── Status Indicators ────────────────────────────────────────────────────── */
+
+.tx-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  animation: slide-in 0.3s ease-out;
+}
+
+.tx-status-badge.success {
+  background-color: var(--tx-success-light);
+  color: var(--tx-success-dark);
+  border: 1px solid var(--tx-success);
+}
+
+.tx-status-badge.error {
+  background-color: var(--tx-error-light);
+  color: var(--tx-error-dark);
+  border: 1px solid var(--tx-error);
+}
+
+.tx-status-badge.warning {
+  background-color: var(--tx-warning-light);
+  color: var(--tx-warning-dark);
+  border: 1px solid var(--tx-warning);
+}
+
+.tx-status-badge.info {
+  background-color: var(--tx-neutral-100);
+  color: var(--tx-neutral-700);
+  border: 1px solid var(--tx-neutral-300);
+}
+
+/* ─── Details Card Styles ──────────────────────────────────────────────────── */
+
+.tx-details-card {
+  border-radius: 0.5rem;
+  border: 1px solid var(--tx-neutral-300);
+  background-color: var(--tx-neutral-50);
+  padding: 1rem;
+  animation: slide-in 0.3s ease-out;
+}
+
+.tx-details-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tx-details-field:last-child {
+  margin-bottom: 0;
+}
+
+.tx-details-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tx-neutral-500);
+}
+
+.tx-details-value {
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-size: 0.875rem;
+  color: var(--tx-neutral-800);
+  word-break: break-all;
+  background-color: var(--tx-neutral-100);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  flex: 1;
+}
+
+.tx-details-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.375rem;
+  border: none;
+  background-color: transparent;
+  color: var(--tx-neutral-400);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tx-details-copy-btn:hover {
+  background-color: var(--tx-neutral-200);
+  color: var(--tx-neutral-600);
+}
+
+.tx-details-copy-btn.copied {
+  color: var(--tx-success);
+}
+
+/* ─── Error Display ────────────────────────────────────────────────────────── */
+
+.tx-error-container {
+  border-radius: 0.5rem;
+  border: 1px solid var(--tx-error);
+  background-color: var(--tx-error-light);
+  padding: 1rem;
+  animation: slide-in 0.3s ease-out;
+}
+
+.tx-error-title {
+  font-weight: 600;
+  color: var(--tx-error-dark);
+  margin-bottom: 0.5rem;
+}
+
+.tx-error-message {
+  font-size: 0.875rem;
+  color: var(--tx-error-dark);
+  margin-bottom: 1rem;
+}
+
+.tx-error-suggestions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--tx-error);
+}
+
+.tx-error-suggestion-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tx-error-dark);
+  margin-bottom: 0.5rem;
+}
+
+.tx-error-suggestion-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tx-error-suggestion-item {
+  font-size: 0.875rem;
+  color: var(--tx-error-dark);
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tx-error-suggestion-item::before {
+  content: "•";
+  color: var(--tx-error);
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+/* ─── Button Styles ────────────────────────────────────────────────────────── */
+
+.tx-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tx-btn-primary {
+  background-color: var(--tx-warning);
+  color: white;
+}
+
+.tx-btn-primary:hover {
+  background-color: var(--tx-warning-dark);
+}
+
+.tx-btn-danger {
+  background-color: var(--tx-error);
+  color: white;
+}
+
+.tx-btn-danger:hover {
+  background-color: var(--tx-error-dark);
+}
+
+.tx-btn-secondary {
+  background-color: transparent;
+  color: var(--tx-neutral-700);
+  border: 1px solid var(--tx-neutral-300);
+}
+
+.tx-btn-secondary:hover {
+  background-color: var(--tx-neutral-100);
+}
+
+.tx-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Modal Styles ─────────────────────────────────────────────────────────── */
+
+.tx-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  animation: fade-in 0.2s ease-out;
+}
+
+.tx-modal-content {
+  background-color: var(--tx-neutral-50);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  max-width: 28rem;
+  width: 100%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  animation: slide-in 0.3s ease-out;
+}
+
+.tx-modal-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--tx-neutral-900);
+  margin-bottom: 0.5rem;
+}
+
+.tx-modal-description {
+  font-size: 0.875rem;
+  color: var(--tx-neutral-600);
+  margin-bottom: 1.5rem;
+}
+
+.tx-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+/* ─── Responsive Design ────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .tx-progress-circle {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .tx-details-card {
+    padding: 0.75rem;
+  }
+
+  .tx-details-value {
+    font-size: 0.75rem;
+  }
+
+  .tx-modal-content {
+    margin: 1rem;
+  }
+}
+
+/* ─── Dark Mode Support ────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .tx-details-card {
+    background-color: var(--tx-neutral-100);
+    border-color: var(--tx-neutral-300);
+  }
+
+  .tx-details-value {
+    background-color: var(--tx-neutral-200);
+    color: var(--tx-neutral-700);
+  }
+
+  .tx-error-container {
+    background-color: var(--tx-error-light);
+  }
+
+  .tx-modal-content {
+    background-color: var(--tx-neutral-100);
+  }
+
+  .tx-modal-title {
+    color: var(--tx-neutral-900);
+  }
+
+  .tx-modal-description {
+    color: var(--tx-neutral-600);
+  }
+}
+
+/* ─── Accessibility ────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─── Print Styles ────────────────────────────────────────────────────────── */
+
+@media print {
+  .tx-progress-tracker,
+  .tx-details-card,
+  .tx-error-container {
+    page-break-inside: avoid;
+  }
+}

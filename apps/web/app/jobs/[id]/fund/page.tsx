@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { LoaderCircle, ShieldAlert } from "lucide-react";
 import { SiteShell } from "@/components/site-shell";
 import { api, type Job } from "@/lib/api";
-import { depositEscrow } from "@/lib/contracts";
+import { depositEscrow, getEscrowContractId } from "@/lib/contracts";
 import { formatUsdc } from "@/lib/format";
 import { TransactionPendingNotification } from "@/components/wallet/transaction-pending-notification";
 
@@ -176,6 +176,10 @@ export default function EscrowFundingPage() {
               <div className="flex justify-between gap-4">
                 <span>Contract value</span>
                 <span className="font-medium">{formatUsdc(job.budget_usdc)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span>Escrow contract</span>
+                <span className="font-mono text-xs">{getEscrowContractId() || "Not configured"}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span>Platform fee (2%)</span>
