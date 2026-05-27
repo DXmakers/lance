@@ -141,6 +141,9 @@ pub enum EscrowError {
     DisputeResolutionExpired = 17,
 }
 
+/// Maximum platform fee, in basis points (100% = 10_000 bps).
+pub const MAX_FEE_BPS: u32 = 10_000;
+
 #[contracttype]
 #[derive(Clone)]
 pub struct DisputeRaisedEvent {
@@ -663,12 +666,7 @@ impl EscrowContract {
 
         enter_reentrancy_guard(&env);
 
-        let token_client = token::Client::new(&env, &job.token);
-        token_client.transfer(
-            &env.current_contract_address(),
-            &job.freelancer,
-            &milestone.amount,
-        );
+        Self::payout_with_fee(&env, job_id, &job, milestone.amount);
 
         log!(
             &env,
@@ -747,12 +745,7 @@ impl EscrowContract {
 
         enter_reentrancy_guard(&env);
 
-        let token_client = token::Client::new(&env, &job.token);
-        token_client.transfer(
-            &env.current_contract_address(),
-            &job.freelancer,
-            &milestone.amount,
-        );
+        Self::payout_with_fee(&env, job_id, &job, milestone.amount);
 
         log!(
             &env,
@@ -1335,6 +1328,260 @@ impl EscrowContract {
 
         Ok(config.current_signatures.len() >= config.required_signatures)
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // SC-ESC-001: Admin fee splitting
+    // ─────────────────────────────────────────────────────────────────────
+
+    /// Admin configures the platform treasury and fee (in basis points).
+    /// Once set, milestone releases route `fee_bps` of each payout to the
+    /// treasury and the remainder to the freelancer.
+    pub fn set_fee_config(
+        env: Env,
+        treasury: Address,
+        fee_bps: u32,
+    ) -> Result<(), EscrowError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(EscrowError::NotInitialized)?;
+        admin.require_auth();
+
+        if fee_bps > MAX_FEE_BPS {
+            return Err(EscrowError::FeeTooHigh);
+        }
+
+        env.storage().instance().set(&DataKey::Treasury, &treasury);
+        env.storage().instance().set(&DataKey::FeeBps, &fee_bps);
+        Self::bump_instance_ttl(&env);
+
+        env.events().publish(
+            ("escrow", "FeeConfigUpdated"),
+            FeeConfigUpdatedEvent {
+                treasury,
+                fee_bps,
+                updated_at: env.ledger().timestamp(),
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Returns the active platform fee in basis points (0 when unset).
+    pub fn get_fee_bps(env: Env) -> u32 {
+        Self::fee_bps(&env)
+    }
+
+    /// Returns the configured treasury address, if any.
+    pub fn get_treasury(env: Env) -> Option<Address> {
+        env.storage().instance().get(&DataKey::Treasury)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // SC-ESC-002: Dynamic lockup durations
+    // ─────────────────────────────────────────────────────────────────────
+
+    /// Client sets a custom lockup duration (in seconds) during Setup. The
+    /// job's expiry becomes `created_at + lockup_seconds`. Until expiry the
+    /// client cannot refund (see `refund`).
+    pub fn set_lockup_duration(
+        env: Env,
+        job_id: u64,
+        lockup_seconds: u64,
+    ) -> Result<(), EscrowError> {
+        let key = DataKey::Job(job_id);
+        let mut job: EscrowJob = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::JobNotFound)?;
+        Self::bump_job_ttl(&env, &key);
+
+        job.client.require_auth();
+
+        if job.status != EscrowStatus::Setup {
+            return Err(EscrowError::InvalidState);
+        }
+        if lockup_seconds == 0 {
+            return Err(EscrowError::InvalidInput);
+        }
+
+        let expires_at = job
+            .created_at
+            .checked_add(lockup_seconds)
+            .ok_or(EscrowError::InvalidInput)?;
+        job.expires_at = expires_at;
+
+        env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
+
+        env.events().publish(
+            ("escrow", "LockupUpdated"),
+            LockupUpdatedEvent {
+                job_id,
+                expires_at,
+                updated_at: env.ledger().timestamp(),
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Returns the lockup expiry timestamp for a job.
+    pub fn get_expiry(env: Env, job_id: u64) -> Result<u64, EscrowError> {
+        let key = DataKey::Job(job_id);
+        let job: EscrowJob = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::JobNotFound)?;
+        Ok(job.expires_at)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // SC-ESC-003: Emergency escrow sweep (admin-gated)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /// Emergency sweep of the entire locked balance for a job to a rescue
+    /// address. Only the admin may invoke this. It overrides the active state
+    /// machine and bypasses standard release rules for catastrophic recovery.
+    pub fn emergency_sweep(
+        env: Env,
+        job_id: u64,
+        rescue_address: Address,
+    ) -> Result<(), EscrowError> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(EscrowError::NotInitialized)?;
+        admin.require_auth();
+
+        let key = DataKey::Job(job_id);
+        let mut job: EscrowJob = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::JobNotFound)?;
+        Self::bump_job_ttl(&env, &key);
+
+        let remaining = job
+            .total_amount
+            .checked_sub(job.released_amount)
+            .ok_or(EscrowError::InvalidState)?;
+        if remaining <= 0 {
+            return Err(EscrowError::NothingToSweep);
+        }
+
+        enter_reentrancy_guard(&env);
+
+        // Override the state machine: mark fully released and refunded.
+        job.released_amount = job.total_amount;
+        job.status = EscrowStatus::Refunded;
+
+        let token_client = token::Client::new(&env, &job.token);
+        token_client.transfer(&env.current_contract_address(), &rescue_address, &remaining);
+
+        env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
+
+        exit_reentrancy_guard(&env);
+
+        env.events().publish(
+            ("escrow", "EmergencySweep"),
+            EmergencySweepEvent {
+                job_id,
+                admin,
+                rescue_address,
+                amount: remaining,
+                swept_at: env.ledger().timestamp(),
+            },
+        );
+
+        Ok(())
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // SC-ESC-004: Milestone re-allocation / amendment
+    // ─────────────────────────────────────────────────────────────────────
+
+    /// Mutually amend the remaining (unreleased) milestone structure. Both the
+    /// client and the freelancer must authorize. The sum of the new
+    /// allocations must equal the remaining balance. Amendments are rejected
+    /// once the job is disputed.
+    pub fn amend_milestones(
+        env: Env,
+        job_id: u64,
+        new_amounts: Vec<i128>,
+    ) -> Result<(), EscrowError> {
+        let key = DataKey::Job(job_id);
+        let mut job: EscrowJob = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(EscrowError::JobNotFound)?;
+        Self::bump_job_ttl(&env, &key);
+
+        // Both parties must cryptographically authorize the restructuring.
+        job.client.require_auth();
+        job.freelancer.require_auth();
+
+        // Locked once disputed (or otherwise inactive).
+        if !(job.status == EscrowStatus::Funded || job.status == EscrowStatus::WorkInProgress) {
+            return Err(EscrowError::InvalidState);
+        }
+
+        if new_amounts.is_empty() {
+            return Err(EscrowError::InvalidInput);
+        }
+
+        let mut new_sum: i128 = 0;
+        for amount in new_amounts.iter() {
+            if amount <= 0 {
+                return Err(EscrowError::InvalidInput);
+            }
+            new_sum = new_sum.checked_add(amount).ok_or(EscrowError::InvalidInput)?;
+        }
+
+        let remaining = job
+            .total_amount
+            .checked_sub(job.released_amount)
+            .ok_or(EscrowError::InvalidState)?;
+        if new_sum != remaining {
+            return Err(EscrowError::AmountMismatch);
+        }
+
+        // Preserve already-released milestones; replace the pending set.
+        let mut rebuilt: Vec<Milestone> = Vec::new(&env);
+        for milestone in job.milestones.iter() {
+            if milestone.status == MilestoneStatus::Released {
+                rebuilt.push_back(milestone);
+            }
+        }
+        for amount in new_amounts.iter() {
+            rebuilt.push_back(Milestone {
+                amount,
+                status: MilestoneStatus::Pending,
+            });
+        }
+        job.milestones = rebuilt;
+
+        env.storage().persistent().set(&key, &job);
+        Self::bump_job_ttl(&env, &key);
+
+        env.events().publish(
+            ("escrow", "MilestonesAmended"),
+            MilestonesAmendedEvent {
+                job_id,
+                milestone_count: new_amounts.len(),
+                remaining_amount: remaining,
+                amended_at: env.ledger().timestamp(),
+            },
+        );
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -1555,6 +1802,10 @@ mod test {
             token::Client::new(&env, &token_addr).balance(&client),
             95_000
         );
+
+        // Lockup must elapse before the client can reclaim funds.
+        let expiry = cc.get_expiry(&1u64);
+        env.ledger().with_mut(|li| li.timestamp = expiry + 1);
 
         cc.refund(&1u64, &client);
         let job = cc.get_job(&1u64);
