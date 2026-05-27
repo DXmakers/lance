@@ -1201,7 +1201,7 @@ impl EscrowContract {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::testutils::{Address as _, Ledger as _};
     use soroban_sdk::{token, Address, Env};
 
     fn setup_token(env: &Env, admin: &Address) -> Address {
@@ -2517,7 +2517,7 @@ mod test {
 
         cc.raise_dispute(&1u64, &client);
 
-        env.ledger().with_mut(|l| l.timestamp += 3 * 24 * 60 * 60);
+        env.ledger().set_timestamp(env.ledger().timestamp() + 3 * 24 * 60 * 60);
 
         cc.resolve_dispute(&1u64, &6000i128, &0i128);
         assert_eq!(cc.get_job(&1u64).status, EscrowStatus::Resolved);
@@ -2546,7 +2546,7 @@ mod test {
         cc.deposit(&1u64, &5000i128);
 
         cc.raise_dispute(&1u64, &client);
-        env.ledger().with_mut(|l| l.timestamp += 8 * 24 * 60 * 60);
+        env.ledger().set_timestamp(env.ledger().timestamp() + 8 * 24 * 60 * 60);
 
         cc.resolve_dispute(&1u64, &5000i128, &0i128); // DisputeResolutionExpired (#18)
     }
@@ -2576,7 +2576,7 @@ mod test {
         assert_eq!(tc.balance(&client), 92000);
 
         cc.raise_dispute(&1u64, &client);
-        env.ledger().with_mut(|l| l.timestamp += 8 * 24 * 60 * 60);
+        env.ledger().set_timestamp(env.ledger().timestamp() + 8 * 24 * 60 * 60);
 
         cc.expire_dispute(&1u64);
         assert_eq!(cc.get_job(&1u64).status, EscrowStatus::Refunded);
