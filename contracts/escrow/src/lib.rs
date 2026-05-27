@@ -81,14 +81,22 @@ pub struct EscrowJob {
     pub requires_multisig: bool,
 }
 
+/// Packs admin and agent_judge into a single instance storage entry,
+/// reducing ledger reads from 2 to 1 on every auth-gated call.
+#[contracttype]
+#[derive(Clone)]
+pub struct ContractConfig {
+    pub admin: Address,
+    pub agent_judge: Address,
+}
+
 #[contracttype]
 pub enum DataKey {
     Job(u64),
-    Admin,
-    AgentJudge,
+    Config,       // Replaces separate Admin + AgentJudge keys
     JobRegistry,
     Locked,
-    MultisigConfig(u64), // Per-job multisig configuration
+    MultisigConfig(u64),
 }
 
 #[contracttype]
@@ -125,6 +133,7 @@ pub enum EscrowError {
     MultisigRequired = 13,
     InsufficientSignatures = 14,
     AlreadySigned = 15,
+    ArithmeticOverflow = 16,
 }
 
 #[contracttype]
@@ -278,7 +287,7 @@ impl EscrowContract {
 
     pub fn initialize(env: Env, admin: Address, agent_judge: Address) -> Result<(), EscrowError> {
         // Prevent double initialization
-        if env.storage().instance().has(&DataKey::Admin) {
+        if env.storage().instance().has(&DataKey::Config) {
             return Err(EscrowError::AlreadyInitialized);
         }
 
@@ -287,10 +296,14 @@ impl EscrowContract {
             return Err(EscrowError::InvalidInput);
         }
 
-        env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage()
-            .instance()
-            .set(&DataKey::AgentJudge, &agent_judge);
+        // Pack admin + agent_judge into one instance entry to reduce ledger footprint
+        env.storage().instance().set(
+            &DataKey::Config,
+            &ContractConfig {
+                admin: admin.clone(),
+                agent_judge: agent_judge.clone(),
+            },
+        );
 
         // Emit an initialization event for off-chain consumers and logging
         log!(
@@ -311,21 +324,20 @@ impl EscrowContract {
     /// Admin can update the Agent Judge address.
     /// Admin can update the Agent Judge address.
     pub fn set_agent_judge(env: Env, new_agent_judge: Address) -> Result<(), EscrowError> {
-        let admin: Address = env
+        let mut config: ContractConfig = env
             .storage()
             .instance()
-            .get(&DataKey::Admin)
+            .get(&DataKey::Config)
             .ok_or(EscrowError::NotInitialized)?;
-        // This will panic with Soroban auth error if the signer isn't present; keep that behavior
-        admin.require_auth();
+        config.admin.require_auth();
 
-        if admin == new_agent_judge {
+        if config.admin == new_agent_judge {
             return Err(EscrowError::InvalidInput);
         }
 
-        env.storage()
-            .instance()
-            .set(&DataKey::AgentJudge, &new_agent_judge);
+        let admin = config.admin.clone();
+        config.agent_judge = new_agent_judge.clone();
+        env.storage().instance().set(&DataKey::Config, &config);
 
         // Emit an event for off-chain logging and debugging
         log!(&env, "Agent Judge updated to: {}", new_agent_judge);
@@ -345,11 +357,12 @@ impl EscrowContract {
 
     /// Admin configures the JobRegistry contract address used for cross-contract sync.
     pub fn set_job_registry(env: Env, job_registry: Address) -> Result<(), EscrowError> {
-        let admin: Address = env
+        let config: ContractConfig = env
             .storage()
             .instance()
-            .get(&DataKey::Admin)
+            .get(&DataKey::Config)
             .ok_or(EscrowError::NotInitialized)?;
+        let admin = config.admin;
         admin.require_auth();
 
         env.storage()
@@ -380,13 +393,13 @@ impl EscrowContract {
         Self::bump_instance_ttl(&env);
         caller.require_auth();
 
-        let admin: Address = env
+        let config: ContractConfig = env
             .storage()
             .instance()
-            .get(&DataKey::Admin)
+            .get(&DataKey::Config)
             .ok_or(EscrowError::NotInitialized)?;
 
-        if caller != admin {
+        if caller != config.admin {
             return Err(EscrowError::UpgradeUnauthorized);
         }
 
@@ -490,7 +503,9 @@ impl EscrowContract {
 
         let mut total_milestones_amount = 0i128;
         for m in job.milestones.iter() {
-            total_milestones_amount = total_milestones_amount.saturating_add(m.amount);
+            total_milestones_amount = total_milestones_amount
+                .checked_add(m.amount)
+                .ok_or(EscrowError::ArithmeticOverflow)?;
         }
 
         if total_milestones_amount != amount {
@@ -775,12 +790,12 @@ impl EscrowContract {
     /// `payer_amount`: Amount to return to the client (payer).
     pub fn resolve_dispute(env: Env, job_id: u64, payee_amount: i128, payer_amount: i128) {
         Self::bump_instance_ttl(&env);
-        let agent_judge: Address = env
+        let config: ContractConfig = env
             .storage()
             .instance()
-            .get(&DataKey::AgentJudge)
-            .expect("agent judge not set");
-        agent_judge.require_auth();
+            .get(&DataKey::Config)
+            .expect("not initialized");
+        config.agent_judge.require_auth();
 
         assert!(payee_amount >= 0, "payee_amount must be >= 0");
         assert!(payer_amount >= 0, "payer_amount must be >= 0");
@@ -791,14 +806,19 @@ impl EscrowContract {
         assert!(job.status == EscrowStatus::Disputed, "job not disputed");
 
         let remaining = job.total_amount - job.released_amount;
-        let total_payout = payee_amount + payer_amount;
+        let total_payout = payee_amount
+            .checked_add(payer_amount)
+            .expect("payout overflow");
         assert!(total_payout <= remaining, "payout exceeds remaining funds");
 
         let next_status = EscrowStatus::Resolved;
         job.status
             .validate_transition(&next_status)
             .expect("invalid state transition");
-        job.released_amount += total_payout;
+        job.released_amount = job
+            .released_amount
+            .checked_add(total_payout)
+            .expect("released_amount overflow");
         job.status = next_status;
 
         enter_reentrancy_guard(&env);
@@ -874,6 +894,28 @@ impl EscrowContract {
         );
 
         Ok(())
+    }
+
+    /// Expose admin address for off-chain consumers.
+    pub fn get_admin(env: Env) -> Address {
+        Self::bump_instance_ttl(&env);
+        let config: ContractConfig = env
+            .storage()
+            .instance()
+            .get(&DataKey::Config)
+            .expect("not initialized");
+        config.admin
+    }
+
+    /// Expose agent judge address for off-chain consumers.
+    pub fn get_agent_judge(env: Env) -> Address {
+        Self::bump_instance_ttl(&env);
+        let config: ContractConfig = env
+            .storage()
+            .instance()
+            .get(&DataKey::Config)
+            .expect("not initialized");
+        config.agent_judge
     }
 
     pub fn get_job(env: Env, job_id: u64) -> EscrowJob {
@@ -2162,5 +2204,43 @@ mod test {
         assert_eq!(job.status, EscrowStatus::Disputed);
         assert_eq!(job.total_amount, 5000);
         assert_eq!(job.released_amount, 0);
+    }
+
+    #[test]
+    fn test_instance_config_getters() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+
+        // Both addresses accessible via packed ContractConfig
+        assert_eq!(cc.get_admin(), admin);
+        assert_eq!(cc.get_agent_judge(), agent_judge);
+    }
+
+    #[test]
+    fn test_set_agent_judge_updates_packed_config() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let new_judge = Address::generate(&env);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.set_agent_judge(&new_judge);
+
+        assert_eq!(cc.get_agent_judge(), new_judge);
+        // Admin must remain unchanged
+        assert_eq!(cc.get_admin(), admin);
     }
 }
