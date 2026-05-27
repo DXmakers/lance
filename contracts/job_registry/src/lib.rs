@@ -25,16 +25,20 @@ pub enum JobRegistryError {
     InvalidStateTransition = 12,
     NoDeliverable = 13,
     Overflow = 14,
+    InvalidExpiration = 15,
+    JobExpired = 16,
+    JobNotExpired = 17,
 }
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum JobStatus {
     Open,
-    InProgress,
+    Assigned,
     DeliverableSubmitted,
     Completed,
     Disputed,
+    Expired,
 }
 
 #[contracttype]
@@ -44,9 +48,13 @@ pub struct JobRecord {
     pub freelancer: Option<Address>,
     pub metadata_hash: Bytes,
     pub budget_stroops: i128,
+    pub expires_at: u64,
     pub status: JobStatus,
 }
 
+// Requirement [SC-REG-036]: Storage Packing for Bid Struct Instance Allocations.
+// Groups `freelancer` address and `proposal_hash` (IPFS CID) into a single packed struct
+// to minimize Soroban ledger footprint and reduce instance/persistent storage write charges.
 #[contracttype]
 #[derive(Clone)]
 pub struct BidRecord {
@@ -99,12 +107,19 @@ impl JobRegistryContract {
 
     /// Client posts a job with explicit `job_id`.
     /// `metadata_hash` is expected to contain CID bytes.
-    pub fn post_job(env: Env, job_id: u64, client: Address, hash: Bytes, budget: i128) {
+    pub fn post_job(
+        env: Env,
+        job_id: u64,
+        client: Address,
+        hash: Bytes,
+        budget: i128,
+        expires_at: u64,
+    ) {
         ensure_initialized(&env);
-        validate_job_input(&env, job_id, &hash, budget);
+        validate_job_input(&env, job_id, &hash, budget, expires_at);
 
         client.require_auth();
-        post_job_with_id(&env, job_id, client.clone(), hash, budget);
+        post_job_with_id(&env, job_id, client.clone(), hash, budget, expires_at);
 
         // Keep auto-id monotonic when explicit ids are used.
         let next_job_id = read_next_job_id(&env);
@@ -127,14 +142,20 @@ impl JobRegistryContract {
     }
 
     /// Client posts a job using internal registry index allocation.
-    pub fn post_job_auto(env: Env, client: Address, hash: Bytes, budget: i128) -> u64 {
+    pub fn post_job_auto(
+        env: Env,
+        client: Address,
+        hash: Bytes,
+        budget: i128,
+        expires_at: u64,
+    ) -> u64 {
         ensure_initialized(&env);
 
         let job_id = read_next_job_id(&env);
-        validate_job_input(&env, job_id, &hash, budget);
+        validate_job_input(&env, job_id, &hash, budget, expires_at);
 
         client.require_auth();
-        post_job_with_id(&env, job_id, client.clone(), hash, budget);
+        post_job_with_id(&env, job_id, client.clone(), hash, budget, expires_at);
 
         let next = job_id
             .checked_add(1)
@@ -169,6 +190,11 @@ impl JobRegistryContract {
 
         if job.status != JobStatus::Open {
             panic_with_error!(&env, JobRegistryError::JobNotOpen);
+        }
+
+        let now = env.ledger().timestamp();
+        if now >= job.expires_at {
+            panic_with_error!(&env, JobRegistryError::JobExpired);
         }
 
         let bids_key = DataKey::Bids(job_id);
@@ -213,6 +239,11 @@ impl JobRegistryContract {
             panic_with_error!(&env, JobRegistryError::JobNotOpen);
         }
 
+        let now = env.ledger().timestamp();
+        if now >= job.expires_at {
+            panic_with_error!(&env, JobRegistryError::JobExpired);
+        }
+
         // Requirement [SC-REG-035]: Strict ownership validation.
         // Ensures that only the original job creator/client is authorized to accept a proposal.
         if client != job.client {
@@ -238,7 +269,7 @@ impl JobRegistryContract {
 
         // Requirement [SC-REG-035]: Transition registry state cleanly to 'Assigned' (InProgress).
         job.freelancer = Some(freelancer.clone());
-        job.status = JobStatus::InProgress;
+        job.status = JobStatus::Assigned;
         env.storage().persistent().set(&key, &job);
 
         log!(
@@ -250,6 +281,39 @@ impl JobRegistryContract {
         );
         env.events()
             .publish((symbol_short!("accept"), job_id), freelancer);
+    }
+
+    /// Client cancels an expired job and transitions it to a terminal expired state.
+    pub fn cancel_expired_job(env: Env, job_id: u64, client: Address) {
+        ensure_initialized(&env);
+        client.require_auth();
+
+        let key = DataKey::Job(job_id);
+        let mut job: JobRecord = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::JobNotFound));
+
+        if job.status != JobStatus::Open {
+            panic_with_error!(&env, JobRegistryError::InvalidStateTransition);
+        }
+        if client != job.client {
+            panic_with_error!(&env, JobRegistryError::Unauthorized);
+        }
+
+        let now = env.ledger().timestamp();
+        if now < job.expires_at {
+            panic_with_error!(&env, JobRegistryError::JobNotExpired);
+        }
+
+        job.status = JobStatus::Expired;
+        env.storage().persistent().set(&key, &job);
+        env.storage().persistent().remove(&DataKey::Bids(job_id));
+
+        log!(&env, "cancel_expired_job: id {} client {}", job_id, client);
+        env.events()
+            .publish((symbol_short!("expired"), job_id), client);
     }
 
     /// Freelancer submits deliverable IPFS hash.
@@ -265,7 +329,7 @@ impl JobRegistryContract {
             .get(&key)
             .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::JobNotFound));
 
-        if job.status != JobStatus::InProgress {
+        if job.status != JobStatus::Assigned {
             panic_with_error!(&env, JobRegistryError::InvalidStateTransition);
         }
         if job.freelancer != Some(freelancer.clone()) {
@@ -301,7 +365,7 @@ impl JobRegistryContract {
             .get(&key)
             .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::JobNotFound));
 
-        if job.status != JobStatus::InProgress && job.status != JobStatus::DeliverableSubmitted {
+        if job.status != JobStatus::Assigned && job.status != JobStatus::DeliverableSubmitted {
             panic_with_error!(&env, JobRegistryError::InvalidStateTransition);
         }
 
@@ -359,7 +423,7 @@ fn read_next_job_id(env: &Env) -> u64 {
         .unwrap_or_else(|| panic_with_error!(env, JobRegistryError::NotInitialized))
 }
 
-fn validate_job_input(env: &Env, job_id: u64, hash: &Bytes, budget: i128) {
+fn validate_job_input(env: &Env, job_id: u64, hash: &Bytes, budget: i128, expires_at: u64) {
     if job_id == 0 {
         panic_with_error!(env, JobRegistryError::InvalidJobId);
     }
@@ -367,6 +431,14 @@ fn validate_job_input(env: &Env, job_id: u64, hash: &Bytes, budget: i128) {
         panic_with_error!(env, JobRegistryError::InvalidBudget);
     }
     validate_hash(env, hash);
+    validate_expiration(env, expires_at);
+}
+
+fn validate_expiration(env: &Env, expires_at: u64) {
+    let now = env.ledger().timestamp();
+    if expires_at == 0 || expires_at <= now {
+        panic_with_error!(env, JobRegistryError::InvalidExpiration);
+    }
 }
 
 fn validate_hash(env: &Env, hash: &Bytes) {
@@ -376,7 +448,14 @@ fn validate_hash(env: &Env, hash: &Bytes) {
     }
 }
 
-fn post_job_with_id(env: &Env, job_id: u64, client: Address, hash: Bytes, budget: i128) {
+fn post_job_with_id(
+    env: &Env,
+    job_id: u64,
+    client: Address,
+    hash: Bytes,
+    budget: i128,
+    expires_at: u64,
+) {
     let key = DataKey::Job(job_id);
     if env.storage().persistent().has(&key) {
         panic_with_error!(env, JobRegistryError::JobAlreadyExists);
@@ -387,6 +466,7 @@ fn post_job_with_id(env: &Env, job_id: u64, client: Address, hash: Bytes, budget
         freelancer: None,
         metadata_hash: hash,
         budget_stroops: budget,
+        expires_at,
         status: JobStatus::Open,
     };
     env.storage().persistent().set(&key, &job);
@@ -400,7 +480,7 @@ fn post_job_with_id(env: &Env, job_id: u64, client: Address, hash: Bytes, budget
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::testutils::{Address as _, Ledger as _};
     use soroban_sdk::{Address, Bytes, Env};
 
     fn setup() -> (
@@ -421,6 +501,10 @@ mod test {
         let cc = JobRegistryContractClient::new(&env, &contract_id);
 
         (env, cc, admin, client, freelancer)
+    }
+
+    fn future_expires_at(env: &Env) -> u64 {
+        env.ledger().timestamp() + 60
     }
 
     #[test]
@@ -448,7 +532,8 @@ mod test {
     fn test_post_job_before_initialize_panics() {
         let (env, cc, _admin, client, _) = setup();
         let hash = Bytes::from_slice(&env, b"QmHash");
-        cc.post_job(&1u64, &client, &hash, &5000i128);
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
     }
 
     #[test]
@@ -458,9 +543,11 @@ mod test {
 
         let hash1 = Bytes::from_slice(&env, b"QmHash1");
         let hash2 = Bytes::from_slice(&env, b"QmHash2");
+        let expires_at1 = future_expires_at(&env);
+        let expires_at2 = future_expires_at(&env);
 
-        let id1 = cc.post_job_auto(&client, &hash1, &5000i128);
-        let id2 = cc.post_job_auto(&client, &hash2, &7000i128);
+        let id1 = cc.post_job_auto(&client, &hash1, &5000i128, &expires_at1);
+        let id2 = cc.post_job_auto(&client, &hash2, &7000i128, &expires_at2);
 
         assert_eq!(id1, 1u64);
         assert_eq!(id2, 2u64);
@@ -473,7 +560,8 @@ mod test {
         cc.initialize(&admin);
 
         let hash = Bytes::from_slice(&env, b"QmHash");
-        cc.post_job(&42u64, &client, &hash, &5000i128);
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&42u64, &client, &hash, &5000i128, &expires_at);
 
         assert_eq!(cc.get_next_job_id(), 43u64);
     }
@@ -485,7 +573,8 @@ mod test {
         cc.initialize(&admin);
 
         let hash = Bytes::from_slice(&env, b"QmHash");
-        cc.post_job(&1u64, &client, &hash, &0i128);
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &0i128, &expires_at);
     }
 
     #[test]
@@ -495,7 +584,8 @@ mod test {
         cc.initialize(&admin);
 
         let empty = Bytes::from_slice(&env, b"");
-        cc.post_job(&1u64, &client, &empty, &5000i128);
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &empty, &5000i128, &expires_at);
     }
 
     #[test]
@@ -504,7 +594,8 @@ mod test {
         cc.initialize(&admin);
 
         let hash = Bytes::from_slice(&env, b"QmSomeIPFSHash");
-        cc.post_job(&1u64, &client, &hash, &5000i128);
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         let job = cc.get_job(&1u64);
         assert_eq!(job.status, JobStatus::Open);
@@ -518,7 +609,7 @@ mod test {
 
         cc.accept_bid(&1u64, &client, &freelancer);
         let job = cc.get_job(&1u64);
-        assert_eq!(job.status, JobStatus::InProgress);
+        assert_eq!(job.status, JobStatus::Assigned);
         assert_eq!(job.freelancer, Some(freelancer.clone()));
 
         let deliverable = Bytes::from_slice(&env, b"QmDeliverableHash");
@@ -538,7 +629,8 @@ mod test {
         cc.initialize(&admin);
 
         let hash = Bytes::from_slice(&env, b"QmHash");
-        cc.post_job(&1u64, &client, &hash, &5000i128);
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         let proposal = Bytes::from_slice(&env, b"QmProposal");
         cc.submit_bid(&1u64, &freelancer, &proposal);
@@ -552,18 +644,20 @@ mod test {
         cc.initialize(&admin);
 
         let hash = Bytes::from_slice(&env, b"QmHash");
-        cc.post_job(&1u64, &client, &hash, &5000i128);
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         cc.accept_bid(&1u64, &client, &freelancer);
     }
 
     #[test]
-    fn test_mark_disputed_from_in_progress() {
+    fn test_mark_disputed_from_assigned() {
         let (env, cc, admin, client, freelancer) = setup();
         cc.initialize(&admin);
 
         let hash = Bytes::from_slice(&env, b"QmHash");
-        cc.post_job(&1u64, &client, &hash, &5000i128);
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         let proposal = Bytes::from_slice(&env, b"QmProposal");
         cc.submit_bid(&1u64, &freelancer, &proposal);
@@ -581,9 +675,72 @@ mod test {
         cc.initialize(&admin);
 
         let hash = Bytes::from_slice(&env, b"QmHash");
-        cc.post_job(&1u64, &client, &hash, &5000i128);
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         cc.mark_disputed(&1u64);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_submit_bid_after_expiration_panics() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        env.ledger().set_timestamp(expires_at + 1);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        cc.submit_bid(&1u64, &freelancer, &proposal);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_accept_bid_after_expiration_panics() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        cc.submit_bid(&1u64, &freelancer, &proposal);
+
+        env.ledger().set_timestamp(expires_at + 1);
+        cc.accept_bid(&1u64, &client, &freelancer);
+    }
+
+    #[test]
+    fn test_cancel_expired_job_by_client() {
+        let (env, cc, admin, client, _) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        env.ledger().set_timestamp(expires_at + 1);
+        cc.cancel_expired_job(&1u64, &client);
+
+        let job = cc.get_job(&1u64);
+        assert_eq!(job.status, JobStatus::Expired);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_cancel_expired_job_before_expiration_panics() {
+        let (env, cc, admin, client, _) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        cc.cancel_expired_job(&1u64, &client);
     }
 
     #[test]
@@ -593,7 +750,8 @@ mod test {
         cc.initialize(&admin);
 
         let hash = Bytes::from_slice(&env, b"QmHash");
-        cc.post_job(&1u64, &client, &hash, &5000i128);
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
 
         cc.get_deliverable(&1u64);
     }
