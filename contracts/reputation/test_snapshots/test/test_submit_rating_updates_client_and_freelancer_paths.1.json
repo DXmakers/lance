@@ -244,6 +244,22 @@
                     },
                     {
                       "key": {
+                        "symbol": "client_badge_level"
+                      },
+                      "val": {
+                        "u32": 1
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "client_disputes"
+                      },
+                      "val": {
+                        "u32": 0
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "client_jobs"
                       },
                       "val": {
@@ -264,6 +280,22 @@
                       },
                       "val": {
                         "i32": 5000
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "freelancer_badge_level"
+                      },
+                      "val": {
+                        "u32": 1
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "freelancer_disputes"
+                      },
+                      "val": {
+                        "u32": 0
                       }
                     },
                     {
@@ -352,6 +384,22 @@
                     },
                     {
                       "key": {
+                        "symbol": "client_badge_level"
+                      },
+                      "val": {
+                        "u32": 1
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "client_disputes"
+                      },
+                      "val": {
+                        "u32": 0
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "client_jobs"
                       },
                       "val": {
@@ -372,6 +420,22 @@
                       },
                       "val": {
                         "i32": 5000
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "freelancer_badge_level"
+                      },
+                      "val": {
+                        "u32": 1
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "freelancer_disputes"
+                      },
+                      "val": {
+                        "u32": 0
                       }
                     },
                     {
@@ -1448,6 +1512,22 @@
                 },
                 {
                   "key": {
+                    "symbol": "badge_level"
+                  },
+                  "val": {
+                    "u32": 1
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "disputes"
+                  },
+                  "val": {
+                    "u32": 0
+                  }
+                },
+                {
+                  "key": {
                     "symbol": "reviews"
                   },
                   "val": {
@@ -1822,6 +1902,22 @@
                   },
                   "val": {
                     "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "badge_level"
+                  },
+                  "val": {
+                    "u32": 1
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "disputes"
+                  },
+                  "val": {
+                    "u32": 0
                   }
                 },
                 {
