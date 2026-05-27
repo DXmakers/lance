@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
+import { WalletConnect } from "@/components/wallet-connect";
 
 export function SiteShell({
   eyebrow,
@@ -17,6 +18,11 @@ export function SiteShell({
     <div className="flex flex-col gap-8 pb-8">
       <section className="glass-surface relative overflow-hidden rounded-[2rem] border border-border/60 px-6 py-8 shadow-[0_28px_90px_-56px_rgba(15,23,42,0.65)] sm:px-8">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(226,154,47,0.16),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(13,124,102,0.14),transparent_26%)]" />
+        
+        <div className="relative flex justify-end mb-8">
+           <WalletConnect />
+        </div>
+
         <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
             {eyebrow ? (

@@ -10,11 +10,13 @@ interface WalletState {
   status: WalletStatus;
   network: Networks;
   error: string | null;
+  signingTx: string | null;
 
   setConnection: (address: string, walletId: string) => void;
   setStatus: (status: WalletStatus) => void;
   setError: (error: string | null) => void;
   setNetwork: (network: Networks) => void;
+  setSigningTx: (xdr: string | null) => void;
   disconnect: () => void;
 }
 
@@ -31,6 +33,7 @@ export const useWalletStore = create<WalletState>()(
       status: "disconnected",
       network: (process.env.NEXT_PUBLIC_STELLAR_NETWORK as Networks) ?? Networks.TESTNET,
       error: null,
+      signingTx: null,
 
       setConnection: (address, walletId) =>
         set({ address, walletId, status: "connected", error: null }),
@@ -41,8 +44,10 @@ export const useWalletStore = create<WalletState>()(
 
       setNetwork: (network) => set({ network }),
 
+      setSigningTx: (signingTx) => set({ signingTx }),
+
       disconnect: () =>
-        set({ address: null, walletId: null, status: "disconnected", error: null }),
+        set({ address: null, walletId: null, status: "disconnected", error: null, signingTx: null }),
     }),
     {
       name: "lance-wallet-session",
