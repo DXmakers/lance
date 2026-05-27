@@ -127,9 +127,11 @@ impl JobRegistryContract {
             .get(&bids_key)
             .unwrap_or(Map::new(&env));
 
-        for (_, addr) in bids.iter() {
-            if addr == bidder {
-                panic_with_error!(&env, Error::DuplicateBid);
+        // Requirement [SC-REG-035]: Enforce strict single-bid constraint per freelancer on active jobs.
+        // Loops through the dynamic bid structures mapped from the Job ID to find duplicate submissions.
+        for bid in bids.iter() {
+            if bid.freelancer == freelancer {
+                panic_with_error!(&env, JobRegistryError::BidAlreadySubmitted);
             }
         }
 
@@ -165,11 +167,44 @@ impl JobRegistryContract {
             .get(&key)
             .unwrap_or_else(|| panic_with_error!(&env, Error::JobNotFound));
 
-        job.creator.require_auth();
+        if job.status != JobStatus::Open {
+            panic_with_error!(&env, JobRegistryError::JobNotOpen);
+        }
+
+        // Requirement [SC-REG-035]: Strict ownership validation.
+        // Ensures that only the original job creator/client is authorized to accept a proposal.
+        if client != job.client {
+            panic_with_error!(&env, JobRegistryError::Unauthorized);
+        }
 
         if job.state != JobState::Active {
             panic_with_error!(&env, Error::NotActive);
         }
+        if !found {
+            panic_with_error!(&env, JobRegistryError::BidNotFound);
+        }
+
+        // Requirement [SC-REG-035]: Transition registry state cleanly to 'Assigned' (InProgress).
+        job.freelancer = Some(freelancer.clone());
+        job.status = JobStatus::InProgress;
+        env.storage().persistent().set(&key, &job);
+
+        log!(
+            &env,
+            "accept_bid: id {} client {} freelancer {}",
+            job_id,
+            client,
+            freelancer
+        );
+        env.events()
+            .publish((symbol_short!("accept"), job_id), freelancer);
+    }
+
+    /// Freelancer submits deliverable IPFS hash.
+    pub fn submit_deliverable(env: Env, job_id: u64, freelancer: Address, hash: Bytes) {
+        ensure_initialized(&env);
+        validate_hash(&env, &hash);
+        freelancer.require_auth();
 
         let bids_key = DataKey::JobBids(job_id);
         let bids: Map<u32, Address> = env
