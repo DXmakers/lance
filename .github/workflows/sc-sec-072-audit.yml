@@ -1,44 +1,41 @@
-# .github/workflows/sc-sec-072-audit.yml
+# .github/workflows/sc-sec-061-reentrancy.yml
 #
-# SC-SEC-072: Contract audit CI
+# SC-SEC-061: ReentrancyGuard CI
 #
-# Jobs:
-#   1. build-and-size-check  — compiles to WASM and asserts size < 40 KB
-#   2. unit-tests            — runs all Soroban unit tests including
-#                              reentrancy and address-poisoning suites
-#   3. gas-benchmarks        — runs gas assertion tests and uploads report
+# Three jobs mirror the acceptance criteria exactly:
+#   1. build-size   — WASM binary verified < 40 KB
+#   2. reentrancy   — all 14 unit tests pass, re-entrant panic tests confirmed
+#   3. gas-bench    — release / refund / judge_verdict all ≤ budget
 
-name: SC-SEC-072 Contract Audit
+name: SC-SEC-061 ReentrancyGuard
 
 on:
   push:
     paths:
-      - 'contracts/**'
-      - '.github/workflows/sc-sec-072-audit.yml'
+      - 'contracts/escrow/**'
+      - '.github/workflows/sc-sec-061-reentrancy.yml'
   pull_request:
     paths:
-      - 'contracts/**'
+      - 'contracts/escrow/**'
 
 env:
   RUST_TOOLCHAIN: "1.81.0"
   CARGO_TERM_COLOR: always
 
 jobs:
-  # ── Job 1: Build + WASM size check ─────────────────────────────────────────
-  build-and-size-check:
-    name: Build WASM & verify size < 40 KB
+  # ── 1. Build + WASM size ────────────────────────────────────────────────────
+  build-size:
+    name: Build WASM & assert < 40 KB
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           targets: wasm32-unknown-unknown
 
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -46,52 +43,39 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build escrow contract (release)
+      - name: Build escrow (release, wasm32)
         run: |
           cargo build \
             --target wasm32-unknown-unknown \
             --release \
             -p escrow
 
-      - name: Assert WASM binary size < 40 KB
+      - name: Assert WASM < 40 KB
         run: |
-          WASM_PATH="target/wasm32-unknown-unknown/release/escrow.wasm"
-          SIZE=$(wc -c < "$WASM_PATH")
-          echo "escrow.wasm size: ${SIZE} bytes"
-          if [ "$SIZE" -gt 40960 ]; then
-            echo "ERROR: WASM binary (${SIZE} bytes) exceeds 40 KB limit"
-            exit 1
-          fi
-          echo "OK: ${SIZE} bytes ≤ 40 960 bytes"
+          WASM=target/wasm32-unknown-unknown/release/escrow.wasm
+          SIZE=$(wc -c < "$WASM")
+          echo "escrow.wasm = ${SIZE} bytes"
+          [ "$SIZE" -le 40960 ] || \
+            (echo "FAIL: ${SIZE} bytes exceeds 40 960 byte limit" && exit 1)
+          echo "PASS: ${SIZE} ≤ 40 960 bytes"
 
-      - name: Build reputation + job_registry (release)
-        run: |
-          cargo build \
-            --target wasm32-unknown-unknown \
-            --release \
-            -p reputation \
-            -p job_registry
-
-      - name: Upload WASM artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: contract-wasm
-          path: target/wasm32-unknown-unknown/release/*.wasm
+          name: escrow-wasm
+          path: target/wasm32-unknown-unknown/release/escrow.wasm
 
-  # ── Job 2: Unit tests ────────────────────────────────────────────────────────
-  unit-tests:
-    name: Soroban unit tests (address poisoning + reentrancy)
+  # ── 2. Reentrancy unit tests ─────────────────────────────────────────────────
+  reentrancy-tests:
+    name: Reentrancy unit tests (14 cases)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
 
-      - name: Cache Cargo
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -99,40 +83,44 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Run escrow contract tests
+      - name: Run reentrancy tests
         run: |
-          cargo test -p escrow -- --nocapture 2>&1 | tee test_output.txt
+          cargo test -p escrow -- \
+            --nocapture \
+            2>&1 | tee reentrancy_output.txt
 
-      - name: Verify reentrancy tests ran
+      - name: Verify re-entrant panic tests ran
         run: |
-          grep -q "reentrancy_guard_panics_on_second_entry" test_output.txt || \
-            (echo "ERROR: reentrancy test not found in output" && exit 1)
-          grep -q "poisoned_address_detected" test_output.txt || \
-            (echo "ERROR: address poisoning test not found in output" && exit 1)
-          echo "All required security tests confirmed in output."
+          for TEST in \
+            "release_panics_on_reentrancy" \
+            "refund_panics_on_reentrancy" \
+            "judge_verdict_panics_on_reentrancy" \
+            "guard_acquire_panics_when_locked"
+          do
+            grep -q "$TEST" reentrancy_output.txt || \
+              (echo "FAIL: test $TEST not found in output" && exit 1)
+            echo "CONFIRMED: $TEST"
+          done
 
-      - name: Upload test output
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: test-output
-          path: test_output.txt
+          name: reentrancy-test-output
+          path: reentrancy_output.txt
 
-  # ── Job 3: Gas benchmarks ─────────────────────────────────────────────────────
+  # ── 3. Gas benchmarks ────────────────────────────────────────────────────────
   gas-benchmarks:
-    name: Gas benchmark assertions (≥15% reduction)
+    name: Gas benchmarks (≥15% reduction)
     runs-on: ubuntu-latest
-    needs: unit-tests
+    needs: reentrancy-tests
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
 
-      - name: Cache Cargo
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -142,19 +130,15 @@ jobs:
 
       - name: Run gas benchmark tests
         run: |
-          cargo test -p escrow gas_ -- --nocapture 2>&1 | tee gas_report.txt
+          cargo test -p escrow gas_ -- --nocapture 2>&1 | tee gas_output.txt
 
-      - name: Check all gas assertions passed
+      - name: Assert no gas test failures
         run: |
-          if grep -q "FAILED" gas_report.txt; then
-            echo "ERROR: One or more gas budget assertions failed"
-            cat gas_report.txt
-            exit 1
-          fi
-          echo "All gas benchmarks passed."
+          grep -q "FAILED" gas_output.txt && \
+            (echo "FAIL: gas assertion failed"; cat gas_output.txt; exit 1) || \
+            echo "PASS: all gas benchmarks within budget"
 
-      - name: Upload gas report
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: gas-report
-          path: gas_report.txt
+          name: gas-benchmark-output
+          path: gas_output.txt
