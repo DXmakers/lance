@@ -5,7 +5,6 @@ use soroban_sdk::{
     Bytes, Env, Map,
 };
 
-// TTL constants (in ledgers; ~5s/ledger on Stellar)
 const PERSISTENT_TTL_BUMP: u32 = 535_680; // ~31 days
 const INSTANCE_TTL_BUMP: u32 = 17_280;    // ~1 day
 
@@ -13,15 +12,15 @@ const INSTANCE_TTL_BUMP: u32 = 17_280;    // ~1 day
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum Error {
-    JobAlreadyExists  = 1,
-    JobNotFound       = 2,
-    NotActive         = 3,
-    DeadlinePassed    = 4,
-    Unauthorized      = 5,
-    BidNotFound       = 6,
-    DuplicateBid      = 7,
-    Overflow          = 8,
-    DeadlineInPast    = 9,
+    JobAlreadyExists = 1,
+    JobNotFound      = 2,
+    NotActive        = 3,
+    DeadlinePassed   = 4,
+    Unauthorized     = 5,
+    BidNotFound      = 6,
+    DuplicateBid     = 7,
+    Overflow         = 8,
+    DeadlineInPast   = 9,
 }
 
 #[contracttype]
@@ -32,7 +31,6 @@ pub enum JobState {
     Closed,
 }
 
-/// Core job metadata — stored in Persistent storage.
 #[contracttype]
 #[derive(Clone, Debug)]
 pub struct Job {
@@ -43,14 +41,10 @@ pub struct Job {
     pub accepted_bid_id: Option<u32>,
 }
 
-/// Persistent keys: long-lived job data.
-/// Instance keys: ephemeral bid data, reclaimed on assignment.
 #[contracttype]
 pub enum DataKey {
-    // Persistent
     Job(u32),
-    // Instance
-    JobBids(u32),   // Map<u32, Address>  bid_id -> bidder
+    JobBids(u32),
     BidCounter(u32),
 }
 
@@ -63,8 +57,7 @@ impl JobRegistryContract {
     pub fn create_job(env: Env, job_id: u32, creator: Address, ipfs_cid: Bytes, deadline: u64) {
         creator.require_auth();
 
-        let now = env.ledger().timestamp();
-        if deadline <= now {
+        if deadline <= env.ledger().timestamp() {
             panic_with_error!(&env, Error::DeadlineInPast);
         }
 
@@ -73,43 +66,28 @@ impl JobRegistryContract {
             panic_with_error!(&env, Error::JobAlreadyExists);
         }
 
-        let job = Job {
+        env.storage().persistent().set(&key, &Job {
             creator: creator.clone(),
             ipfs_cid,
             state: JobState::Active,
             deadline,
             accepted_bid_id: None,
-        };
-        env.storage().persistent().set(&key, &job);
-        env.storage()
-            .persistent()
-            .extend_ttl(&key, PERSISTENT_TTL_BUMP, PERSISTENT_TTL_BUMP);
+        });
+        env.storage().persistent().extend_ttl(&key, PERSISTENT_TTL_BUMP, PERSISTENT_TTL_BUMP);
 
-        // Initialise instance bid data for this job.
-        let bids: Map<u32, Address> = Map::new(&env);
-        env.storage()
-            .instance()
-            .set(&DataKey::JobBids(job_id), &bids);
-        env.storage()
-            .instance()
-            .set(&DataKey::BidCounter(job_id), &0u32);
-        env.storage()
-            .instance()
-            .extend_ttl(INSTANCE_TTL_BUMP, INSTANCE_TTL_BUMP);
+        env.storage().instance().set(&DataKey::JobBids(job_id), &Map::<u32, Address>::new(&env));
+        env.storage().instance().set(&DataKey::BidCounter(job_id), &0u32);
+        env.storage().instance().extend_ttl(INSTANCE_TTL_BUMP, INSTANCE_TTL_BUMP);
 
-        env.events()
-            .publish((symbol_short!("job_new"), job_id), creator);
+        env.events().publish((symbol_short!("job_new"), job_id), creator);
     }
 
     /// Freelancer submits a bid. Must be before the deadline and job must be Active.
     pub fn submit_bid(env: Env, job_id: u32, bidder: Address) -> u32 {
         bidder.require_auth();
 
-        let key = DataKey::Job(job_id);
-        let job: Job = env
-            .storage()
-            .persistent()
-            .get(&key)
+        let job: Job = env.storage().persistent()
+            .get(&DataKey::Job(job_id))
             .unwrap_or_else(|| panic_with_error!(&env, Error::JobNotFound));
 
         if job.state != JobState::Active {
@@ -119,97 +97,48 @@ impl JobRegistryContract {
             panic_with_error!(&env, Error::DeadlinePassed);
         }
 
-        // Duplicate check
         let bids_key = DataKey::JobBids(job_id);
-        let mut bids: Map<u32, Address> = env
-            .storage()
-            .instance()
+        let mut bids: Map<u32, Address> = env.storage().instance()
             .get(&bids_key)
             .unwrap_or(Map::new(&env));
 
-        // Requirement [SC-REG-035]: Enforce strict single-bid constraint per freelancer on active jobs.
-        // Loops through the dynamic bid structures mapped from the Job ID to find duplicate submissions.
-        for bid in bids.iter() {
-            if bid.freelancer == freelancer {
-                panic_with_error!(&env, JobRegistryError::BidAlreadySubmitted);
+        for (_, addr) in bids.iter() {
+            if addr == bidder {
+                panic_with_error!(&env, Error::DuplicateBid);
             }
         }
 
         let counter_key = DataKey::BidCounter(job_id);
-        let bid_id: u32 = env
-            .storage()
-            .instance()
-            .get(&counter_key)
-            .unwrap_or(0u32);
-        let next_id = bid_id
+        let next_id = env.storage().instance()
+            .get::<DataKey, u32>(&counter_key)
+            .unwrap_or(0u32)
             .checked_add(1)
             .unwrap_or_else(|| panic_with_error!(&env, Error::Overflow));
 
         bids.set(next_id, bidder.clone());
         env.storage().instance().set(&bids_key, &bids);
         env.storage().instance().set(&counter_key, &next_id);
-        env.storage()
-            .instance()
-            .extend_ttl(INSTANCE_TTL_BUMP, INSTANCE_TTL_BUMP);
+        env.storage().instance().extend_ttl(INSTANCE_TTL_BUMP, INSTANCE_TTL_BUMP);
 
-        env.events()
-            .publish((symbol_short!("bid_new"), job_id), (next_id, bidder));
-
+        env.events().publish((symbol_short!("bid_new"), job_id), (next_id, bidder));
         next_id
     }
 
     /// Creator accepts a bid. Transitions job to Assigned and reclaims instance storage.
     pub fn accept_bid(env: Env, job_id: u32, bid_id: u32) {
         let key = DataKey::Job(job_id);
-        let mut job: Job = env
-            .storage()
-            .persistent()
+        let mut job: Job = env.storage().persistent()
             .get(&key)
             .unwrap_or_else(|| panic_with_error!(&env, Error::JobNotFound));
 
-        if job.status != JobStatus::Open {
-            panic_with_error!(&env, JobRegistryError::JobNotOpen);
-        }
-
-        // Requirement [SC-REG-035]: Strict ownership validation.
-        // Ensures that only the original job creator/client is authorized to accept a proposal.
-        if client != job.client {
-            panic_with_error!(&env, JobRegistryError::Unauthorized);
-        }
+        job.creator.require_auth();
 
         if job.state != JobState::Active {
             panic_with_error!(&env, Error::NotActive);
         }
-        if !found {
-            panic_with_error!(&env, JobRegistryError::BidNotFound);
-        }
-
-        // Requirement [SC-REG-035]: Transition registry state cleanly to 'Assigned' (InProgress).
-        job.freelancer = Some(freelancer.clone());
-        job.status = JobStatus::InProgress;
-        env.storage().persistent().set(&key, &job);
-
-        log!(
-            &env,
-            "accept_bid: id {} client {} freelancer {}",
-            job_id,
-            client,
-            freelancer
-        );
-        env.events()
-            .publish((symbol_short!("accept"), job_id), freelancer);
-    }
-
-    /// Freelancer submits deliverable IPFS hash.
-    pub fn submit_deliverable(env: Env, job_id: u64, freelancer: Address, hash: Bytes) {
-        ensure_initialized(&env);
-        validate_hash(&env, &hash);
-        freelancer.require_auth();
 
         let bids_key = DataKey::JobBids(job_id);
-        let bids: Map<u32, Address> = env
-            .storage()
-            .instance()
+        let bids: Map<u32, Address> = env.storage().instance()
             .get(&bids_key)
             .unwrap_or(Map::new(&env));
 
@@ -217,44 +146,30 @@ impl JobRegistryContract {
             panic_with_error!(&env, Error::BidNotFound);
         }
 
-        // Transition state
         job.state = JobState::Assigned;
         job.accepted_bid_id = Some(bid_id);
         env.storage().persistent().set(&key, &job);
-        env.storage()
-            .persistent()
-            .extend_ttl(&key, PERSISTENT_TTL_BUMP, PERSISTENT_TTL_BUMP);
+        env.storage().persistent().extend_ttl(&key, PERSISTENT_TTL_BUMP, PERSISTENT_TTL_BUMP);
 
-        // ── Storage Reclamation ──────────────────────────────────────────────
-        // Remove all instance keys for this job to reclaim storage fees.
+        // Storage reclamation: purge ephemeral bid data to reclaim fees.
         env.storage().instance().remove(&bids_key);
-        env.storage()
-            .instance()
-            .remove(&DataKey::BidCounter(job_id));
-        // ────────────────────────────────────────────────────────────────────
+        env.storage().instance().remove(&DataKey::BidCounter(job_id));
 
-        env.events()
-            .publish((symbol_short!("accepted"), job_id), bid_id);
+        env.events().publish((symbol_short!("accepted"), job_id), bid_id);
     }
 
-    /// Read a job record.
     pub fn get_job(env: Env, job_id: u32) -> Job {
-        env.storage()
-            .persistent()
+        env.storage().persistent()
             .get(&DataKey::Job(job_id))
             .unwrap_or_else(|| panic_with_error!(&env, Error::JobNotFound))
     }
 
-    /// Read current bids map (only available while job is Active).
     pub fn get_bids(env: Env, job_id: u32) -> Map<u32, Address> {
-        env.storage()
-            .instance()
+        env.storage().instance()
             .get(&DataKey::JobBids(job_id))
             .unwrap_or(Map::new(&env))
     }
 }
-
-// ─── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod test {
@@ -265,9 +180,7 @@ mod test {
     fn setup() -> (Env, JobRegistryContractClient<'static>, Address, Address) {
         let env = Env::default();
         env.mock_all_auths();
-        // Start at a non-zero timestamp so deadline arithmetic is meaningful.
         env.ledger().with_mut(|l| l.timestamp = 1_000_000);
-
         let creator = Address::generate(&env);
         let bidder = Address::generate(&env);
         let contract_id = env.register_contract(None, JobRegistryContract);
@@ -278,8 +191,6 @@ mod test {
     fn cid(env: &Env) -> Bytes {
         Bytes::from_slice(env, b"QmTestCID")
     }
-
-    // ── Happy path ────────────────────────────────────────────────────────────
 
     #[test]
     fn test_create_job_success() {
@@ -295,12 +206,9 @@ mod test {
     fn test_submit_bid_returns_sequential_ids() {
         let (env, cc, creator, bidder) = setup();
         cc.create_job(&1u32, &creator, &cid(&env), &2_000_000u64);
-
         let bidder2 = Address::generate(&env);
-        let id1 = cc.submit_bid(&1u32, &bidder);
-        let id2 = cc.submit_bid(&1u32, &bidder2);
-        assert_eq!(id1, 1u32);
-        assert_eq!(id2, 2u32);
+        assert_eq!(cc.submit_bid(&1u32, &bidder), 1u32);
+        assert_eq!(cc.submit_bid(&1u32, &bidder2), 2u32);
     }
 
     #[test]
@@ -308,15 +216,11 @@ mod test {
         let (env, cc, creator, bidder) = setup();
         cc.create_job(&1u32, &creator, &cid(&env), &2_000_000u64);
         let bid_id = cc.submit_bid(&1u32, &bidder);
-
         cc.accept_bid(&1u32, &bid_id);
-
         let job = cc.get_job(&1u32);
         assert_eq!(job.state, JobState::Assigned);
         assert_eq!(job.accepted_bid_id, Some(bid_id));
     }
-
-    // ── Storage reclamation ───────────────────────────────────────────────────
 
     #[test]
     fn test_instance_keys_removed_after_accept() {
@@ -324,25 +228,12 @@ mod test {
         cc.create_job(&1u32, &creator, &cid(&env), &2_000_000u64);
         let bid_id = cc.submit_bid(&1u32, &bidder);
         cc.accept_bid(&1u32, &bid_id);
-
-        // After reclamation, get_bids returns an empty map (keys gone).
-        let bids = cc.get_bids(&1u32);
-        assert_eq!(bids.len(), 0);
-
-        // Verify directly via env storage that the instance keys are absent.
+        assert_eq!(cc.get_bids(&1u32).len(), 0);
         env.as_contract(&cc.address, || {
-            assert!(!env
-                .storage()
-                .instance()
-                .has(&DataKey::JobBids(1u32)));
-            assert!(!env
-                .storage()
-                .instance()
-                .has(&DataKey::BidCounter(1u32)));
+            assert!(!env.storage().instance().has(&DataKey::JobBids(1u32)));
+            assert!(!env.storage().instance().has(&DataKey::BidCounter(1u32)));
         });
     }
-
-    // ── Edge cases ────────────────────────────────────────────────────────────
 
     #[test]
     #[should_panic(expected = "Error(Contract, #1)")]
@@ -356,7 +247,6 @@ mod test {
     #[should_panic(expected = "Error(Contract, #9)")]
     fn test_deadline_in_past_fails() {
         let (env, cc, creator, _) = setup();
-        // deadline <= current timestamp (1_000_000)
         cc.create_job(&1u32, &creator, &cid(&env), &999_999u64);
     }
 
@@ -365,8 +255,6 @@ mod test {
     fn test_bid_after_deadline_fails() {
         let (env, cc, creator, bidder) = setup();
         cc.create_job(&1u32, &creator, &cid(&env), &1_000_100u64);
-
-        // Advance ledger past deadline
         env.ledger().with_mut(|l| l.timestamp = 1_000_200);
         cc.submit_bid(&1u32, &bidder);
     }
@@ -387,9 +275,7 @@ mod test {
         cc.create_job(&1u32, &creator, &cid(&env), &2_000_000u64);
         let bid_id = cc.submit_bid(&1u32, &bidder);
         cc.accept_bid(&1u32, &bid_id);
-
-        let late_bidder = Address::generate(&env);
-        cc.submit_bid(&1u32, &late_bidder);
+        cc.submit_bid(&1u32, &Address::generate(&env));
     }
 
     #[test]
