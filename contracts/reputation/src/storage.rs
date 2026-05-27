@@ -33,3 +33,18 @@ pub fn write_profile(env: &Env, address: &Address, profile: &Profile) {
         .persistent()
         .extend_ttl(&key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO);
 }
+
+pub fn profile_exists(env: &Env, address: &Address) -> bool {
+    let key = StorageKey::Profile(address.clone());
+    env.storage().persistent().has(&key)
+}
+
+pub fn delete_profile(env: &Env, address: &Address) -> bool {
+    let key = StorageKey::Profile(address.clone());
+    if env.storage().persistent().has(&key) {
+        env.storage().persistent().remove(&key);
+        true
+    } else {
+        false
+    }
+}

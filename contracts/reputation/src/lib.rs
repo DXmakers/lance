@@ -79,6 +79,8 @@ pub enum ReputationError {
     AlreadyReviewed = 6,
     ContractStateError = 7,
     Blacklisted = 8,
+    ProfileNotFound = 9,
+    TransferBlocked = 10,
 }
 
 #[contracttype]
@@ -135,6 +137,21 @@ pub struct BlacklistUpdatedEvent {
     pub client_score: i32,
     pub freelancer_score: i32,
     pub updated_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct TransferBlockedEvent {
+    pub address: Address,
+    pub blocked: bool,
+    pub updated_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct ProfileDeletedEvent {
+    pub address: Address,
+    pub deleted_at: u64,
 }
 
 #[contract]
@@ -619,6 +636,89 @@ impl ReputationContract {
             is_blacklisted: profile.is_blacklisted,
         }
     }
+
+    // ── Issue #408: Transfer Blockers ──────────────────────────────
+
+    pub fn set_transfer_blocked(env: Env, admin: Address, address: Address, blocked: bool) {
+        Self::require_admin(&env, &admin);
+        let mut profile = storage::read_profile_or_default(&env, &address);
+        profile.transfer_blocked = blocked;
+        storage::write_profile(&env, &address, &profile);
+        env.events().publish(
+            ("reputation", "TransferBlocked"),
+            TransferBlockedEvent {
+                address,
+                blocked,
+                updated_at: env.ledger().timestamp(),
+            },
+        );
+        Self::bump_instance_ttl(&env);
+    }
+
+    pub fn is_transfer_blocked(env: Env, address: Address) -> bool {
+        Self::bump_instance_ttl(&env);
+        let profile = storage::read_profile_or_default(&env, &address);
+        profile.transfer_blocked
+    }
+
+    // ── Issue #411: Profile Existence Checkpoint ───────────────────
+
+    pub fn profile_exists(env: Env, address: Address) -> bool {
+        Self::bump_instance_ttl(&env);
+        storage::profile_exists(&env, &address)
+    }
+
+    // ── Issue #412: Storage Rent Rebate on Delete ──────────────────
+
+    pub fn delete_profile(env: Env, admin: Address, address: Address) -> bool {
+        Self::require_admin(&env, &admin);
+        let deleted = storage::delete_profile(&env, &address);
+        if deleted {
+            env.events().publish(
+                ("reputation", "ProfileDeleted"),
+                ProfileDeletedEvent {
+                    address,
+                    deleted_at: env.ledger().timestamp(),
+                },
+            );
+        }
+        Self::bump_instance_ttl(&env);
+        deleted
+    }
+
+    // ── Issue #413: Bulk Reputation Lookups ────────────────────────
+
+    pub fn get_scores_bulk(
+        env: Env,
+        addresses: Vec<Address>,
+        role: Role,
+    ) -> Vec<ReputationScore> {
+        Self::bump_instance_ttl(&env);
+        let mut results = Vec::new(&env);
+        for addr in addresses.iter() {
+            let profile = storage::read_profile_or_default(&env, &addr);
+            results.push_back(Self::score_from_profile(&addr, role.clone(), &profile));
+        }
+        results
+    }
+
+    pub fn query_reputations_bulk(
+        env: Env,
+        addresses: Vec<Address>,
+    ) -> Vec<ReputationView> {
+        Self::bump_instance_ttl(&env);
+        let mut results = Vec::new(&env);
+        for addr in addresses.iter() {
+            let profile = storage::read_profile_or_default(&env, &addr);
+            results.push_back(ReputationView {
+                address: addr.clone(),
+                client: Self::score_from_profile(&addr, Role::Client, &profile),
+                freelancer: Self::score_from_profile(&addr, Role::Freelancer, &profile),
+                is_blacklisted: profile.is_blacklisted,
+            });
+        }
+        results
+    }
 }
 
 #[cfg(test)]
@@ -969,5 +1069,207 @@ mod test {
         client.initialize(&admin);
         let wasm_hash = BytesN::from_array(&env, &[0; 32]);
         client.upgrade(&attacker, &wasm_hash);
+    }
+
+    // ── Issue #408: Transfer Blockers ──────────────────────────────
+
+    #[test]
+    fn test_transfer_blocked_by_default() {
+        let env = Env::default();
+        let address = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        assert!(client.is_transfer_blocked(&address));
+    }
+
+    #[test]
+    fn test_admin_can_toggle_transfer_block() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let address = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+        assert!(client.is_transfer_blocked(&address));
+
+        client.set_transfer_blocked(&admin, &address, &false);
+        assert!(!client.is_transfer_blocked(&address));
+
+        client.set_transfer_blocked(&admin, &address, &true);
+        assert!(client.is_transfer_blocked(&address));
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_non_admin_cannot_toggle_transfer_block() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let attacker = Address::generate(&env);
+        let address = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+        client.set_transfer_blocked(&attacker, &address, &false);
+    }
+
+    // ── Issue #411: Profile Existence Checkpoint ───────────────────
+
+    #[test]
+    fn test_profile_exists_returns_false_for_unknown() {
+        let env = Env::default();
+        let address = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        assert!(!client.profile_exists(&address));
+    }
+
+    #[test]
+    fn test_profile_exists_returns_true_after_rating() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let job_client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let registry_id = env.register_contract(None, MockJobRegistry);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+        client.set_job_registry(&admin, &registry_id);
+        setup_job(&env, &registry_id, 50, &job_client, &freelancer);
+
+        assert!(!client.profile_exists(&freelancer));
+        client.submit_rating(&job_client, &50, &freelancer, &5);
+        assert!(client.profile_exists(&freelancer));
+    }
+
+    // ── Issue #412: Storage Rent Rebate on Delete ──────────────────
+
+    #[test]
+    fn test_delete_profile_removes_storage() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let job_client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let registry_id = env.register_contract(None, MockJobRegistry);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+        client.set_job_registry(&admin, &registry_id);
+        setup_job(&env, &registry_id, 60, &job_client, &freelancer);
+
+        client.submit_rating(&job_client, &60, &freelancer, &5);
+        assert!(client.profile_exists(&freelancer));
+
+        let deleted = client.delete_profile(&admin, &freelancer);
+        assert!(deleted);
+        assert!(!client.profile_exists(&freelancer));
+    }
+
+    #[test]
+    fn test_delete_nonexistent_profile_returns_false() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let address = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+        let deleted = client.delete_profile(&admin, &address);
+        assert!(!deleted);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_delete_profile_requires_admin() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let attacker = Address::generate(&env);
+        let address = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+        client.delete_profile(&attacker, &address);
+    }
+
+    // ── Issue #413: Bulk Reputation Lookups ────────────────────────
+
+    #[test]
+    fn test_get_scores_bulk_empty() {
+        let env = Env::default();
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        let addresses = Vec::new(&env);
+        let results = client.get_scores_bulk(&addresses, &Role::Freelancer);
+        assert_eq!(results.len(), 0);
+    }
+
+    #[test]
+    fn test_get_scores_bulk_returns_defaults_for_unknown() {
+        let env = Env::default();
+        let a = Address::generate(&env);
+        let b = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        let mut addresses = Vec::new(&env);
+        addresses.push_back(a.clone());
+        addresses.push_back(b.clone());
+
+        let results = client.get_scores_bulk(&addresses, &Role::Freelancer);
+        assert_eq!(results.len(), 2);
+        assert_eq!(results.get_unchecked(0).score, 5_000);
+        assert_eq!(results.get_unchecked(1).score, 5_000);
+    }
+
+    #[test]
+    fn test_query_reputations_bulk() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let job_client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let registry_id = env.register_contract(None, MockJobRegistry);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+        client.set_job_registry(&admin, &registry_id);
+        setup_job(&env, &registry_id, 70, &job_client, &freelancer);
+        client.submit_rating(&job_client, &70, &freelancer, &4);
+
+        let mut addresses = Vec::new(&env);
+        addresses.push_back(freelancer.clone());
+        addresses.push_back(job_client.clone());
+
+        let results = client.query_reputations_bulk(&addresses);
+        assert_eq!(results.len(), 2);
+
+        let freelancer_view = results.get_unchecked(0);
+        assert_eq!(freelancer_view.freelancer.score, 8_000);
+        assert_eq!(freelancer_view.freelancer.total_jobs, 1);
+
+        let client_view = results.get_unchecked(1);
+        assert_eq!(client_view.client.score, 5_000);
+        assert_eq!(client_view.client.total_jobs, 0);
     }
 }
