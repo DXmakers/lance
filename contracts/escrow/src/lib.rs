@@ -150,10 +150,15 @@ pub enum EscrowError {
     UpgradeAdminNotSet = 18,
     ArithmeticOverflow = 19,
     DisputeResolutionExpired = 20,
+    MaxMilestonesExceeded = 21,
 }
 
 /// Maximum platform fee, in basis points (100% = 10_000 bps).
 pub const MAX_FEE_BPS: u32 = 10_000;
+
+/// Maximum number of milestones allowed per escrow job.
+/// Prevents unbounded storage growth and keeps WASM execution within block limits.
+pub const MAX_MILESTONES: u32 = 12;
 
 #[contracttype]
 #[derive(Clone)]
@@ -604,6 +609,11 @@ impl EscrowContract {
         }
         if amount <= 0 {
             return Err(EscrowError::InvalidInput);
+        }
+
+        // Enforce maximum milestone partition count
+        if job.milestones.len() >= MAX_MILESTONES {
+            return Err(EscrowError::MaxMilestonesExceeded);
         }
 
         job.milestones.push_back(Milestone {
@@ -3144,5 +3154,66 @@ mod test {
         let config = cc.get_multisig_config(&1u64);
         assert_eq!(config.required_signatures, 2);
         assert_eq!(config.signers.len(), 2);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SC-ESC-016: Enforce Limit Restrictions on Maximum Milestone Partition Counts
+    // ─────────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_add_milestones_up_to_limit_succeeds() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+
+        // Adding exactly MAX_MILESTONES (12) should succeed
+        for _ in 0..MAX_MILESTONES {
+            cc.add_milestone(&1u64, &100i128);
+        }
+
+        let job = cc.get_job(&1u64);
+        assert_eq!(job.milestones.len(), MAX_MILESTONES);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #21)")]
+    fn test_add_milestones_limit_exceeded() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+
+        // Fill up to the max
+        for _ in 0..MAX_MILESTONES {
+            cc.add_milestone(&1u64, &100i128);
+        }
+
+        // The 13th milestone must fail with MaxMilestonesExceeded (#21)
+        cc.add_milestone(&1u64, &100i128);
     }
 }
