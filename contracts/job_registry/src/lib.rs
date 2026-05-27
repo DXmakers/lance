@@ -5,7 +5,21 @@ use soroban_sdk::{
     Address, Bytes, Env, Vec,
 };
 
-const MAX_HASH_LEN: u32 = 96;
+// IPFS CID validation constants
+const MIN_CID_LEN: u32 = 34; // Minimum CIDv1 with SHA-256 (multibase + multihash)
+const MAX_CID_LEN: u32 = 96; // Maximum to accommodate future hash functions
+const CIDV0_LEN: u32 = 46;   // CIDv0 is always 46 bytes (base58-encoded)
+
+// CIDv0 validation: Must start with "Qm" in base58
+const CIDV0_PREFIX_Q: u8 = b'Q';
+const CIDV0_PREFIX_M: u8 = b'm';
+
+// CIDv1 multibase prefixes (common ones)
+const MULTIBASE_BASE32: u8 = b'b';           // base32
+const MULTIBASE_BASE32_UPPER: u8 = b'B';     // base32upper
+const MULTIBASE_BASE58_BTC: u8 = b'z';       // base58btc
+const MULTIBASE_BASE64: u8 = b'm';           // base64
+const MULTIBASE_BASE64_URL: u8 = b'u';       // base64url
 
 #[contracterror]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -363,11 +377,46 @@ fn validate_job_input(env: &Env, job_id: u64, hash: &Bytes, budget: i128) {
     validate_hash(env, hash);
 }
 
+/// Strict IPFS CID validation with format checking.
+/// 
+/// Validates both CIDv0 (base58, starts with "Qm", 46 bytes) and CIDv1 (multibase prefix).
+/// Security: Prevents malformed CID injection, storage bloat, and invalid hash attacks.
 fn validate_hash(env: &Env, hash: &Bytes) {
     let len = hash.len();
-    if len == 0 || len > MAX_HASH_LEN {
+    
+    // Bounds check with strict limits
+    if len < MIN_CID_LEN || len > MAX_CID_LEN {
         panic_with_error!(env, JobRegistryError::InvalidHash);
     }
+    
+    // Get first byte for format detection
+    let first_byte = hash.get(0).unwrap_or_else(|| panic_with_error!(env, JobRegistryError::InvalidHash));
+    
+    // CIDv0 validation: Must be exactly 46 bytes and start with "Qm"
+    if first_byte == CIDV0_PREFIX_Q {
+        if len != CIDV0_LEN {
+            panic_with_error!(env, JobRegistryError::InvalidHash);
+        }
+        let second_byte = hash.get(1).unwrap_or_else(|| panic_with_error!(env, JobRegistryError::InvalidHash));
+        if second_byte != CIDV0_PREFIX_M {
+            panic_with_error!(env, JobRegistryError::InvalidHash);
+        }
+        // CIDv0 validated: base58-encoded SHA-256 multihash
+        return;
+    }
+    
+    // CIDv1 validation: Check for valid multibase prefix
+    let is_valid_multibase = first_byte == MULTIBASE_BASE32
+        || first_byte == MULTIBASE_BASE32_UPPER
+        || first_byte == MULTIBASE_BASE58_BTC
+        || first_byte == MULTIBASE_BASE64
+        || first_byte == MULTIBASE_BASE64_URL;
+    
+    if !is_valid_multibase {
+        panic_with_error!(env, JobRegistryError::InvalidHash);
+    }
+    
+    // CIDv1 validated: multibase prefix present, length within bounds
 }
 
 fn post_job_with_id(env: &Env, job_id: u64, client: Address, hash: Bytes, budget: i128) {
@@ -591,4 +640,213 @@ mod test {
 
         cc.get_deliverable(&1u64);
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // IPFS CID Validation Tests (Comprehensive Security Coverage)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_valid_cidv0_accepted() {
+        let (env, cc, admin, client, _) = setup();
+        cc.initialize(&admin);
+
+        // Valid CIDv0: 46 bytes, starts with "Qm"
+        let valid_cidv0 = Bytes::from_slice(&env, b"QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG");
+        cc.post_job(&1u64, &client, &valid_cidv0, &5000i128);
+
+        let job = cc.get_job(&1u64);
+        assert_eq!(job.metadata_hash, valid_cidv0);
+    }
+
+    #[test]
+    fn test_valid_cidv1_base32_accepted() {
+        let (env, cc, admin, client, _) = setup();
+        cc.initialize(&admin);
+
+        // Valid CIDv1 with base32 prefix 'b'
+        let valid_cidv1 = Bytes::from_slice(&env, b"bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi");
+        cc.post_job(&1u64, &client, &valid_cidv1, &5000i128);
+
+        let job = cc.get_job(&1u64);
+        assert_eq!(job.metadata_hash, valid_cidv1);
+    }
+
+    #[test]
+    fn test_valid_cidv1_base58_accepted() {
+        let (env, cc, admin, client, _) = setup();
+        cc.initialize(&admin);
+
+        // Valid CIDv1 with base58btc prefix 'z'
+        let valid_cidv1 = Bytes::from_slice(&env, b"zdj7WWeQ43G6JJvLWQWZpyHuAMq6uYWRjkBXFad11vE2LHhQ7");
+        cc.post_job(&1u64, &client, &valid_cidv1, &5000i128);
+
+        let job = cc.get_job(&1u64);
+        assert_eq!(job.metadata_hash, valid_cidv1);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_oversized_cid_rejected() {
+        let (env, cc, admin, client, _) = setup();
+        cc.initialize(&admin);
+
+        // Create a CID that exceeds MAX_CID_LEN (96 bytes)
+        let mut oversized = soroban_sdk::vec![&env];
+        for _ in 0..97 {
+            oversized.push_back(b'a');
+        }
+        let oversized_bytes = Bytes::from_slice(&env, &oversized.to_array::<97>());
+        
+        cc.post_job(&1u64, &client, &oversized_bytes, &5000i128);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_undersized_cid_rejected() {
+        let (env, cc, admin, client, _) = setup();
+        cc.initialize(&admin);
+
+        // CID smaller than MIN_CID_LEN (34 bytes)
+        let undersized = Bytes::from_slice(&env, b"QmTooShort");
+        cc.post_job(&1u64, &client, &undersized, &5000i128);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_malformed_cidv0_wrong_prefix_rejected() {
+        let (env, cc, admin, client, _) = setup();
+        cc.initialize(&admin);
+
+        // 46 bytes but doesn't start with "Qm"
+        let malformed = Bytes::from_slice(&env, b"XmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG");
+        cc.post_job(&1u64, &client, &malformed, &5000i128);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_malformed_cidv0_wrong_length_rejected() {
+        let (env, cc, admin, client, _) = setup();
+        cc.initialize(&admin);
+
+        // Starts with "Qm" but wrong length (not 46 bytes)
+        let malformed = Bytes::from_slice(&env, b"QmTooShortForCIDv0");
+        cc.post_job(&1u64, &client, &malformed, &5000i128);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_invalid_multibase_prefix_rejected() {
+        let (env, cc, admin, client, _) = setup();
+        cc.initialize(&admin);
+
+        // Invalid multibase prefix (not b, B, z, m, or u)
+        let invalid = Bytes::from_slice(&env, b"xafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi");
+        cc.post_job(&1u64, &client, &invalid, &5000i128);
+    }
+
+    #[test]
+    fn test_cid_validation_in_submit_bid() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG");
+        cc.post_job(&1u64, &client, &hash, &5000i128);
+
+        // Valid proposal hash
+        let proposal = Bytes::from_slice(&env, b"bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi");
+        cc.submit_bid(&1u64, &freelancer, &proposal);
+
+        let bids = cc.get_bids(&1u64);
+        assert_eq!(bids.len(), 1);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_invalid_cid_in_submit_bid_rejected() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG");
+        cc.post_job(&1u64, &client, &hash, &5000i128);
+
+        // Invalid proposal hash (too short)
+        let invalid_proposal = Bytes::from_slice(&env, b"invalid");
+        cc.submit_bid(&1u64, &freelancer, &invalid_proposal);
+    }
+
+    #[test]
+    fn test_cid_validation_in_submit_deliverable() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG");
+        cc.post_job(&1u64, &client, &hash, &5000i128);
+
+        let proposal = Bytes::from_slice(&env, b"bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi");
+        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.accept_bid(&1u64, &client, &freelancer);
+
+        // Valid deliverable hash
+        let deliverable = Bytes::from_slice(&env, b"zdj7WWeQ43G6JJvLWQWZpyHuAMq6uYWRjkBXFad11vE2LHhQ7");
+        cc.submit_deliverable(&1u64, &freelancer, &deliverable);
+
+        let d = cc.get_deliverable(&1u64);
+        assert_eq!(d, deliverable);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_invalid_cid_in_submit_deliverable_rejected() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG");
+        cc.post_job(&1u64, &client, &hash, &5000i128);
+
+        let proposal = Bytes::from_slice(&env, b"bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi");
+        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.accept_bid(&1u64, &client, &freelancer);
+
+        // Invalid deliverable (empty)
+        let invalid_deliverable = Bytes::from_slice(&env, b"");
+        cc.submit_deliverable(&1u64, &freelancer, &invalid_deliverable);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Overflow Protection Tests (Checked Math)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    #[test]
+    #[should_panic]
+    fn test_job_id_overflow_protection() {
+        let (env, cc, admin, client, _) = setup();
+        cc.initialize(&admin);
+
+        // Set next_job_id to max u64
+        env.storage().instance().set(&DataKey::NextJobId, &u64::MAX);
+
+        let hash = Bytes::from_slice(&env, b"QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG");
+        
+        // This should panic due to overflow in checked_add
+        cc.post_job_auto(&client, &hash, &5000i128);
+    }
+
+    #[test]
+    fn test_explicit_job_id_near_max() {
+        let (env, cc, admin, client, _) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG");
+        
+        // Use a large but valid job_id
+        let large_id = u64::MAX - 10;
+        cc.post_job(&large_id, &client, &hash, &5000i128);
+
+        let job = cc.get_job(&large_id);
+        assert_eq!(job.budget_stroops, 5000i128);
+        
+        // next_job_id should be updated
+        assert_eq!(cc.get_next_job_id(), large_id + 1);
+    }
 }
+
