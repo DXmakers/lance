@@ -197,7 +197,7 @@
             "key": {
               "vec": [
                 {
-                  "symbol": "Bids"
+                  "symbol": "BidCount"
                 },
                 {
                   "u64": 1
@@ -217,7 +217,7 @@
                 "key": {
                   "vec": [
                     {
-                      "symbol": "Bids"
+                      "symbol": "BidCount"
                     },
                     {
                       "u64": 1
@@ -226,7 +226,7 @@
                 },
                 "durability": "persistent",
                 "val": {
-                  "vec": []
+                  "u32": 0
                 }
               }
             },
@@ -242,7 +242,7 @@
             "key": {
               "vec": [
                 {
-                  "symbol": "Bids"
+                  "symbol": "BidCount"
                 },
                 {
                   "u64": 2
@@ -262,7 +262,7 @@
                 "key": {
                   "vec": [
                     {
-                      "symbol": "Bids"
+                      "symbol": "BidCount"
                     },
                     {
                       "u64": 2
@@ -271,7 +271,7 @@
                 },
                 "durability": "persistent",
                 "val": {
-                  "vec": []
+                  "u32": 0
                 }
               }
             },

@@ -5,7 +5,8 @@ use soroban_sdk::{
     Address, Bytes, Env, Vec,
 };
 
-const MAX_HASH_LEN: u32 = 96;
+const MAX_CID_LEN: u32 = 96;
+const MAX_BIDS_PER_JOB: u32 = 1_000;
 
 #[contracterror]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -25,12 +26,15 @@ pub enum JobRegistryError {
     InvalidStateTransition = 12,
     NoDeliverable = 13,
     Overflow = 14,
+    BidLimitReached = 15,
 }
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum JobStatus {
     Open,
+    /// A bid has been accepted and the job is ready for escrow deployment/funding.
+    Assigned,
     InProgress,
     DeliverableSubmitted,
     Completed,
@@ -59,8 +63,12 @@ pub enum DataKey {
     Admin,
     NextJobId,
     Job(u64),
-    Bids(u64),
+    BidCount(u64),
+    BidByIndex(u64, u32),
+    BidLookup(u64, Address),
+    Bids(u64), // legacy aggregate key retained so old ledgers decode safely
     Deliverable(u64),
+    EscrowDeployer,
 }
 
 #[contract]
@@ -154,6 +162,26 @@ impl JobRegistryContract {
         job_id
     }
 
+    /// Admin configures the off-chain/cross-contract escrow deployer address signaled on acceptance.
+    pub fn set_escrow_deployer(env: Env, escrow_deployer: Address) {
+        ensure_initialized(&env);
+        let admin = read_admin(&env);
+        admin.require_auth();
+
+        env.storage()
+            .instance()
+            .set(&DataKey::EscrowDeployer, &escrow_deployer);
+
+        log!(&env, "escrow_deployer configured: {}", escrow_deployer);
+        env.events()
+            .publish((symbol_short!("escrow"),), escrow_deployer);
+    }
+
+    pub fn get_escrow_deployer(env: Env) -> Option<Address> {
+        ensure_initialized(&env);
+        env.storage().instance().get(&DataKey::EscrowDeployer)
+    }
+
     /// Freelancer submits a bid.
     pub fn submit_bid(env: Env, job_id: u64, freelancer: Address, proposal_hash: Bytes) {
         ensure_initialized(&env);
@@ -171,24 +199,32 @@ impl JobRegistryContract {
             panic_with_error!(&env, JobRegistryError::JobNotOpen);
         }
 
-        let bids_key = DataKey::Bids(job_id);
-        let mut bids: Vec<BidRecord> = env
-            .storage()
-            .persistent()
-            .get(&bids_key)
-            .unwrap_or(Vec::new(&env));
-
-        for bid in bids.iter() {
-            if bid.freelancer == freelancer {
-                panic_with_error!(&env, JobRegistryError::BidAlreadySubmitted);
-            }
+        // Bids are persisted as map-like rows keyed by (job_id, freelancer) and
+        // indexed by (job_id, ordinal). This avoids rewriting a growing vector on
+        // every bid while preserving deterministic iteration for `get_bids`.
+        let lookup_key = DataKey::BidLookup(job_id, freelancer.clone());
+        if env.storage().persistent().has(&lookup_key) {
+            panic_with_error!(&env, JobRegistryError::BidAlreadySubmitted);
         }
 
-        bids.push_back(BidRecord {
+        let count_key = DataKey::BidCount(job_id);
+        let bid_count: u32 = env.storage().persistent().get(&count_key).unwrap_or(0u32);
+        if bid_count >= MAX_BIDS_PER_JOB {
+            panic_with_error!(&env, JobRegistryError::BidLimitReached);
+        }
+        let next_count = bid_count
+            .checked_add(1)
+            .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::Overflow));
+
+        let bid = BidRecord {
             freelancer: freelancer.clone(),
             proposal_hash,
-        });
-        env.storage().persistent().set(&bids_key, &bids);
+        };
+        env.storage().persistent().set(&lookup_key, &bid);
+        env.storage()
+            .persistent()
+            .set(&DataKey::BidByIndex(job_id, bid_count), &bid);
+        env.storage().persistent().set(&count_key, &next_count);
 
         log!(&env, "submit_bid: id {} freelancer {}", job_id, freelancer);
         env.events()
@@ -214,25 +250,16 @@ impl JobRegistryContract {
             panic_with_error!(&env, JobRegistryError::Unauthorized);
         }
 
-        let bids: Vec<BidRecord> = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Bids(job_id))
-            .unwrap_or(Vec::new(&env));
-
-        let mut found = false;
-        for bid in bids.iter() {
-            if bid.freelancer == freelancer {
-                found = true;
-                break;
-            }
-        }
-        if !found {
+        let bid_key = DataKey::BidLookup(job_id, freelancer.clone());
+        if !env.storage().persistent().has(&bid_key) {
             panic_with_error!(&env, JobRegistryError::BidNotFound);
         }
 
+        // Validate every invariant before mutating the job. Acceptance records the
+        // selected freelancer and moves the registry to Assigned; the configured
+        // escrow deployer can then provision/fund the escrow without ambiguity.
         job.freelancer = Some(freelancer.clone());
-        job.status = JobStatus::InProgress;
+        job.status = JobStatus::Assigned;
         env.storage().persistent().set(&key, &job);
 
         log!(
@@ -243,7 +270,18 @@ impl JobRegistryContract {
             freelancer
         );
         env.events()
-            .publish((symbol_short!("accept"), job_id), freelancer);
+            .publish((symbol_short!("accept"), job_id), freelancer.clone());
+
+        if let Some(escrow_deployer) = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::EscrowDeployer)
+        {
+            env.events().publish(
+                (symbol_short!("assign"), job_id),
+                (client, freelancer, escrow_deployer),
+            );
+        }
     }
 
     /// Freelancer submits deliverable IPFS hash.
@@ -259,7 +297,7 @@ impl JobRegistryContract {
             .get(&key)
             .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::JobNotFound));
 
-        if job.status != JobStatus::InProgress {
+        if job.status != JobStatus::Assigned && job.status != JobStatus::InProgress {
             panic_with_error!(&env, JobRegistryError::InvalidStateTransition);
         }
         if job.freelancer != Some(freelancer.clone()) {
@@ -295,7 +333,10 @@ impl JobRegistryContract {
             .get(&key)
             .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::JobNotFound));
 
-        if job.status != JobStatus::InProgress && job.status != JobStatus::DeliverableSubmitted {
+        if job.status != JobStatus::Assigned
+            && job.status != JobStatus::InProgress
+            && job.status != JobStatus::DeliverableSubmitted
+        {
             panic_with_error!(&env, JobRegistryError::InvalidStateTransition);
         }
 
@@ -316,10 +357,29 @@ impl JobRegistryContract {
 
     pub fn get_bids(env: Env, job_id: u64) -> Vec<BidRecord> {
         ensure_initialized(&env);
-        env.storage()
+        if !env.storage().persistent().has(&DataKey::Job(job_id)) {
+            panic_with_error!(&env, JobRegistryError::JobNotFound);
+        }
+
+        let count: u32 = env
+            .storage()
             .persistent()
-            .get(&DataKey::Bids(job_id))
-            .unwrap_or(Vec::new(&env))
+            .get(&DataKey::BidCount(job_id))
+            .unwrap_or(0u32);
+        let mut bids = Vec::new(&env);
+        let mut index = 0u32;
+        while index < count {
+            let bid: BidRecord = env
+                .storage()
+                .persistent()
+                .get(&DataKey::BidByIndex(job_id, index))
+                .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::BidNotFound));
+            bids.push_back(bid);
+            index = index
+                .checked_add(1)
+                .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::Overflow));
+        }
+        bids
     }
 
     pub fn get_deliverable(env: Env, job_id: u64) -> Bytes {
@@ -365,7 +425,7 @@ fn validate_job_input(env: &Env, job_id: u64, hash: &Bytes, budget: i128) {
 
 fn validate_hash(env: &Env, hash: &Bytes) {
     let len = hash.len();
-    if len == 0 || len > MAX_HASH_LEN {
+    if len == 0 || len > MAX_CID_LEN {
         panic_with_error!(env, JobRegistryError::InvalidHash);
     }
 }
@@ -385,10 +445,9 @@ fn post_job_with_id(env: &Env, job_id: u64, client: Address, hash: Bytes, budget
     };
     env.storage().persistent().set(&key, &job);
 
-    let bids: Vec<BidRecord> = Vec::new(env);
     env.storage()
         .persistent()
-        .set(&DataKey::Bids(job_id), &bids);
+        .set(&DataKey::BidCount(job_id), &0u32);
 }
 
 #[cfg(test)]
@@ -512,7 +571,7 @@ mod test {
 
         cc.accept_bid(&1u64, &client, &freelancer);
         let job = cc.get_job(&1u64);
-        assert_eq!(job.status, JobStatus::InProgress);
+        assert_eq!(job.status, JobStatus::Assigned);
         assert_eq!(job.freelancer, Some(freelancer.clone()));
 
         let deliverable = Bytes::from_slice(&env, b"QmDeliverableHash");
@@ -523,6 +582,68 @@ mod test {
 
         let d = cc.get_deliverable(&1u64);
         assert_eq!(d, deliverable);
+    }
+
+    #[test]
+    fn test_set_escrow_deployer_round_trip() {
+        let (_env, cc, admin, _, freelancer) = setup();
+        cc.initialize(&admin);
+
+        cc.set_escrow_deployer(&freelancer);
+
+        assert_eq!(cc.get_escrow_deployer(), Some(freelancer));
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #9)")]
+    fn test_unauthorized_accept_bid_panics_with_specific_error() {
+        let (env, cc, admin, client, freelancer) = setup();
+        let other_client = Address::generate(&env);
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        cc.post_job(&1u64, &client, &hash, &5000i128);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.accept_bid(&1u64, &other_client, &freelancer);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #8)")]
+    fn test_late_bid_after_acceptance_panics_with_job_not_open() {
+        let (env, cc, admin, client, freelancer) = setup();
+        let late_freelancer = Address::generate(&env);
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmHash");
+        cc.post_job(&1u64, &client, &hash, &5000i128);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposal");
+        cc.submit_bid(&1u64, &freelancer, &proposal);
+        cc.accept_bid(&1u64, &client, &freelancer);
+
+        let late_proposal = Bytes::from_slice(&env, b"QmLateProposal");
+        cc.submit_bid(&1u64, &late_freelancer, &late_proposal);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #5)")]
+    fn test_oversized_cid_panics_with_invalid_hash() {
+        let (env, cc, admin, client, _) = setup();
+        cc.initialize(&admin);
+
+        let oversized = Bytes::from_slice(&env, &[b'a'; 97]);
+        cc.post_job(&1u64, &client, &oversized, &5000i128);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #7)")]
+    fn test_get_bids_for_missing_job_panics() {
+        let (_env, cc, admin, _, _) = setup();
+        cc.initialize(&admin);
+
+        cc.get_bids(&404u64);
     }
 
     #[test]
