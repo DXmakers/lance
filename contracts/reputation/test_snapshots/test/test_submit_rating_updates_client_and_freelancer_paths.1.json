@@ -244,50 +244,156 @@
                     },
                     {
                       "key": {
-                        "symbol": "client_jobs"
+                        "symbol": "badge_metadata"
                       },
                       "val": {
-                        "u32": 0
+                        "vec": []
                       }
                     },
                     {
                       "key": {
-                        "symbol": "client_points"
+                        "symbol": "client"
                       },
                       "val": {
-                        "i32": 0
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "badge_level"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "completed_jobs"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "review"
+                            },
+                            "val": {
+                              "map": [
+                                {
+                                  "key": {
+                                    "symbol": "average_rating_bps"
+                                  },
+                                  "val": {
+                                    "i32": 5000
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "reviews"
+                                  },
+                                  "val": {
+                                    "u32": 0
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "total_points"
+                                  },
+                                  "val": {
+                                    "i128": {
+                                      "hi": 0,
+                                      "lo": 0
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "score"
+                            },
+                            "val": {
+                              "i32": 5000
+                            }
+                          }
+                        ]
                       }
                     },
                     {
                       "key": {
-                        "symbol": "client_score"
+                        "symbol": "freelancer"
                       },
                       "val": {
-                        "i32": 5000
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "badge_level"
+                            },
+                            "val": {
+                              "u32": 1
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "completed_jobs"
+                            },
+                            "val": {
+                              "u32": 1
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "review"
+                            },
+                            "val": {
+                              "map": [
+                                {
+                                  "key": {
+                                    "symbol": "average_rating_bps"
+                                  },
+                                  "val": {
+                                    "i32": 8000
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "reviews"
+                                  },
+                                  "val": {
+                                    "u32": 1
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "total_points"
+                                  },
+                                  "val": {
+                                    "i128": {
+                                      "hi": 0,
+                                      "lo": 4
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "score"
+                            },
+                            "val": {
+                              "i32": 8000
+                            }
+                          }
+                        ]
                       }
                     },
                     {
                       "key": {
-                        "symbol": "freelancer_jobs"
+                        "symbol": "is_blacklisted"
                       },
                       "val": {
-                        "u32": 1
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "freelancer_points"
-                      },
-                      "val": {
-                        "i32": 4
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "freelancer_score"
-                      },
-                      "val": {
-                        "i32": 8000
+                        "bool": false
                       }
                     },
                     {
@@ -352,50 +458,156 @@
                     },
                     {
                       "key": {
-                        "symbol": "client_jobs"
+                        "symbol": "badge_metadata"
                       },
                       "val": {
-                        "u32": 0
+                        "vec": []
                       }
                     },
                     {
                       "key": {
-                        "symbol": "client_points"
+                        "symbol": "client"
                       },
                       "val": {
-                        "i32": 0
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "badge_level"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "completed_jobs"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "review"
+                            },
+                            "val": {
+                              "map": [
+                                {
+                                  "key": {
+                                    "symbol": "average_rating_bps"
+                                  },
+                                  "val": {
+                                    "i32": 5000
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "reviews"
+                                  },
+                                  "val": {
+                                    "u32": 0
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "total_points"
+                                  },
+                                  "val": {
+                                    "i128": {
+                                      "hi": 0,
+                                      "lo": 0
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "score"
+                            },
+                            "val": {
+                              "i32": 5000
+                            }
+                          }
+                        ]
                       }
                     },
                     {
                       "key": {
-                        "symbol": "client_score"
+                        "symbol": "freelancer"
                       },
                       "val": {
-                        "i32": 5000
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "badge_level"
+                            },
+                            "val": {
+                              "u32": 1
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "completed_jobs"
+                            },
+                            "val": {
+                              "u32": 1
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "review"
+                            },
+                            "val": {
+                              "map": [
+                                {
+                                  "key": {
+                                    "symbol": "average_rating_bps"
+                                  },
+                                  "val": {
+                                    "i32": 10000
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "reviews"
+                                  },
+                                  "val": {
+                                    "u32": 1
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "total_points"
+                                  },
+                                  "val": {
+                                    "i128": {
+                                      "hi": 0,
+                                      "lo": 5
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "score"
+                            },
+                            "val": {
+                              "i32": 10000
+                            }
+                          }
+                        ]
                       }
                     },
                     {
                       "key": {
-                        "symbol": "freelancer_jobs"
+                        "symbol": "is_blacklisted"
                       },
                       "val": {
-                        "u32": 1
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "freelancer_points"
-                      },
-                      "val": {
-                        "i32": 5
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "freelancer_score"
-                      },
-                      "val": {
-                        "i32": 10000
+                        "bool": false
                       }
                     },
                     {
@@ -734,7 +946,7 @@
                         "symbol": "metadata_hash"
                       },
                       "val": {
-                        "bytes": "516d4a6f6232"
+                        "bytes": "516d4a6f62"
                       }
                     },
                     {
@@ -1074,7 +1286,7 @@
                         "symbol": "metadata_hash"
                       },
                       "val": {
-                        "bytes": "516d4a6f6232"
+                        "bytes": "516d4a6f62"
                       }
                     },
                     {
@@ -1274,6 +1486,30 @@
               "map": [
                 {
                   "key": {
+                    "symbol": "average_rating_bps"
+                  },
+                  "val": {
+                    "i32": 10000
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "badge_level"
+                  },
+                  "val": {
+                    "u32": 1
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "blacklisted"
+                  },
+                  "val": {
+                    "bool": false
+                  }
+                },
+                {
+                  "key": {
                     "symbol": "caller"
                   },
                   "val": {
@@ -1345,7 +1581,10 @@
                     "symbol": "total_points"
                   },
                   "val": {
-                    "i32": 5
+                    "i128": {
+                      "hi": 0,
+                      "lo": 5
+                    }
                   }
                 },
                 {
@@ -1448,6 +1687,30 @@
                 },
                 {
                   "key": {
+                    "symbol": "average_rating_bps"
+                  },
+                  "val": {
+                    "i32": 10000
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "badge_level"
+                  },
+                  "val": {
+                    "u32": 1
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "blacklisted"
+                  },
+                  "val": {
+                    "bool": false
+                  }
+                },
+                {
+                  "key": {
                     "symbol": "reviews"
                   },
                   "val": {
@@ -1487,7 +1750,10 @@
                     "symbol": "total_points"
                   },
                   "val": {
-                    "i32": 5
+                    "i128": {
+                      "hi": 0,
+                      "lo": 5
+                    }
                   }
                 }
               ]
@@ -1611,7 +1877,7 @@
                     "symbol": "metadata_hash"
                   },
                   "val": {
-                    "bytes": "516d4a6f6232"
+                    "bytes": "516d4a6f62"
                   }
                 },
                 {
@@ -1650,6 +1916,30 @@
             ],
             "data": {
               "map": [
+                {
+                  "key": {
+                    "symbol": "average_rating_bps"
+                  },
+                  "val": {
+                    "i32": 8000
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "badge_level"
+                  },
+                  "val": {
+                    "u32": 1
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "blacklisted"
+                  },
+                  "val": {
+                    "bool": false
+                  }
+                },
                 {
                   "key": {
                     "symbol": "caller"
@@ -1723,7 +2013,10 @@
                     "symbol": "total_points"
                   },
                   "val": {
-                    "i32": 4
+                    "i128": {
+                      "hi": 0,
+                      "lo": 4
+                    }
                   }
                 },
                 {
@@ -1826,6 +2119,30 @@
                 },
                 {
                   "key": {
+                    "symbol": "average_rating_bps"
+                  },
+                  "val": {
+                    "i32": 8000
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "badge_level"
+                  },
+                  "val": {
+                    "u32": 1
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "blacklisted"
+                  },
+                  "val": {
+                    "bool": false
+                  }
+                },
+                {
+                  "key": {
                     "symbol": "reviews"
                   },
                   "val": {
@@ -1865,7 +2182,10 @@
                     "symbol": "total_points"
                   },
                   "val": {
-                    "i32": 4
+                    "i128": {
+                      "hi": 0,
+                      "lo": 4
+                    }
                   }
                 }
               ]

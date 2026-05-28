@@ -9,12 +9,12 @@ on:
 env:
   # Real Cloud Run Backend URL for the Frontend
   NEXT_PUBLIC_API_URL: https://lance-api-641037923100.us-central1.run.app
-  
+
   # Securely injected via GitHub Actions Secrets
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
   JUDGE_AUTHORITY_SECRET: ${{ secrets.JUDGE_AUTHORITY_SECRET }}
   OPENCLAW_API_KEY: ${{ secrets.OPENCLAW_API_KEY }}
-  
+
   # Contract IDs (Public information, safe to commit)
   ESCROW_CONTRACT_ID: CD5E6AXK2J5C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6
   REPUTATION_CONTRACT_ID: CD5E6AXK2J5C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6C6A6
@@ -39,6 +39,33 @@ jobs:
         run: npx prisma generate --schema=backend/prisma/schema.prisma
       - name: Build
         run: npm run build --prefix backend
+
+  contracts:
+    name: Smart Contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: 1.88.0
+          targets: wasm32-unknown-unknown
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+      - name: Test Escrow
+        run: cargo test -p escrow
+      - name: Build Contracts
+        run: cargo build --target wasm32-unknown-unknown --release -p escrow -p reputation -p job_registry
+      - name: Verify Escrow WASM Size
+        run: |
+          wasm="target/wasm32-unknown-unknown/release/escrow.wasm"
+          size=$(stat -c%s "$wasm")
+          limit=$((40 * 1024))
+          echo "Escrow WASM size: ${size} bytes"
+          if [ "$size" -gt "$limit" ]; then
+            echo "Escrow WASM exceeds ${limit} bytes"
+            exit 1
+          fi
 
   web-build:
     name: Web Frontend
