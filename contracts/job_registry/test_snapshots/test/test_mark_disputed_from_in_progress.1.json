@@ -46,6 +46,9 @@
                     "hi": 0,
                     "lo": 5000
                   }
+                },
+                {
+                  "u64": 100
                 }
               ]
             }
@@ -71,6 +74,12 @@
                 },
                 {
                   "bytes": "516d50726f706f73616c"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 50
+                  }
                 }
               ]
             }
@@ -341,6 +350,25 @@
                       "map": [
                         {
                           "key": {
+                            "symbol": "collateral_released"
+                          },
+                          "val": {
+                            "bool": false
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "collateral_stroops"
+                          },
+                          "val": {
+                            "i128": {
+                              "hi": 0,
+                              "lo": 50
+                            }
+                          }
+                        },
+                        {
+                          "key": {
                             "symbol": "freelancer"
                           },
                           "val": {
@@ -403,6 +431,14 @@
                 "durability": "persistent",
                 "val": {
                   "map": [
+                    {
+                      "key": {
+                        "symbol": "bidding_deadline"
+                      },
+                      "val": {
+                        "u64": 100
+                      }
+                    },
                     {
                       "key": {
                         "symbol": "budget_stroops"
@@ -668,6 +704,9 @@
                     "hi": 0,
                     "lo": 5000
                   }
+                },
+                {
+                  "u64": 100
                 }
               ]
             }
@@ -794,6 +833,12 @@
                 },
                 {
                   "bytes": "516d50726f706f73616c"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 50
+                  }
                 }
               ]
             }
@@ -1127,6 +1172,14 @@
             ],
             "data": {
               "map": [
+                {
+                  "key": {
+                    "symbol": "bidding_deadline"
+                  },
+                  "val": {
+                    "u64": 100
+                  }
+                },
                 {
                   "key": {
                     "symbol": "budget_stroops"

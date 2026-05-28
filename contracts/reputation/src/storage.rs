@@ -1,4 +1,4 @@
-use crate::profile::Profile;
+﻿use crate::profile::Profile;
 use soroban_sdk::{Address, Env};
 
 const PERSISTENT_TTL_THRESHOLD: u32 = 50_000;

@@ -41,8 +41,14 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 5000
+                    "lo": 100000
                   }
+                },
+                {
+                  "u64": 30
+                },
+                {
+                  "u64": 60
                 }
               ]
             }
@@ -69,8 +75,14 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 7000
+                    "lo": 100000
                   }
+                },
+                {
+                  "u64": 30
+                },
+                {
+                  "u64": 60
                 }
               ]
             }
@@ -197,7 +209,7 @@
             "key": {
               "vec": [
                 {
-                  "symbol": "Bids"
+                  "symbol": "BidCount"
                 },
                 {
                   "u64": 1
@@ -217,7 +229,7 @@
                 "key": {
                   "vec": [
                     {
-                      "symbol": "Bids"
+                      "symbol": "BidCount"
                     },
                     {
                       "u64": 1
@@ -226,7 +238,7 @@
                 },
                 "durability": "persistent",
                 "val": {
-                  "vec": []
+                  "u32": 0
                 }
               }
             },
@@ -242,7 +254,7 @@
             "key": {
               "vec": [
                 {
-                  "symbol": "Bids"
+                  "symbol": "BidCount"
                 },
                 {
                   "u64": 2
@@ -262,7 +274,7 @@
                 "key": {
                   "vec": [
                     {
-                      "symbol": "Bids"
+                      "symbol": "BidCount"
                     },
                     {
                       "u64": 2
@@ -271,7 +283,7 @@
                 },
                 "durability": "persistent",
                 "val": {
-                  "vec": []
+                  "u32": 0
                 }
               }
             },
@@ -319,12 +331,20 @@
                   "map": [
                     {
                       "key": {
+                        "symbol": "bidding_deadline"
+                      },
+                      "val": {
+                        "u64": 30
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "budget_stroops"
                       },
                       "val": {
                         "i128": {
                           "hi": 0,
-                          "lo": 5000
+                          "lo": 100000
                         }
                       }
                     },
@@ -334,6 +354,14 @@
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "expires_at"
+                      },
+                      "val": {
+                        "u64": 60
                       }
                     },
                     {
@@ -410,12 +438,20 @@
                   "map": [
                     {
                       "key": {
+                        "symbol": "bidding_deadline"
+                      },
+                      "val": {
+                        "u64": 30
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "budget_stroops"
                       },
                       "val": {
                         "i128": {
                           "hi": 0,
-                          "lo": 7000
+                          "lo": 100000
                         }
                       }
                     },
@@ -425,6 +461,14 @@
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "expires_at"
+                      },
+                      "val": {
+                        "u64": 60
                       }
                     },
                     {
@@ -582,34 +626,7 @@
               }
             ],
             "data": {
-              "vec": [
-                {
-                  "string": "JobRegistry initialized with admin: {}"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "init"
-              }
-            ],
-            "data": {
-              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+              "string": "initialized"
             }
           }
         }
@@ -666,77 +683,14 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 5000
+                    "lo": 100000
                   }
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
-        "type_": "diagnostic",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "log"
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "string": "post_job_auto: id {} client {} budget {}"
                 },
                 {
-                  "u64": 1
+                  "u64": 30
                 },
                 {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                },
-                {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 5000
-                  }
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "jobauto"
-              },
-              {
-                "u64": 1
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                },
-                {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 5000
-                  }
+                  "u64": 60
                 }
               ]
             }
@@ -797,77 +751,14 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 7000
+                    "lo": 100000
                   }
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
-        "type_": "diagnostic",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "log"
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "string": "post_job_auto: id {} client {} budget {}"
                 },
                 {
-                  "u64": 2
+                  "u64": 30
                 },
                 {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                },
-                {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 7000
-                  }
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "jobauto"
-              },
-              {
-                "u64": 2
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                },
-                {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 7000
-                  }
+                  "u64": 60
                 }
               ]
             }

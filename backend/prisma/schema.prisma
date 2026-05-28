@@ -199,6 +199,8 @@ model jobs {
   status             String             @default("open")
   metadata_hash      String?
   on_chain_job_id    BigInt?
+  skills             String[]           @default([])
+  deadline_at        DateTime?          @db.Timestamptz(6)
   created_at         DateTime           @default(now()) @db.Timestamptz(6)
   updated_at         DateTime           @default(now()) @db.Timestamptz(6)
   activity_logs      activity_logs[]
