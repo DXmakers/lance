@@ -48,6 +48,9 @@
                   }
                 },
                 {
+                  "u64": 30
+                },
+                {
                   "u64": 60
                 }
               ]
@@ -217,6 +220,14 @@
                 "durability": "persistent",
                 "val": {
                   "map": [
+                    {
+                      "key": {
+                        "symbol": "bidding_deadline"
+                      },
+                      "val": {
+                        "u64": 30
+                      }
+                    },
                     {
                       "key": {
                         "symbol": "budget_stroops"
@@ -399,34 +410,7 @@
               }
             ],
             "data": {
-              "vec": [
-                {
-                  "string": "JobRegistry initialized with admin: {}"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "init"
-              }
-            ],
-            "data": {
-              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+              "string": "initialized"
             }
           }
         }
@@ -490,43 +474,10 @@
                   }
                 },
                 {
+                  "u64": 30
+                },
+                {
                   "u64": 60
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
-        "type_": "diagnostic",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "log"
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "string": "post_job: id {} client {} budget {}"
-                },
-                {
-                  "u64": 1
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                },
-                {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 100000
-                  }
                 }
               ]
             }
@@ -551,17 +502,7 @@
               }
             ],
             "data": {
-              "vec": [
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                },
-                {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 100000
-                  }
-                }
-              ]
+              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
             }
           }
         }
@@ -635,7 +576,7 @@
               },
               {
                 "error": {
-                  "contract": 17
+                  "contract": 18
                 }
               }
             ],
@@ -645,7 +586,7 @@
                   "string": "failing with contract error"
                 },
                 {
-                  "u32": 17
+                  "u32": 18
                 }
               ]
             }
@@ -667,7 +608,7 @@
               },
               {
                 "error": {
-                  "contract": 17
+                  "contract": 18
                 }
               }
             ],
@@ -692,7 +633,7 @@
               },
               {
                 "error": {
-                  "contract": 17
+                  "contract": 18
                 }
               }
             ],
@@ -717,7 +658,7 @@
               },
               {
                 "error": {
-                  "contract": 17
+                  "contract": 18
                 }
               }
             ],
@@ -759,7 +700,7 @@
               },
               {
                 "error": {
-                  "contract": 17
+                  "contract": 18
                 }
               }
             ],

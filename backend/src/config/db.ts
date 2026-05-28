@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { Pool, PoolClient } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import dotenv from "dotenv";
+import { trace, context } from "./tracing";
 
 dotenv.config();
 
@@ -189,12 +190,52 @@ const adapter = new PrismaPg(pool);
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
+// Initialize Prisma with optimized middleware for tracing and performance monitoring
 export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });
+
+// Add query middleware for tracing and performance monitoring
+prisma.$use(async (params, next) => {
+  const spanContext = context.active();
+  const startTime = Date.now();
+  const logger = trace.getLogger("db-query");
+
+  try {
+    const result = await next(params);
+    const duration = Date.now() - startTime;
+
+    // Log slow queries (> 1000ms)
+    if (duration > 1000) {
+      logger.warn(`Slow query detected: ${params.model}.${params.action}`, {
+        duration,
+        model: params.model,
+        action: params.action,
+        args: JSON.stringify(params.args).substring(0, 200),
+      });
+    }
+
+    logger.debug(`Query completed: ${params.model}.${params.action}`, {
+      duration,
+      model: params.model,
+      action: params.action,
+    });
+
+    return result;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    logger.error(`Query failed: ${params.model}.${params.action}`, {
+      duration,
+      model: params.model,
+      action: params.action,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+});
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 

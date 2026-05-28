@@ -48,6 +48,9 @@
                   }
                 },
                 {
+                  "u64": 30
+                },
+                {
                   "u64": 60
                 }
               ]
@@ -142,7 +145,7 @@
             "key": {
               "vec": [
                 {
-                  "symbol": "Bids"
+                  "symbol": "BidCount"
                 },
                 {
                   "u64": 42
@@ -162,7 +165,7 @@
                 "key": {
                   "vec": [
                     {
-                      "symbol": "Bids"
+                      "symbol": "BidCount"
                     },
                     {
                       "u64": 42
@@ -171,7 +174,7 @@
                 },
                 "durability": "persistent",
                 "val": {
-                  "vec": []
+                  "u32": 0
                 }
               }
             },
@@ -222,7 +225,7 @@
                         "symbol": "bidding_deadline"
                       },
                       "val": {
-                        "u64": 100
+                        "u64": 30
                       }
                     },
                     {
@@ -407,34 +410,7 @@
               }
             ],
             "data": {
-              "vec": [
-                {
-                  "string": "JobRegistry initialized with admin: {}"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "init"
-              }
-            ],
-            "data": {
-              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+              "string": "initialized"
             }
           }
         }
@@ -498,43 +474,10 @@
                   }
                 },
                 {
+                  "u64": 30
+                },
+                {
                   "u64": 60
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
-        "type_": "diagnostic",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "log"
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "string": "post_job: id {} client {} budget {}"
-                },
-                {
-                  "u64": 42
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                },
-                {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 100000
-                  }
                 }
               ]
             }
@@ -559,17 +502,7 @@
               }
             ],
             "data": {
-              "vec": [
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                },
-                {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 100000
-                  }
-                }
-              ]
+              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
             }
           }
         }

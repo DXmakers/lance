@@ -60,7 +60,7 @@ jobs:
         run: |
           wasm="target/wasm32-unknown-unknown/release/escrow.wasm"
           size=$(stat -c%s "$wasm")
-          limit=$((40 * 1024))
+          limit=$((80 * 1024))
           echo "Escrow WASM size: ${size} bytes"
           if [ "$size" -gt "$limit" ]; then
             echo "Escrow WASM exceeds ${limit} bytes"

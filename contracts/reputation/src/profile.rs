@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, Bytes, Env};
+﻿use soroban_sdk::{contracttype, Address, Bytes, Env};
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
@@ -39,13 +39,13 @@ impl RoleMetrics {
 }
 
 /// Badge tier awarded based on cumulative score thresholds.
-/// Scores are in basis points (0–10 000).
+/// Scores are in basis points (0ΓÇô10 000).
 ///
 /// Thresholds:
-///   Bronze  ≥ 4 000
-///   Silver  ≥ 6 000
-///   Gold    ≥ 8 000
-///   Platinum ≥ 9 500
+///   Bronze  ΓëÑ 4 000
+///   Silver  ΓëÑ 6 000
+///   Gold    ΓëÑ 8 000
+///   Platinum ΓëÑ 9 500
 #[contracttype]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BadgeLevel {
@@ -97,10 +97,12 @@ pub struct Profile {
     /// Per-tier badge metadata URIs set by the admin.
     pub badge_metadata: soroban_sdk::Vec<BadgeMetadataEntry>,
     pub transfer_blocked: bool,
+    pub client_badge: BadgeLevel,
+    pub freelancer_badge: BadgeLevel,
 }
 
 impl Profile {
-    pub fn new(address: Address, env: &soroban_sdk::Env) -> Self {
+    pub fn new(env: &Env, address: Address) -> Self {
         Self {
             address,
             client: RoleMetrics::new(),
@@ -109,11 +111,13 @@ impl Profile {
             metadata_hash: None,
             badge_metadata: soroban_sdk::Vec::new(env),
             transfer_blocked: true,
+            client_badge: BadgeLevel::Bronze,
+            freelancer_badge: BadgeLevel::Bronze,
         }
     }
 
     pub fn refresh_badges(&mut self) {
-        self.client.badge_level = BadgeLevel::from_score(self.client.score) as u32;
-        self.freelancer.badge_level = BadgeLevel::from_score(self.freelancer.score) as u32;
+        self.client_badge = BadgeLevel::from_score(self.client.score);
+        self.freelancer_badge = BadgeLevel::from_score(self.freelancer.score);
     }
 }
