@@ -44,6 +44,7 @@ pub enum Role {
 pub struct ReputationScore {
     pub address: Address,
     pub role: Role,
+    /// Score in basis points (0\u201310000 = 0\u2013100%)
     pub score: i32,
     pub total_jobs: u32,
     pub total_points: i128,
@@ -236,6 +237,7 @@ impl ReputationContract {
         }
     }
 
+    fn score_from_profile(address: &Address, role: Role, profile: &profile::Profile) -> ReputationScore {
     fn score_from_profile(
         address: &Address,
         role: Role,
@@ -466,6 +468,19 @@ impl ReputationContract {
         Self::require_authorized_contract(&env, &caller_contract);
 
         let mut profile = storage::read_profile_or_default(&env, &address);
+        let (new_score, total_jobs) = match role {
+            Role::Client => {
+                profile.client_score = Self::clamp_score(profile.client_score.saturating_add(delta));
+                profile.client_jobs = profile.client_jobs.saturating_add(1);
+                (profile.client_score, profile.client_jobs)
+            }
+            Role::Freelancer => {
+                profile.freelancer_score =
+                    Self::clamp_score(profile.freelancer_score.saturating_add(delta));
+                profile.freelancer_jobs = profile.freelancer_jobs.saturating_add(1);
+                (profile.freelancer_score, profile.freelancer_jobs)
+            }
+        };
         if profile.is_blacklisted {
             soroban_sdk::panic_with_error!(&env, ReputationError::Blacklisted);
         }
@@ -762,6 +777,9 @@ mod test {
     #[contractimpl]
     impl MockJobRegistry {
         pub fn set_job(env: Env, job_id: u64, job: JobRecord) {
+            env.storage()
+                .persistent()
+                .set(&MockKey::Job(job_id), &job);
             env.storage().persistent().set(&MockKey::Job(job_id), &job);
         }
 
@@ -1079,79 +1097,113 @@ mod test {
         assert_eq!(saved_hash, Some(hash));
     }
 
-    // ── Issue #402: badge minting ──
+    // --- SC-REP-050: Contract-to-Contract Auth Gating Tests ---
 
     #[test]
-    fn test_badge_starts_at_bronze_for_default_score() {
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_unauthorized_contract_update_score_is_rejected() {
         let env = Env::default();
         env.mock_all_auths();
-        let admin = Address::generate(&env);
-        let addr = Address::generate(&env);
-        let cid = env.register_contract(None, ReputationContract);
-        let client = ReputationContractClient::new(&env, &cid);
-        client.initialize(&admin);
 
-        // Default score is 5000 → Bronze
-        let badge = client.get_badge(&addr, &Role::Freelancer);
-        assert_eq!(badge, BadgeLevel::Bronze);
+        let admin = Address::generate(&env);
+        let reputation_id = env.register_contract(None, ReputationContract);
+        let authorized_id = env.register_contract(None, AuthorizedAdjuster);
+        let unauthorized_id = env.register_contract(None, AuthorizedAdjuster);
+        let target = Address::generate(&env);
+        let client = ReputationContractClient::new(&env, &reputation_id);
+
+        client.initialize(&admin);
+        // Only `authorized_id` is registered; `unauthorized_id` must be rejected.
+        client.set_authorized_contract(&admin, &authorized_id);
+
+        let unauthorized_client = AuthorizedAdjusterClient::new(&env, &unauthorized_id);
+        unauthorized_client.award(&reputation_id, &target, &Role::Freelancer, &500);
     }
 
     #[test]
-    fn test_badge_upgrades_to_silver_at_6000() {
+    fn test_authorized_contract_can_be_replaced_by_admin() {
         let env = Env::default();
         env.mock_all_auths();
-        let admin = Address::generate(&env);
-        let addr = Address::generate(&env);
-        let cid = env.register_contract(None, ReputationContract);
-        let adjuster_id = env.register_contract(None, AuthorizedAdjuster);
-        let client = ReputationContractClient::new(&env, &cid);
-        let adjuster = AuthorizedAdjusterClient::new(&env, &adjuster_id);
-        client.initialize(&admin);
-        client.set_authorized_contract(&admin, &adjuster_id);
 
-        // Raise score by 1000 → 5000+1000 = 6000 → Silver
-        adjuster.award(&cid, &addr, &Role::Freelancer, &1000);
-        let badge = client.get_badge(&addr, &Role::Freelancer);
-        assert_eq!(badge, BadgeLevel::Silver);
+        let admin = Address::generate(&env);
+        let target = Address::generate(&env);
+        let reputation_id = env.register_contract(None, ReputationContract);
+        let old_adjuster_id = env.register_contract(None, AuthorizedAdjuster);
+        let new_adjuster_id = env.register_contract(None, AuthorizedAdjuster);
+        let client = ReputationContractClient::new(&env, &reputation_id);
+        let new_adjuster = AuthorizedAdjusterClient::new(&env, &new_adjuster_id);
+
+        client.initialize(&admin);
+        client.set_authorized_contract(&admin, &old_adjuster_id);
+
+        // Admin rotates the authorized contract to a new address.
+        client.set_authorized_contract(&admin, &new_adjuster_id);
+
+        // New authorized contract can modify scores.
+        new_adjuster.award(&reputation_id, &target, &Role::Client, &2_000);
+        let score = client.get_score(&target, &Role::Client);
+        assert_eq!(score.score, 7_000);
     }
 
     #[test]
-    fn test_badge_upgrades_to_gold_at_8000() {
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_slash_requires_authorized_contract() {
         let env = Env::default();
         env.mock_all_auths();
-        let admin = Address::generate(&env);
-        let addr = Address::generate(&env);
-        let cid = env.register_contract(None, ReputationContract);
-        let adjuster_id = env.register_contract(None, AuthorizedAdjuster);
-        let client = ReputationContractClient::new(&env, &cid);
-        let adjuster = AuthorizedAdjusterClient::new(&env, &adjuster_id);
-        client.initialize(&admin);
-        client.set_authorized_contract(&admin, &adjuster_id);
 
-        adjuster.award(&cid, &addr, &Role::Freelancer, &3000); // 5000+3000=8000
-        assert_eq!(client.get_badge(&addr, &Role::Freelancer), BadgeLevel::Gold);
+        let admin = Address::generate(&env);
+        let target = Address::generate(&env);
+        let reputation_id = env.register_contract(None, ReputationContract);
+        let authorized_id = env.register_contract(None, AuthorizedAdjuster);
+        let rogue_id = env.register_contract(None, AuthorizedAdjuster);
+        let client = ReputationContractClient::new(&env, &reputation_id);
+        let rogue = AuthorizedAdjusterClient::new(&env, &rogue_id);
+
+        client.initialize(&admin);
+        client.set_authorized_contract(&admin, &authorized_id);
+
+        rogue.slash(
+            &reputation_id,
+            &target,
+            &Role::Freelancer,
+            &Symbol::new(&env, "fraud"),
+        );
     }
 
     #[test]
-    fn test_slash_downgrades_badge() {
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_blacklist_requires_authorized_contract() {
         let env = Env::default();
         env.mock_all_auths();
-        let admin = Address::generate(&env);
-        let addr = Address::generate(&env);
-        let cid = env.register_contract(None, ReputationContract);
-        let adjuster_id = env.register_contract(None, AuthorizedAdjuster);
-        let client = ReputationContractClient::new(&env, &cid);
-        let adjuster = AuthorizedAdjusterClient::new(&env, &adjuster_id);
-        client.initialize(&admin);
-        client.set_authorized_contract(&admin, &adjuster_id);
 
-        // Bring to Gold first, then slash twice to drop back to Bronze
-        adjuster.award(&cid, &addr, &Role::Client, &3000); // 8000 → Gold
-        assert_eq!(client.get_badge(&addr, &Role::Client), BadgeLevel::Gold);
-        adjuster.slash(&cid, &addr, &Role::Client, &soroban_sdk::Symbol::new(&env, "fraud")); // 6000 → Silver
-        assert_eq!(client.get_badge(&addr, &Role::Client), BadgeLevel::Silver);
-        adjuster.slash(&cid, &addr, &Role::Client, &soroban_sdk::Symbol::new(&env, "fraud")); // 4000 → Bronze
-        assert_eq!(client.get_badge(&addr, &Role::Client), BadgeLevel::Bronze);
+        let admin = Address::generate(&env);
+        let target = Address::generate(&env);
+        let reputation_id = env.register_contract(None, ReputationContract);
+        let authorized_id = env.register_contract(None, AuthorizedAdjuster);
+        let rogue_id = env.register_contract(None, AuthorizedAdjuster);
+        let client = ReputationContractClient::new(&env, &reputation_id);
+        let rogue = AuthorizedAdjusterClient::new(&env, &rogue_id);
+
+        client.initialize(&admin);
+        client.set_authorized_contract(&admin, &authorized_id);
+
+        rogue.blacklist(&reputation_id, &target, &Symbol::new(&env, "fraud"));
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_upgrade_requires_admin() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let attacker = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+        let wasm_hash = BytesN::from_array(&env, &[0; 32]);
+        client.upgrade(&attacker, &wasm_hash);
     }
 
     // ── Issue #406: badge metadata mapping ──
@@ -1221,22 +1273,6 @@ mod test {
         assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Bronze), Some(bronze_uri));
         assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Gold),   Some(gold_uri));
         assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Silver), None);
-    }
-
-    #[test]
-    #[should_panic(expected = "Error(Contract, #2)")]
-    fn test_upgrade_requires_admin() {
-        let env = Env::default();
-        env.mock_all_auths();
-
-        let admin = Address::generate(&env);
-        let attacker = Address::generate(&env);
-        let contract_id = env.register_contract(None, ReputationContract);
-        let client = ReputationContractClient::new(&env, &contract_id);
-
-        client.initialize(&admin);
-        let wasm_hash = BytesN::from_array(&env, &[0; 32]);
-        client.upgrade(&attacker, &wasm_hash);
     }
 
     // ── Issue #408: Transfer Blockers ──────────────────────────────

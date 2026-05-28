@@ -41,8 +41,11 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 5000
+                    "lo": 100000
                   }
+                },
+                {
+                  "u64": 60
                 }
               ]
             }
@@ -69,8 +72,11 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 7000
+                    "lo": 100000
                   }
+                },
+                {
+                  "u64": 60
                 }
               ]
             }
@@ -319,12 +325,20 @@
                   "map": [
                     {
                       "key": {
+                        "symbol": "bidding_deadline"
+                      },
+                      "val": {
+                        "u64": 100
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "budget_stroops"
                       },
                       "val": {
                         "i128": {
                           "hi": 0,
-                          "lo": 5000
+                          "lo": 100000
                         }
                       }
                     },
@@ -334,6 +348,14 @@
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "expires_at"
+                      },
+                      "val": {
+                        "u64": 60
                       }
                     },
                     {
@@ -410,12 +432,20 @@
                   "map": [
                     {
                       "key": {
+                        "symbol": "bidding_deadline"
+                      },
+                      "val": {
+                        "u64": 100
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "budget_stroops"
                       },
                       "val": {
                         "i128": {
                           "hi": 0,
-                          "lo": 7000
+                          "lo": 100000
                         }
                       }
                     },
@@ -425,6 +455,14 @@
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "expires_at"
+                      },
+                      "val": {
+                        "u64": 60
                       }
                     },
                     {
@@ -666,8 +704,11 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 5000
+                    "lo": 100000
                   }
+                },
+                {
+                  "u64": 60
                 }
               ]
             }
@@ -702,7 +743,7 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 5000
+                    "lo": 100000
                   }
                 }
               ]
@@ -735,7 +776,7 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 5000
+                    "lo": 100000
                   }
                 }
               ]
@@ -797,8 +838,11 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 7000
+                    "lo": 100000
                   }
+                },
+                {
+                  "u64": 60
                 }
               ]
             }
@@ -833,7 +877,7 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 7000
+                    "lo": 100000
                   }
                 }
               ]
@@ -866,7 +910,7 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 7000
+                    "lo": 100000
                   }
                 }
               ]

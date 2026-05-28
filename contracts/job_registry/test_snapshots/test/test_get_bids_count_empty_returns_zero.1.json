@@ -33,7 +33,7 @@
               "function_name": "post_job",
               "args": [
                 {
-                  "u64": 42
+                  "u64": 1
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -145,7 +145,7 @@
                   "symbol": "Bids"
                 },
                 {
-                  "u64": 42
+                  "u64": 1
                 }
               ]
             },
@@ -165,7 +165,7 @@
                       "symbol": "Bids"
                     },
                     {
-                      "u64": 42
+                      "u64": 1
                     }
                   ]
                 },
@@ -190,7 +190,7 @@
                   "symbol": "Job"
                 },
                 {
-                  "u64": 42
+                  "u64": 1
                 }
               ]
             },
@@ -210,21 +210,13 @@
                       "symbol": "Job"
                     },
                     {
-                      "u64": 42
+                      "u64": 1
                     }
                   ]
                 },
                 "durability": "persistent",
                 "val": {
                   "map": [
-                    {
-                      "key": {
-                        "symbol": "bidding_deadline"
-                      },
-                      "val": {
-                        "u64": 100
-                      }
-                    },
                     {
                       "key": {
                         "symbol": "budget_stroops"
@@ -331,7 +323,7 @@
                           ]
                         },
                         "val": {
-                          "u64": 43
+                          "u64": 2
                         }
                       }
                     ]
@@ -483,7 +475,7 @@
             "data": {
               "vec": [
                 {
-                  "u64": 42
+                  "u64": 1
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -525,7 +517,7 @@
                   "string": "post_job: id {} client {} budget {}"
                 },
                 {
-                  "u64": 42
+                  "u64": 1
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -555,7 +547,7 @@
                 "symbol": "jobpost"
               },
               {
-                "u64": 42
+                "u64": 1
               }
             ],
             "data": {
@@ -612,10 +604,12 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000004"
               },
               {
-                "symbol": "get_next_job_id"
+                "symbol": "get_bids_count"
               }
             ],
-            "data": "void"
+            "data": {
+              "u64": 1
+            }
           }
         }
       },
@@ -633,11 +627,11 @@
                 "symbol": "fn_return"
               },
               {
-                "symbol": "get_next_job_id"
+                "symbol": "get_bids_count"
               }
             ],
             "data": {
-              "u64": 43
+              "u32": 0
             }
           }
         }
