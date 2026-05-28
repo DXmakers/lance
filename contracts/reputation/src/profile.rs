@@ -66,6 +66,16 @@ impl BadgeLevel {
             _ => BadgeLevel::None,
         }
     }
+
+    pub fn to_u32(&self) -> u32 {
+        match self {
+            BadgeLevel::None => 0,
+            BadgeLevel::Bronze => 1,
+            BadgeLevel::Silver => 2,
+            BadgeLevel::Gold => 3,
+            BadgeLevel::Platinum => 4,
+        }
+    }
 }
 
 /// Badge tiers keyed in the metadata map.
@@ -99,14 +109,22 @@ pub struct Profile {
 }
 
 impl Profile {
-    pub fn new(address: Address) -> Self {
+    pub fn new(env: &soroban_sdk::Env, address: Address) -> Self {
         Self {
             address,
             client: RoleMetrics::new(),
             freelancer: RoleMetrics::new(),
             is_blacklisted: false,
             metadata_hash: None,
-            badge_metadata: soroban_sdk::Vec::new(_env),
+            badge_metadata: soroban_sdk::Vec::new(env),
         }
+    }
+
+    pub fn refresh_badges(&mut self) {
+        let blacklisted = self.is_blacklisted;
+        self.client.badge_level =
+            if blacklisted { 0 } else { BadgeLevel::from_score(self.client.score).to_u32() };
+        self.freelancer.badge_level =
+            if blacklisted { 0 } else { BadgeLevel::from_score(self.freelancer.score).to_u32() };
     }
 }
