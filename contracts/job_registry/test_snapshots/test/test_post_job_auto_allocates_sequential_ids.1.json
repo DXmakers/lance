@@ -43,6 +43,9 @@
                     "hi": 0,
                     "lo": 5000
                   }
+                },
+                {
+                  "u64": 100
                 }
               ]
             }
@@ -71,6 +74,9 @@
                     "hi": 0,
                     "lo": 7000
                   }
+                },
+                {
+                  "u64": 100
                 }
               ]
             }
@@ -319,6 +325,14 @@
                   "map": [
                     {
                       "key": {
+                        "symbol": "bidding_deadline"
+                      },
+                      "val": {
+                        "u64": 100
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "budget_stroops"
                       },
                       "val": {
@@ -408,6 +422,14 @@
                 "durability": "persistent",
                 "val": {
                   "map": [
+                    {
+                      "key": {
+                        "symbol": "bidding_deadline"
+                      },
+                      "val": {
+                        "u64": 100
+                      }
+                    },
                     {
                       "key": {
                         "symbol": "budget_stroops"
@@ -668,6 +690,9 @@
                     "hi": 0,
                     "lo": 5000
                   }
+                },
+                {
+                  "u64": 100
                 }
               ]
             }
@@ -799,6 +824,9 @@
                     "hi": 0,
                     "lo": 7000
                   }
+                },
+                {
+                  "u64": 100
                 }
               ]
             }
