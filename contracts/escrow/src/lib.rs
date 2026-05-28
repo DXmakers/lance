@@ -605,9 +605,6 @@ impl EscrowContract {
             return Err(EscrowError::InvalidInput);
         }
         let now: u64 = env.ledger().timestamp();
-        let expires_at = now
-            .checked_add(30 * 24 * 60 * 60)
-            .expect("job expiration overflow");
         let expires_duration = 30u64
             .checked_mul(24)
             .and_then(|h| h.checked_mul(60))
@@ -719,7 +716,6 @@ impl EscrowContract {
         let decimals = token::Client::new(&env, &job.token).decimals();
         job.token_decimals = decimals;
 
-        enter_reentrancy_guard(&env);
         let _guard = enter_reentrancy_guard(&env);
 
         let next_status = EscrowStatus::Funded;
@@ -783,7 +779,6 @@ impl EscrowContract {
         milestone.status = MilestoneStatus::Released;
         job.milestones.set(idx, milestone.clone());
 
-        job.released_amount = checked_i128_add(job.released_amount, milestone.amount)?;
         job.released_amount = Self::checked_add_i128(&env, job.released_amount, milestone.amount)?;
 
         let next_status = if job.released_amount == job.total_amount {
@@ -852,10 +847,6 @@ impl EscrowContract {
 
         job.released_amount =
             checked_i128_add(job.released_amount, milestone.amount).expect("math overflow");
-        job.released_amount = job
-            .released_amount
-            .checked_add(milestone.amount)
-            .expect("released_amount overflow");
         assert!(
             job.released_amount <= job.total_amount,
             "double-spend: released exceeds total"
@@ -2162,7 +2153,9 @@ mod test {
         cc.create_job(&1u64, &client, &freelancer, &token_addr);
         cc.add_milestone(&1u64, &1000i128);
 
-        env.storage().instance().set(&DataKey::Locked, &());
+        env.as_contract(&contract_id, || {
+            env.storage().instance().set(&DataKey::Locked, &());
+        });
         cc.deposit(&1u64, &1000i128);
     }
 
@@ -2188,12 +2181,14 @@ mod test {
         cc.add_milestone(&1u64, &1000i128);
         cc.deposit(&1u64, &1000i128);
 
-        env.storage().instance().set(&DataKey::Locked, &());
+        env.as_contract(&contract_id, || {
+            env.storage().instance().set(&DataKey::Locked, &());
+        });
         cc.release_milestone(&1u64, &client);
     }
 
     #[test]
-    #[should_panic(expected = "job already exists")]
+    #[should_panic(expected = "Error(Contract, #4)")]
     fn test_double_create_job_panics() {
         let env = Env::default();
         env.mock_all_auths();
