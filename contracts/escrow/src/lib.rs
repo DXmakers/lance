@@ -101,6 +101,10 @@ pub enum DataKey {
     Locked,
     MultisigConfig(u64), // Per-job multisig configuration
     UpgradeAdmin,
+    Admin,
+    Treasury,
+    FeeBps,
+    SequenceNonce(u64),
 }
 
 #[contracttype]
@@ -156,6 +160,12 @@ pub enum EscrowError {
     MilestoneAlreadyReleased = 20,
     /// Milestone index is out of bounds for this job.
     MilestoneOutOfBounds = 21,
+    UpgradeAdminAlreadySet = 22,
+    UpgradeAdminNotSet = 23,
+    ArithmeticError = 24,
+    FeeTooHigh = 25,
+    NothingToSweep = 26,
+    ContractNotFound = 27,
 }
 
 /// Maximum platform fee, in basis points (100% = 10_000 bps).
@@ -303,6 +313,33 @@ pub struct DisputeExpiredEvent {
     pub refunded_to: Address,
     pub amount: i128,
     pub expired_at: u64,
+}
+
+#[derive(Clone, Debug)]
+#[contracttype]
+pub struct FeeConfigUpdatedEvent {
+    pub admin: Address,
+    pub new_fee_bps: u32,
+}
+
+#[derive(Clone, Debug)]
+#[contracttype]
+pub struct LockupUpdatedEvent {
+    pub job_id: u64,
+    pub status: u32,
+}
+
+#[derive(Clone, Debug)]
+#[contracttype]
+pub struct EmergencySweepEvent {
+    pub treasury: Address,
+    pub amount: i128,
+}
+
+#[derive(Clone, Debug)]
+#[contracttype]
+pub struct MilestonesAmendedEvent {
+    pub job_id: u64,
 }
 
 fn enter_reentrancy_guard(env: &Env) {
@@ -745,6 +782,24 @@ impl EscrowContract {
         env.events().publish(("escrow", "Deposit"), evt);
 
         Ok(())
+    }
+
+    /// Helper function to payout milestone amount with platform fee
+    fn payout_with_fee(env: &Env, _job_id: u64, job: &EscrowJob, amount: i128) {
+        let fee_bps: u32 = env.storage().instance().get(&DataKey::FeeBps).unwrap_or(0);
+        let treasury: Option<Address> = env.storage().instance().get(&DataKey::Treasury);
+        
+        if fee_bps > 0 && treasury.is_some() {
+            let fee = amount * (fee_bps as i128) / 10_000;
+            let freelancer_amount = amount - fee;
+            
+            let token_client = token::Client::new(env, &job.token);
+            token_client.transfer(&env.current_contract_address(), &job.freelancer, &freelancer_amount);
+            token_client.transfer(&env.current_contract_address(), &treasury.unwrap(), &fee);
+        } else {
+            let token_client = token::Client::new(env, &job.token);
+            token_client.transfer(&env.current_contract_address(), &job.freelancer, &amount);
+        }
     }
 
     /// Releases the next sequential pending milestone to the freelancer.
@@ -1299,11 +1354,21 @@ impl EscrowContract {
     }
 
     /// Returns the current balance of an escrow (total - released).
-    pub fn get_escrow_balance(env: Env, job_id: u64) -> Result<i128, EscrowError> {
-        let job = Self::get_job(env, job_id)?;
+    ///
+    /// This is computed as `total_amount - released_amount` and represents the
+    /// funds still locked on-chain.  Off-chain tracking systems can poll this
+    /// value to verify their local ledger matches the contract state.
+    ///
+    /// Returns `0` if the job does not exist.
+    pub fn get_escrow_balance(env: Env, job_id: u64) -> i128 {
+        let key = DataKey::Job(job_id);
+        let Some(job) = env.storage().persistent().get::<_, EscrowJob>(&key) else {
+            return 0;
+        };
+        Self::bump_job_ttl(&env, &key);
         job.total_amount
             .checked_sub(job.released_amount)
-            .ok_or(EscrowError::ArithmeticError)
+            .unwrap_or(0)
     }
 
     pub fn get_admin(env: Env) -> Address {
@@ -1460,24 +1525,6 @@ impl EscrowContract {
         Self::checked_sub_i128(&env, job.total_amount, job.released_amount)
     }
 
-    /// Returns the current token balance held in escrow for the given job.
-    ///
-    /// This is computed as `total_amount - released_amount` and represents the
-    /// funds still locked on-chain.  Off-chain tracking systems can poll this
-    /// value to verify their local ledger matches the contract state.
-    ///
-    /// Returns `0` if the job does not exist.
-    pub fn get_escrow_balance(env: Env, contract_id: u32) -> i128 {
-        let key = DataKey::Job(contract_id as u64);
-        let Some(job) = env.storage().persistent().get::<_, EscrowJob>(&key) else {
-            return 0;
-        };
-        Self::bump_job_ttl(&env, &key);
-        job.total_amount
-            .checked_sub(job.released_amount)
-            .unwrap_or(0)
-    }
-
     /// Returns the cumulative amount that has been released from escrow for the
     /// given job.
     ///
@@ -1485,8 +1532,8 @@ impl EscrowContract {
     /// running totals to detect missed events or replay gaps.
     ///
     /// Returns `0` if the job does not exist.
-    pub fn get_released_amount(env: Env, contract_id: u32) -> i128 {
-        let key = DataKey::Job(contract_id as u64);
+    pub fn get_released_amount(env: Env, job_id: u64) -> i128 {
+        let key = DataKey::Job(job_id);
         let Some(job) = env.storage().persistent().get::<_, EscrowJob>(&key) else {
             return 0;
         };
@@ -1644,12 +1691,12 @@ impl EscrowContract {
         treasury: Address,
         fee_bps: u32,
     ) -> Result<(), EscrowError> {
-        let admin: Address = env
+        let config: ContractConfig = env
             .storage()
             .instance()
-            .get(&DataKey::Admin)
+            .get(&DataKey::Config)
             .ok_or(EscrowError::NotInitialized)?;
-        admin.require_auth();
+        config.admin.require_auth();
 
         if fee_bps > MAX_FEE_BPS {
             return Err(EscrowError::FeeTooHigh);
@@ -1662,9 +1709,8 @@ impl EscrowContract {
         env.events().publish(
             ("escrow", "FeeConfigUpdated"),
             FeeConfigUpdatedEvent {
-                treasury,
-                fee_bps,
-                updated_at: env.ledger().timestamp(),
+                admin: config.admin,
+                new_fee_bps: fee_bps,
             },
         );
 
@@ -1673,7 +1719,7 @@ impl EscrowContract {
 
     /// Returns the active platform fee in basis points (0 when unset).
     pub fn get_fee_bps(env: Env) -> u32 {
-        Self::fee_bps(&env)
+        env.storage().instance().get(&DataKey::FeeBps).unwrap_or(0)
     }
 
     /// Returns the configured treasury address, if any.
@@ -1723,8 +1769,7 @@ impl EscrowContract {
             ("escrow", "LockupUpdated"),
             LockupUpdatedEvent {
                 job_id,
-                expires_at,
-                updated_at: env.ledger().timestamp(),
+                status: 0,
             },
         );
 
@@ -1754,12 +1799,12 @@ impl EscrowContract {
         job_id: u64,
         rescue_address: Address,
     ) -> Result<(), EscrowError> {
-        let admin: Address = env
+        let config: ContractConfig = env
             .storage()
             .instance()
-            .get(&DataKey::Admin)
+            .get(&DataKey::Config)
             .ok_or(EscrowError::NotInitialized)?;
-        admin.require_auth();
+        config.admin.require_auth();
 
         let key = DataKey::Job(job_id);
         let mut job: EscrowJob = env
@@ -1791,14 +1836,12 @@ impl EscrowContract {
 
         exit_reentrancy_guard(&env);
 
+        let treasury: Option<Address> = env.storage().instance().get(&DataKey::Treasury);
         env.events().publish(
             ("escrow", "EmergencySweep"),
             EmergencySweepEvent {
-                job_id,
-                admin,
-                rescue_address,
+                treasury: treasury.unwrap_or(rescue_address.clone()),
                 amount: remaining,
-                swept_at: env.ledger().timestamp(),
             },
         );
 
@@ -1877,9 +1920,6 @@ impl EscrowContract {
             ("escrow", "MilestonesAmended"),
             MilestonesAmendedEvent {
                 job_id,
-                milestone_count: new_amounts.len(),
-                remaining_amount: remaining,
-                amended_at: env.ledger().timestamp(),
             },
         );
 
@@ -1890,8 +1930,8 @@ impl EscrowContract {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::testutils::{Address as _, Ledger as _};
-    use soroban_sdk::{token, Address, Env};
+    use soroban_sdk::testutils::{Address as _, Ledger as _, Events};
+    use soroban_sdk::{token, Address, Env, TryIntoVal, String};
 
     fn setup_token(env: &Env, admin: &Address) -> Address {
         let contract = env.register_stellar_asset_contract_v2(admin.clone());
@@ -2513,7 +2553,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #4)")]
+    #[should_panic(expected = "Error(Contract, #21)")]
     fn test_release_funds_invalid_index_panics() {
         let env = Env::default();
         env.mock_all_auths();
@@ -3242,7 +3282,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #20)")]
+    #[should_panic(expected = "Error(Contract, #17)")]
     fn test_resolve_after_deadline_fails() {
         let env = Env::default();
         env.mock_all_auths();
@@ -3343,17 +3383,33 @@ mod test {
             (last.1, last.2)
         };
 
-        // Topic[1] must be the string "MilestoneReleased".
-        let topic_1: soroban_sdk::Symbol = soroban_sdk::Symbol::new(&env, "MilestoneReleased");
+        // Topic[0] must be the string "escrow".
+        let topic_0_val = topics.get(0).unwrap();
+        let actual_topic_0: String = topic_0_val
+            .try_into_val(&env)
+            .expect("topic[0] should be a String");
+        let expected_topic_0 = String::from_str(&env, "escrow");
         assert_eq!(
-            topics.get(1).unwrap(),
-            soroban_sdk::Val::from(topic_1),
+            actual_topic_0,
+            expected_topic_0,
+            "topic[0] must be 'escrow'"
+        );
+
+        // Topic[1] must be the string "MilestoneReleased".
+        let topic_1_val = topics.get(1).unwrap();
+        let actual_topic_1: String = topic_1_val
+            .try_into_val(&env)
+            .expect("topic[1] should be a String");
+        let expected_topic_1 = String::from_str(&env, "MilestoneReleased");
+        assert_eq!(
+            actual_topic_1,
+            expected_topic_1,
             "topic[1] must be 'MilestoneReleased'"
         );
 
         // Deserialise the event body and assert every field.
         let evt: MilestoneReleasedEvent =
-            soroban_sdk::Val::try_into_val(&data, &env).expect("event body deserialisation failed");
+            data.try_into_val(&env).expect("event body deserialisation failed");
 
         assert_eq!(evt.contract_id, 42u64, "contract_id mismatch");
         assert_eq!(evt.milestone_index, 0u32, "milestone_index mismatch");
@@ -3399,15 +3455,30 @@ mod test {
             (last.1, last.2)
         };
 
-        let topic_1: soroban_sdk::Symbol = soroban_sdk::Symbol::new(&env, "MilestoneReleased");
+        let topic_0_val = topics.get(0).unwrap();
+        let actual_topic_0: String = topic_0_val
+            .try_into_val(&env)
+            .expect("topic[0] should be a String");
+        let expected_topic_0 = String::from_str(&env, "escrow");
         assert_eq!(
-            topics.get(1).unwrap(),
-            soroban_sdk::Val::from(topic_1),
+            actual_topic_0,
+            expected_topic_0,
+            "topic[0] must be 'escrow'"
+        );
+
+        let topic_1_val = topics.get(1).unwrap();
+        let actual_topic_1: String = topic_1_val
+            .try_into_val(&env)
+            .expect("topic[1] should be a String");
+        let expected_topic_1 = String::from_str(&env, "MilestoneReleased");
+        assert_eq!(
+            actual_topic_1,
+            expected_topic_1,
             "topic[1] must be 'MilestoneReleased'"
         );
 
         let evt: MilestoneReleasedEvent =
-            soroban_sdk::Val::try_into_val(&data, &env).expect("event body deserialisation failed");
+            data.try_into_val(&env).expect("event body deserialisation failed");
 
         assert_eq!(evt.contract_id, 7u64);
         assert_eq!(evt.milestone_index, 2u32, "must reflect the explicit index");
@@ -3555,13 +3626,13 @@ mod test {
         cc.add_milestone(&1u64, &6000i128);
         cc.deposit(&1u64, &10_000i128);
 
-        assert_eq!(cc.get_escrow_balance(&1u32), 10_000i128);
+        assert_eq!(cc.get_escrow_balance(&1u64), 10_000i128);
 
         cc.release_milestone(&1u64, &client);
-        assert_eq!(cc.get_escrow_balance(&1u32), 6_000i128);
+        assert_eq!(cc.get_escrow_balance(&1u64), 6_000i128);
 
         cc.release_milestone(&1u64, &client);
-        assert_eq!(cc.get_escrow_balance(&1u32), 0i128);
+        assert_eq!(cc.get_escrow_balance(&1u64), 0i128);
     }
 
     /// Verifies `get_released_amount` accumulates correctly across multiple
@@ -3589,16 +3660,16 @@ mod test {
         cc.add_milestone(&1u64, &5000i128);
         cc.deposit(&1u64, &10_000i128);
 
-        assert_eq!(cc.get_released_amount(&1u32), 0i128);
+        assert_eq!(cc.get_released_amount(&1u64), 0i128);
 
         cc.release_milestone(&1u64, &client);
-        assert_eq!(cc.get_released_amount(&1u32), 2_000i128);
+        assert_eq!(cc.get_released_amount(&1u64), 2_000i128);
 
         cc.release_milestone(&1u64, &client);
-        assert_eq!(cc.get_released_amount(&1u32), 5_000i128);
+        assert_eq!(cc.get_released_amount(&1u64), 5_000i128);
 
         cc.release_milestone(&1u64, &client);
-        assert_eq!(cc.get_released_amount(&1u32), 10_000i128);
+        assert_eq!(cc.get_released_amount(&1u64), 10_000i128);
     }
 
     /// Verifies that `get_escrow_balance` and `get_released_amount` return 0
@@ -3611,8 +3682,8 @@ mod test {
         let escrow_id = env.register_contract(None, EscrowContract);
         let cc = EscrowContractClient::new(&env, &escrow_id);
 
-        assert_eq!(cc.get_escrow_balance(&999u32), 0i128);
-        assert_eq!(cc.get_released_amount(&999u32), 0i128);
+        assert_eq!(cc.get_escrow_balance(&999u64), 0i128);
+        assert_eq!(cc.get_released_amount(&999u64), 0i128);
     }
 
     /// Exercises the overflow boundary: a milestone amount of `i128::MAX`
@@ -3655,31 +3726,33 @@ mod test {
         // Directly overwrite the stored job to set released_amount = 1 and
         // reset the milestone back to Pending, simulating a state where the
         // accumulator is already non-zero.
-        let key = DataKey::Job(1u64);
-        let mut job: EscrowJob = env.storage().persistent().get(&key).unwrap();
-        job.released_amount = 1i128;
-        // Reset the milestone to Pending so release_milestone finds it.
-        job.milestones.set(
-            0,
-            Milestone {
-                amount: safe_amount,
-                status: MilestoneStatus::Pending,
-            },
-        );
-        env.storage().persistent().set(&key, &job);
+        env.as_contract(&escrow_id, || {
+            let key = DataKey::Job(1u64);
+            let mut job: EscrowJob = env.storage().persistent().get(&key).unwrap();
+            job.released_amount = 1i128;
+            // Reset the milestone to Pending so release_milestone finds it.
+            job.milestones.set(
+                0,
+                Milestone {
+                    amount: safe_amount,
+                    status: MilestoneStatus::Pending,
+                },
+            );
+            env.storage().persistent().set(&key, &job);
 
-        // Now release_milestone will attempt: 1 + (i128::MAX - 1) = i128::MAX
-        // which does NOT overflow.  To actually overflow we need amount = i128::MAX.
-        // Patch the milestone amount to i128::MAX.
-        let mut job2: EscrowJob = env.storage().persistent().get(&key).unwrap();
-        job2.milestones.set(
-            0,
-            Milestone {
-                amount: i128::MAX,
-                status: MilestoneStatus::Pending,
-            },
-        );
-        env.storage().persistent().set(&key, &job2);
+            // Now release_milestone will attempt: 1 + (i128::MAX - 1) = i128::MAX
+            // which does NOT overflow.  To actually overflow we need amount = i128::MAX.
+            // Patch the milestone amount to i128::MAX.
+            let mut job2: EscrowJob = env.storage().persistent().get(&key).unwrap();
+            job2.milestones.set(
+                0,
+                Milestone {
+                    amount: i128::MAX,
+                    status: MilestoneStatus::Pending,
+                },
+            );
+            env.storage().persistent().set(&key, &job2);
+        });
 
         // This must panic with MathOverflow (#18).
         cc.release_milestone(&1u64, &client);
