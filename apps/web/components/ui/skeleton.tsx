@@ -22,31 +22,29 @@ export function RepoAvatarSkeleton({ className }: SkeletonProps) {
 
 export function JobCardSkeleton() {
   return (
-    <article className="rounded-3xl border border-white/10 bg-zinc-950/70 p-6 shadow-[0_24px_64px_-44px_rgba(0,0,0,0.85)] backdrop-blur-sm">
+    <article className="rounded-[12px] border border-white/5 bg-zinc-900/40 p-5 backdrop-blur-md">
       <div className="flex items-start justify-between gap-4">
-        <div className="space-y-3">
-          <Skeleton className="h-3 w-24 rounded-full" />
-          <Skeleton className="h-8 w-64 max-w-[85vw]" />
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-16 rounded-full" />
+          <Skeleton className="h-6 w-48 max-w-[85vw]" />
         </div>
-        <RepoAvatarSkeleton />
+        <Skeleton className="h-8 w-8 rounded-[8px]" />
       </div>
 
-      <div className="mt-5 space-y-2">
-        <Skeleton className="h-3 w-full" />
-        <Skeleton className="h-3 w-[94%]" />
-        <Skeleton className="h-3 w-[68%]" />
+      <div className="mt-4 space-y-1.5">
+        <Skeleton className="h-2.5 w-full" />
+        <Skeleton className="h-2.5 w-[94%]" />
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2">
-        <Skeleton className="h-7 w-20 rounded-full" />
-        <Skeleton className="h-7 w-24 rounded-full" />
-        <Skeleton className="h-7 w-16 rounded-full" />
+      <div className="mt-4 flex flex-wrap gap-1.5">
+        <Skeleton className="h-5 w-16 rounded-full" />
+        <Skeleton className="h-5 w-20 rounded-full" />
       </div>
 
-      <div className="mt-6 grid gap-3 rounded-2xl border border-white/10 p-4 sm:grid-cols-3">
-        <Skeleton className="h-14 w-full" />
-        <Skeleton className="h-14 w-full" />
-        <Skeleton className="h-14 w-full" />
+      <div className="mt-4 grid gap-2 border-t border-white/5 pt-4 sm:grid-cols-3">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
       </div>
     </article>
   );

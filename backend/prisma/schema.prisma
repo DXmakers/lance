@@ -1,0 +1,316 @@
+generator client {
+  provider        = "prisma-client-js"
+  engineType      = "library"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model sqlx_migrations {
+  version        BigInt   @id
+  description    String
+  installed_on   DateTime @default(now()) @db.Timestamptz(6)
+  success        Boolean
+  checksum       Bytes
+  execution_time BigInt
+
+  @@map("_sqlx_migrations")
+}
+
+model activity_logs {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_address String?
+  job_id       String?  @db.Uuid
+  event_type   String
+  level        String   @default("info")
+  details      Json     @default("{}")
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  jobs         jobs?    @relation(fields: [job_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "activity_logs_created_idx")
+  @@index([user_address], map: "idx_activity_logs_user_address")
+  @@index([job_id], map: "idx_activity_logs_job_id")
+}
+
+model appeals {
+  id            String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  dispute_id    String          @unique @db.Uuid
+  status        String          @default("open")
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  disputes      disputes        @relation(fields: [dispute_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  arbiter_votes arbiter_votes[]
+}
+
+model arbiter_votes {
+  id                   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  appeal_id            String   @db.Uuid
+  arbiter_address      String
+  freelancer_share_bps Int      @default(0)
+  reasoning            String   @default("")
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  appeals              appeals  @relation(fields: [appeal_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([appeal_id, arbiter_address])
+}
+
+model arbiters {
+  address    String   @id
+  name       String   @default("")
+  active     Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model auth_challenges {
+  address    String   @id
+  challenge  String
+  expires_at DateTime @db.Timestamptz(6)
+}
+
+model bid_status_transitions {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  bid_id          String   @db.Uuid
+  from_status     String
+  to_status       String
+  transitioned_by String
+  reason          String?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  bids            bids     @relation(fields: [bid_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([bid_id, created_at(sort: Desc)], map: "idx_bid_status_transitions_bid_id")
+}
+
+model bids {
+  id                     String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  job_id                 String                   @db.Uuid
+  freelancer_address     String
+  proposal               String                   @default("")
+  proposal_hash          String?
+  status                 String                   @default("pending")
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime?                @default(now()) @db.Timestamptz(6)
+  bid_status_transitions bid_status_transitions[]
+  jobs                   jobs                     @relation(fields: [job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([freelancer_address], map: "idx_bids_freelancer_address")
+  @@index([job_id], map: "idx_bids_job_id")
+}
+
+model deliverables {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  job_id          String   @db.Uuid
+  milestone_index Int
+  submitted_by    String
+  label           String   @default("")
+  kind            String   @default("link")
+  url             String   @default("")
+  file_hash       String?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  jobs            jobs     @relation(fields: [job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([job_id, created_at(sort: Desc)], map: "deliverables_job_created_idx")
+}
+
+model deposits {
+  id          String   @id @db.VarChar(128)
+  ledger      BigInt
+  contract_id String   @db.VarChar(64)
+  sender      String   @db.VarChar(64)
+  amount      BigInt
+  token       String   @db.VarChar(64)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([contract_id], map: "idx_deposits_contract")
+  @@index([ledger], map: "idx_deposits_ledger")
+  @@index([sender], map: "idx_deposits_sender")
+}
+
+model disputes {
+  id         String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  job_id     String     @db.Uuid
+  opened_by  String
+  status     String     @default("open")
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+  appeals    appeals?
+  jobs       jobs       @relation(fields: [job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  evidence   evidence[]
+  verdicts   verdicts[]
+}
+
+model evidence {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  dispute_id   String   @db.Uuid
+  submitted_by String
+  content      String   @default("")
+  file_hash    String?
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  disputes     disputes @relation(fields: [dispute_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model indexed_disputes {
+  id          String   @id @db.VarChar(128)
+  ledger      BigInt
+  contract_id String   @db.VarChar(64)
+  job_id      BigInt
+  opened_by   String
+  event_type  String   @default("DisputeOpened")
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([job_id], map: "idx_indexed_disputes_job_id")
+  @@index([ledger], map: "idx_indexed_disputes_ledger")
+}
+
+model indexed_events {
+  id            String   @id @db.VarChar(128)
+  ledger_amount BigInt
+  contract_id   String   @db.VarChar(64)
+  topic_hash    String   @db.VarChar(128)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model indexed_milestone_releases {
+  id              String   @id @db.VarChar(128)
+  ledger          BigInt
+  contract_id     String   @db.VarChar(64)
+  job_id          BigInt
+  milestone_index Int
+  amount          BigInt   @default(0)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([job_id], map: "idx_milestone_releases_job_id")
+  @@index([ledger], map: "idx_milestone_releases_ledger")
+}
+
+model indexer_state {
+  id                    Int      @id
+  last_processed_ledger BigInt   @default(0)
+  updated_at            DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model jobs {
+  id                 String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title              String
+  description        String             @default("")
+  budget_usdc        BigInt             @default(0)
+  milestones         Int                @default(1)
+  client_address     String
+  freelancer_address String?
+  status             String             @default("open")
+  metadata_hash      String?
+  on_chain_job_id    BigInt?
+  created_at         DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime           @default(now()) @db.Timestamptz(6)
+  activity_logs      activity_logs[]
+  bids               bids[]
+  deliverables       deliverables[]
+  disputes           disputes[]
+  milestone_events   milestone_events[]
+  milestone_records  milestones[]
+  saved_jobs         saved_jobs[]
+
+  @@index([client_address], map: "idx_jobs_client_address")
+  @@index([freelancer_address], map: "idx_jobs_freelancer_address")
+  @@index([status], map: "idx_jobs_status")
+}
+
+model milestone_events {
+  id            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  milestone_id  String     @db.Uuid
+  job_id        String     @db.Uuid
+  event_type    String
+  actor_address String?
+  tx_hash       String?
+  note          String?
+  created_at    DateTime   @default(now()) @db.Timestamptz(6)
+  jobs          jobs       @relation(fields: [job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  milestones    milestones @relation(fields: [milestone_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([job_id], map: "idx_milestone_events_job_id")
+  @@index([milestone_id], map: "idx_milestone_events_milestone_id")
+}
+
+model milestones {
+  id               String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  job_id           String             @db.Uuid
+  index            Int
+  title            String             @default("")
+  amount_usdc      BigInt             @default(0)
+  status           String             @default("pending")
+  tx_hash          String?
+  released_at      DateTime?          @db.Timestamptz(6)
+  description      String?
+  due_date         DateTime?          @db.Timestamptz(6)
+  completed_at     DateTime?          @db.Timestamptz(6)
+  milestone_events milestone_events[]
+  jobs             jobs               @relation(fields: [job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([job_id, index])
+}
+
+model profiles {
+  address         String   @id
+  display_name    String?
+  headline        String   @default("")
+  bio             String   @default("")
+  portfolio_links Json     @default("[]")
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model saved_jobs {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  job_id       String   @db.Uuid
+  user_address String
+  note         String?
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  jobs         jobs     @relation(fields: [job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([job_id, user_address])
+  @@index([user_address])
+}
+
+model sessions {
+  token      String   @id
+  address    String
+  expires_at DateTime @db.Timestamptz(6)
+
+  @@index([address], map: "idx_sessions_address")
+}
+
+model transaction_metadata_cache {
+  tx_hash    String   @id
+  metadata   Json
+  fetched_at DateTime @default(now()) @db.Timestamptz(6)
+  expires_at DateTime @db.Timestamptz(6)
+
+  @@index([expires_at])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model transaction_queue {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payload         Json
+  status          String   @default("queued")
+  tx_hash         String?
+  sequence_number BigInt?
+  attempts        Int      @default(0)
+  max_attempts    Int      @default(5)
+  last_error      String?
+  scheduled_at    DateTime @default(now()) @db.Timestamptz(6)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([status, scheduled_at], map: "transaction_queue_status_scheduled_idx")
+  @@index([tx_hash], where: raw("(tx_hash IS NOT NULL)"))
+}
+
+model verdicts {
+  id                   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  dispute_id           String   @db.Uuid
+  winner               String
+  freelancer_share_bps Int      @default(0)
+  reasoning            String   @default("")
+  on_chain_tx          String?
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  disputes             disputes @relation(fields: [dispute_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}

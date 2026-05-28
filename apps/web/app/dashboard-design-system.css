@@ -1,0 +1,490 @@
+/**
+ * Freelancer Dashboard Design System
+ * 
+ * A strict design system for Web3 freelancer interfaces
+ * Balances "Technical Trust" with "Modern Web3" aesthetics
+ */
+
+/* ─── Color Tokens ───────────────────────────────────────────────────────── */
+
+:root {
+  /* Base Colors */
+  --dashboard-bg: #09090b;           /* zinc-950 */
+  --dashboard-surface: #18181b;      /* zinc-900 */
+  --dashboard-surface-elevated: #27272a; /* zinc-800 */
+  
+  /* Status Colors */
+  --dashboard-success: #10b981;      /* emerald-500 */
+  --dashboard-success-light: #34d399; /* emerald-400 */
+  --dashboard-success-dark: #059669;  /* emerald-600 */
+  
+  --dashboard-warning: #f59e0b;      /* amber-500 */
+  --dashboard-warning-light: #fbbf24; /* amber-400 */
+  --dashboard-warning-dark: #d97706;  /* amber-600 */
+  
+  --dashboard-error: #ef4444;        /* red-500 */
+  --dashboard-info: #3b82f6;         /* blue-500 */
+  
+  /* Text Colors */
+  --dashboard-text-primary: #fafafa;    /* zinc-50 */
+  --dashboard-text-secondary: #a1a1aa;  /* zinc-400 */
+  --dashboard-text-tertiary: #71717a;   /* zinc-500 */
+  
+  /* Border Colors */
+  --dashboard-border: #27272a;       /* zinc-800 */
+  --dashboard-border-light: #3f3f46; /* zinc-700 */
+  
+  /* Glow Effect */
+  --dashboard-glow-indigo: rgba(99, 102, 241, 0.08);
+  --dashboard-glow-slate: rgba(148, 163, 184, 0.05);
+  
+  /* Spacing Grid (8px base) */
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-5: 1.25rem;  /* 20px */
+  --space-6: 1.5rem;   /* 24px */
+  --space-8: 2rem;     /* 32px */
+  --space-10: 2.5rem;  /* 40px */
+  --space-12: 3rem;    /* 48px */
+  
+  /* Border Radius */
+  --radius-sm: 0.5rem;   /* 8px */
+  --radius-md: 0.75rem;  /* 12px */
+  --radius-lg: 1rem;     /* 16px */
+  --radius-xl: 1.5rem;   /* 24px */
+  
+  /* Typography */
+  --font-sans: 'Inter', 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+  
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+}
+
+/* ─── Glassmorphism Utilities ────────────────────────────────────────────── */
+
+.glass-card {
+  background: rgba(24, 24, 27, 0.6);  /* zinc-900 with 60% opacity */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(63, 63, 70, 0.3); /* zinc-700 with 30% opacity */
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.glass-card-elevated {
+  background: rgba(39, 39, 42, 0.7);  /* zinc-800 with 70% opacity */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(63, 63, 70, 0.4);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.glass-sidebar {
+  background: rgba(24, 24, 27, 0.8);  /* zinc-900 with 80% opacity */
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-right: 1px solid rgba(63, 63, 70, 0.3);
+}
+
+/* ─── Background Glow Effect ─────────────────────────────────────────────── */
+
+.dashboard-bg-glow {
+  position: relative;
+  background: var(--dashboard-bg);
+}
+
+.dashboard-bg-glow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    circle at 20% 30%, 
+    var(--dashboard-glow-indigo) 0%, 
+    transparent 50%
+  ),
+  radial-gradient(
+    circle at 80% 70%, 
+    var(--dashboard-glow-slate) 0%, 
+    transparent 50%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dashboard-bg-glow > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Status Badges ──────────────────────────────────────────────────────── */
+
+.badge-success {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--dashboard-success-light);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.badge-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--dashboard-warning-light);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.badge-error {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.badge-info {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+/* ─── Progress Bars ──────────────────────────────────────────────────────── */
+
+.progress-bar {
+  width: 100%;
+  height: 0.5rem;
+  background: rgba(39, 39, 42, 0.8);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--dashboard-success) 0%,
+    var(--dashboard-success-light) 100%
+  );
+  border-radius: var(--radius-sm);
+  transition: width var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+/* ─── Typography Utilities ───────────────────────────────────────────────── */
+
+.text-mono {
+  font-family: var(--font-mono);
+  letter-spacing: -0.02em;
+}
+
+.text-financial {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.text-address {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--dashboard-text-secondary);
+  letter-spacing: -0.02em;
+}
+
+/* ─── Interactive Elements ───────────────────────────────────────────────── */
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  background: var(--dashboard-success);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+}
+
+.btn-primary:hover {
+  background: var(--dashboard-success-light);
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  background: rgba(39, 39, 42, 0.8);
+  color: var(--dashboard-text-primary);
+  border: 1px solid var(--dashboard-border-light);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-secondary:hover {
+  background: rgba(63, 63, 70, 0.8);
+  border-color: var(--dashboard-text-secondary);
+}
+
+.copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+  background: rgba(39, 39, 42, 0.6);
+  color: var(--dashboard-text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.copy-button:hover {
+  background: rgba(63, 63, 70, 0.8);
+  color: var(--dashboard-text-primary);
+  border-color: var(--dashboard-border-light);
+}
+
+.copy-button:active {
+  transform: scale(0.95);
+}
+
+/* ─── Card Hover Effects ─────────────────────────────────────────────────── */
+
+.card-interactive {
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: var(--shadow-glow);
+}
+
+/* ─── Sparkline Chart ────────────────────────────────────────────────────── */
+
+.sparkline {
+  width: 100%;
+  height: 48px;
+}
+
+.sparkline-path {
+  fill: none;
+  stroke: var(--dashboard-success);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sparkline-area {
+  fill: url(#sparkline-gradient);
+  opacity: 0.2;
+}
+
+/* ─── Sidebar Navigation ─────────────────────────────────────────────────── */
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  color: var(--dashboard-text-secondary);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  position: relative;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  background: var(--dashboard-success);
+  border-radius: 0 2px 2px 0;
+  transition: height var(--transition-fast);
+}
+
+.nav-item:hover {
+  background: rgba(39, 39, 42, 0.6);
+  color: var(--dashboard-text-primary);
+}
+
+.nav-item.active {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--dashboard-success-light);
+}
+
+.nav-item.active::before {
+  height: 60%;
+}
+
+/* ─── Responsive Grid ────────────────────────────────────────────────────── */
+
+.dashboard-grid {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ─── Animations ─────────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(16, 185, 129, 0.2);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ─── Scrollbar Styling ──────────────────────────────────────────────────── */
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(24, 24, 27, 0.4);
+  border-radius: var(--radius-sm);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(63, 63, 70, 0.6);
+  border-radius: var(--radius-sm);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(82, 82, 91, 0.8);
+}
+
+/* ─── Print Styles ───────────────────────────────────────────────────────── */
+
+@media print {
+  .glass-card,
+  .glass-card-elevated,
+  .glass-sidebar {
+    background: white;
+    border: 1px solid #000;
+  }
+  
+  .dashboard-bg-glow::before {
+    display: none;
+  }
+}

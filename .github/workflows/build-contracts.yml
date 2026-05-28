@@ -1,0 +1,106 @@
+name: Build Soroban Contracts
+
+on:
+  push:
+    paths:
+      - 'contracts/**'
+      - '.github/workflows/build-contracts.yml'
+  pull_request:
+    paths:
+      - 'contracts/**'
+      - '.github/workflows/build-contracts.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-wasm:
+    name: Build Contract WASM
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        contract: [escrow, job_registry, reputation]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          toolchain: stable
+      
+      - name: Install Soroban CLI
+        run: |
+          cargo install --locked --version 22.0.0 soroban-cli
+          soroban --version
+      
+      - name: Install binaryen (wasm-opt)
+        run: sudo apt-get update && sudo apt-get install -y binaryen
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Build ${{ matrix.contract }} contract
+        run: |
+          cargo build --target wasm32-unknown-unknown --release -p ${{ matrix.contract }}
+          
+      - name: Optimize WASM
+        run: |
+          wasm-opt target/wasm32-unknown-unknown/release/${{ matrix.contract }}.wasm \
+            -o target/wasm32-unknown-unknown/release/${{ matrix.contract }}.optimized.wasm \
+            -Oz --enable-bulk-memory
+          
+      - name: Upload WASM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.contract }}-wasm
+          path: target/wasm32-unknown-unknown/release/${{ matrix.contract }}.optimized.wasm
+          retention-days: 30
+      
+      - name: Generate WASM hash
+        run: |
+          wasm_file="target/wasm32-unknown-unknown/release/${{ matrix.contract }}.optimized.wasm"
+          if [ -f "$wasm_file" ]; then
+            sha256sum "$wasm_file" > "${{ matrix.contract }}.sha256"
+            echo "WASM hash: $(cat ${{ matrix.contract }}.sha256)"
+          fi
+      
+      - name: Upload hash artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.contract }}-hash
+          path: ${{ matrix.contract }}.sha256
+          retention-days: 30
+
+  test-contracts:
+    name: Test Contracts
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          toolchain: stable
+      
+      - name: Install Soroban CLI
+        run: |
+          cargo install --locked --version 22.0.0 soroban-cli
+          soroban --version
+      
+      - name: Run contract tests
+        run: |
+          cargo test -p escrow -p reputation -p job_registry
+        env:
+          RUST_BACKTRACE: 1

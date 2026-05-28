@@ -340,3 +340,49 @@ export function mapBackendError(statusCode: number, message?: string): ErrorToas
     description: message || `Request failed with status ${statusCode}`,
   };
 }
+
+/**
+ * Detect insufficient-balance errors across every layer the wallet/SDK can
+ * surface them (Horizon transaction codes, Soroban operation codes, raw
+ * simulation strings, generic "underfunded" messages). Used by the UI to
+ * branch into the dedicated `InsufficientBalanceAlert` recovery view (#179).
+ */
+const INSUFFICIENT_BALANCE_MARKERS = [
+  "tx_insufficient_balance",
+  "op_underfunded",
+  "insufficient balance",
+  "insufficient funds",
+  "underfunded",
+  "balance below",
+] as const;
+
+export function isInsufficientBalanceError(error: unknown): boolean {
+  const haystack = collectErrorStrings(error).map((s) => s.toLowerCase());
+  return haystack.some((s) =>
+    INSUFFICIENT_BALANCE_MARKERS.some((marker) => s.includes(marker.toLowerCase())),
+  );
+}
+
+function collectErrorStrings(error: unknown): string[] {
+  const out: string[] = [];
+  if (typeof error === "string") {
+    out.push(error);
+    return out;
+  }
+  if (error instanceof Error) {
+    out.push(error.message);
+  }
+  const stellarError = error as StellarError;
+  const codes = stellarError.response?.data?.extras?.result_codes;
+  if (codes) {
+    if (typeof codes.transaction === "string") {
+      out.push(codes.transaction);
+    } else if (Array.isArray(codes.transaction)) {
+      out.push(...codes.transaction);
+    }
+    if (codes.operations) {
+      out.push(...codes.operations);
+    }
+  }
+  return out;
+}
