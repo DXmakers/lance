@@ -101,6 +101,8 @@ pub enum DataKey {
     Locked,
     MultisigConfig(u64), // Per-job multisig configuration
     UpgradeAdmin,
+    Treasury,
+    FeeBps,
 }
 
 #[contracttype]
@@ -150,6 +152,8 @@ pub enum EscrowError {
     UpgradeAdminNotSet = 18,
     ArithmeticOverflow = 19,
     DisputeResolutionExpired = 20,
+    FeeTooHigh = 21,
+    NothingToSweep = 22,
 }
 
 /// Maximum platform fee, in basis points (100% = 10_000 bps).
@@ -257,6 +261,41 @@ pub struct DisputeExpiredEvent {
     pub expired_at: u64,
 }
 
+#[contracttype]
+#[derive(Clone)]
+pub struct FeeConfigUpdatedEvent {
+    pub treasury: Address,
+    pub fee_bps: u32,
+    pub updated_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct LockupUpdatedEvent {
+    pub job_id: u64,
+    pub expires_at: u64,
+    pub updated_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct EmergencySweepEvent {
+    pub job_id: u64,
+    pub admin: Address,
+    pub rescue_address: Address,
+    pub amount: i128,
+    pub swept_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct MilestonesAmendedEvent {
+    pub job_id: u64,
+    pub milestone_count: u32,
+    pub remaining_amount: i128,
+    pub amended_at: u64,
+}
+
 fn enter_reentrancy_guard(env: &Env) {
     if env.storage().instance().has(&DataKey::Locked) {
         panic_with_error!(env, EscrowError::ReentrancyDetected);
@@ -335,6 +374,43 @@ impl EscrowContract {
         );
 
         Ok(())
+    }
+
+    fn payout_with_fee(
+        env: &Env,
+        _job_id: u64,
+        job: &EscrowJob,
+        amount: i128,
+    ) {
+        let treasury: Option<Address> = env.storage().instance().get(&DataKey::Treasury);
+        let fee_bps: u32 = env.storage().instance().get(&DataKey::FeeBps).unwrap_or(0);
+        let token_client = token::Client::new(env, &job.token);
+
+        if let Some(treasury_addr) = treasury {
+            if fee_bps > 0 {
+                let fee = (amount * fee_bps as i128) / MAX_FEE_BPS as i128;
+                let payout = amount - fee;
+                if fee > 0 {
+                    token_client.transfer(
+                        &env.current_contract_address(),
+                        &treasury_addr,
+                        &fee,
+                    );
+                }
+                token_client.transfer(
+                    &env.current_contract_address(),
+                    &job.freelancer,
+                    &payout,
+                );
+                return;
+            }
+        }
+
+        token_client.transfer(
+            &env.current_contract_address(),
+            &job.freelancer,
+            &amount,
+        );
     }
 
     pub fn version(_env: Env) -> u32 {
@@ -1450,12 +1526,12 @@ impl EscrowContract {
         treasury: Address,
         fee_bps: u32,
     ) -> Result<(), EscrowError> {
-        let admin: Address = env
+        let config: ContractConfig = env
             .storage()
             .instance()
-            .get(&DataKey::Admin)
+            .get(&DataKey::Config)
             .ok_or(EscrowError::NotInitialized)?;
-        admin.require_auth();
+        config.admin.require_auth();
 
         if fee_bps > MAX_FEE_BPS {
             return Err(EscrowError::FeeTooHigh);
@@ -1479,7 +1555,10 @@ impl EscrowContract {
 
     /// Returns the active platform fee in basis points (0 when unset).
     pub fn get_fee_bps(env: Env) -> u32 {
-        Self::fee_bps(&env)
+        env.storage()
+            .instance()
+            .get(&DataKey::FeeBps)
+            .unwrap_or(0)
     }
 
     /// Returns the configured treasury address, if any.
@@ -1560,12 +1639,12 @@ impl EscrowContract {
         job_id: u64,
         rescue_address: Address,
     ) -> Result<(), EscrowError> {
-        let admin: Address = env
+        let config: ContractConfig = env
             .storage()
             .instance()
-            .get(&DataKey::Admin)
+            .get(&DataKey::Config)
             .ok_or(EscrowError::NotInitialized)?;
-        admin.require_auth();
+        config.admin.require_auth();
 
         let key = DataKey::Job(job_id);
         let mut job: EscrowJob = env
@@ -1601,7 +1680,7 @@ impl EscrowContract {
             ("escrow", "EmergencySweep"),
             EmergencySweepEvent {
                 job_id,
-                admin,
+                admin: config.admin,
                 rescue_address,
                 amount: remaining,
                 swept_at: env.ledger().timestamp(),
