@@ -975,7 +975,7 @@ mod test {
         assert_eq!(job.freelancer, None);
         assert!(job.collateral_locked);
 
-        let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789012345678901234567");
+        let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789212345678921234567");
         cc.submit_bid(&1u64, &freelancer, &proposal, &500i128);
 
         let bids = cc.get_bids(&1u64);
@@ -986,7 +986,7 @@ mod test {
         assert_eq!(job.status, JobStatus::Assigned);
         assert_eq!(job.freelancer, Some(freelancer.clone()));
 
-        let deliverable = Bytes::from_slice(&env, b"QmDeliverableHashValid123456789012345678901234");
+        let deliverable = Bytes::from_slice(&env, b"QmDeliverableHashValid123456789212345678921234");
         cc.submit_deliverable(&1u64, &freelancer, &deliverable);
 
         let job = cc.get_job(&1u64);
@@ -1013,7 +1013,7 @@ mod test {
         let expires_at = future_expires_at(&env);
         cc.post_job(&1u64, &client, &hash, &MIN_BUDGET_STROOPS, &expires_at, &1000u64, &token_addr, &1000i128);
 
-        let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789012345678901234567");
+        let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789212345678921234567");
         cc.submit_bid(&1u64, &freelancer, &proposal, &500i128);
         cc.submit_bid(&1u64, &freelancer, &proposal, &500i128);
     }
@@ -1042,7 +1042,7 @@ mod test {
         let expires_at = future_expires_at(&env);
         cc.post_job(&1u64, &client, &hash, &MIN_BUDGET_STROOPS, &expires_at, &1000u64, &token_addr, &1000i128);
 
-        let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789012345678901234567");
+        let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789212345678921234567");
         cc.submit_bid(&1u64, &freelancer, &proposal, &500i128);
         cc.accept_bid(&1u64, &client, &freelancer);
 
@@ -1091,7 +1091,7 @@ mod test {
         cc.post_job(&1u64, &client, &hash, &MIN_BUDGET_STROOPS, &expires_at, &1000u64, &token_addr, &1000i128);
 
         env.ledger().set_timestamp(1001); // past the deadline of 1000
-        let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789012345678901234567");
+        let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789212345678921234567");
         cc.submit_bid(&1u64, &freelancer, &proposal, &500i128);
     }
 
@@ -1267,7 +1267,7 @@ mod test {
 
         for _ in 0..3u32 {
             let freelancer = Address::generate(&env);
-            let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789012345678901234567");
+            let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789212345678921234567");
             cc.submit_bid(&1u64, &freelancer, &proposal, &100i128);
         }
 
@@ -1285,7 +1285,7 @@ mod test {
 
         for _ in 0..5u32 {
             let freelancer = Address::generate(&env);
-            let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789012345678901234567");
+            let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789212345678921234567");
             cc.submit_bid(&1u64, &freelancer, &proposal, &100i128);
         }
 
@@ -1304,7 +1304,7 @@ mod test {
 
         for _ in 0..5u32 {
             let freelancer = Address::generate(&env);
-            let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789012345678901234567");
+            let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789212345678921234567");
             cc.submit_bid(&1u64, &freelancer, &proposal, &100i128);
         }
 
@@ -1323,7 +1323,7 @@ mod test {
 
         for _ in 0..3u32 {
             let freelancer = Address::generate(&env);
-            let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789012345678901234567");
+            let proposal = Bytes::from_slice(&env, b"QmProposalHashValid123456789212345678921234567");
             cc.submit_bid(&1u64, &freelancer, &proposal, &100i128);
         }
 
