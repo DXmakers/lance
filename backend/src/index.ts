@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import crypto from "crypto";
 import dotenv from "dotenv";
 import { prisma, connectWithRetry, startPoolHealthCheck } from "./config/db";
+import { redis } from "./config/redis";
 import { trace } from "./config/tracing";
 import { intakeRateLimit } from "./middleware/intakeRateLimit";
 import { sqlInjectionGuard } from "./middleware/sanitize";
@@ -42,9 +43,9 @@ app.use(express.json());
 // CSRF protection middleware (double-submit cookie pattern)
 const csrfMiddleware = (req: Request, res: Response, next: NextFunction) => {
   // Skip CSRF for GET/HEAD/OPTIONS and auth challenge/verify routes
-  if (["GET", "HEAD", "OPTIONS"].includes(req.method) || 
-      (req.path.startsWith("/api/v1/auth/") && 
-       (req.path.endsWith("/challenge") || req.path.endsWith("/verify")))) {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method) ||
+    (req.path.startsWith("/api/v1/auth/") &&
+      (req.path.endsWith("/challenge") || req.path.endsWith("/verify")))) {
     return next();
   }
 
@@ -62,7 +63,7 @@ const csrfMiddleware = (req: Request, res: Response, next: NextFunction) => {
 // Route to get CSRF token
 app.get("/api/v1/auth/csrf", (req: Request, res: Response) => {
   const csrfToken = crypto.randomBytes(32).toString("hex");
-  
+
   // Set CSRF cookie (HttpOnly false so frontend can read it, SameSite strict)
   res.cookie(CSRF_COOKIE_NAME, csrfToken, {
     httpOnly: false,
@@ -161,6 +162,12 @@ process.on("SIGTERM", async () => {
   stopStorageCleanup();
   try {
     await prisma.$disconnect();
+    try {
+      await redis.quit();
+      logger.info("Redis connection closed");
+    } catch (err: any) {
+      logger.debug("Error closing Redis on shutdown:", err?.message || err);
+    }
     logger.info("Database connection closed");
     process.exit(0);
   } catch (error) {
@@ -178,6 +185,13 @@ process.on("SIGTERM", async () => {
 async function bootstrap(): Promise<void> {
   try {
     await connectWithRetry();
+    // Ensure Redis client is connected (lazyConnect enabled in config)
+    try {
+      await redis.connect();
+      console.log("[redis] connected (bootstrap)");
+    } catch (err: any) {
+      console.warn("[redis] could not connect at startup:", err?.message || err);
+    }
     startPoolHealthCheck();
     startStorageCleanup();
     app.listen(port, () => {
