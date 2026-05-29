@@ -46,14 +46,15 @@ export const api = {
       }),
   },
   jobs: {
-    list: (params?: { query?: string; tag?: string; sort?: string; status?: string }) => {
+    list: async (params?: { query?: string; tag?: string; sort?: string; status?: string }) => {
       const qs = new URLSearchParams();
       if (params?.query) qs.set("query", params.query);
       if (params?.tag) qs.set("tag", params.tag);
       if (params?.sort) qs.set("sort", params.sort);
       if (params?.status) qs.set("status", params.status);
       const path = `/v1/jobs${qs.toString() ? `?${qs.toString()}` : ""}`;
-      return request<Job[]>(path);
+      const response = await request<Job[] | JobsListResponse>(path);
+      return Array.isArray(response) ? response : response.items;
     },
     get: (id: string) => request<Job>(`/v1/jobs/${id}`),
     create: (body: CreateJobBody) =>
@@ -208,6 +209,15 @@ export interface Job {
   estimated_completion_date?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface JobsListResponse {
+  items: Job[];
+  next_cursor: {
+    created_at: string;
+    id: string;
+  } | null;
+  limit: number;
 }
 
 export interface CreateJobBody {

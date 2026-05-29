@@ -1,10 +1,11 @@
 import { Router, Request, Response } from "express";
-import { prisma } from "../config/db";
+import { pool, prisma } from "../config/db";
 import { z } from "zod";
 import bidsRoutes from "./bids";
 import milestonesRoutes from "./milestones";
 import deliverablesRoutes from "./deliverables";
 import jobDisputesRoutes from "./job-disputes";
+import { logger } from "../utils/tracing";
 
 const router = Router();
 
@@ -14,6 +15,13 @@ const getJobsQuerySchema = z.object({
   status: z.string().optional(),
   tag: z.string().optional(),
   sort: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor_created_at: z.coerce.date().optional(),
+  cursor_id: z.string().uuid().optional(),
+  min_budget: z.coerce.number().int().nonnegative().optional(),
+  max_budget: z.coerce.number().int().nonnegative().optional(),
+  skills: z.string().optional(),
+  deadline_before: z.coerce.date().optional(),
 });
 
 const createJobSchema = z.object({
@@ -22,49 +30,121 @@ const createJobSchema = z.object({
   budget_usdc: z.number().int().positive("budget must be greater than zero"),
   milestones: z.number().int().min(1, "milestones must be at least 1"),
   client_address: z.string().min(1),
+  skills: z.array(z.string()).optional().default([]),
+  deadline_at: z.coerce.date().optional(),
 });
 
 const markFundedSchema = z.object({
   client_address: z.string().min(1),
 });
 
+function serializeJob(row: any) {
+  return {
+    ...row,
+    budget_usdc: Number(row.budget_usdc),
+    on_chain_job_id: row.on_chain_job_id ? Number(row.on_chain_job_id) : null,
+  };
+}
+
 // GET /api/v1/jobs
 router.get("/", async (req: Request, res: Response) => {
   try {
     const query = getJobsQuerySchema.parse(req.query);
 
-    let whereClause: any = {};
+    if ((query.cursor_created_at && !query.cursor_id) || (!query.cursor_created_at && query.cursor_id)) {
+      return res.status(400).json({
+        error: "cursor_created_at and cursor_id must be provided together",
+      });
+    }
+
+    if (
+      query.min_budget !== undefined &&
+      query.max_budget !== undefined &&
+      query.min_budget > query.max_budget
+    ) {
+      return res.status(400).json({ error: "min_budget cannot be greater than max_budget" });
+    }
+
+    const conditions: string[] = [];
+    const params: any[] = [];
+    const addParam = (value: any): string => {
+      params.push(value);
+      return `$${params.length}`;
+    };
 
     if (query.query || (query.tag && query.tag !== "all")) {
       const searchTerm = query.query || query.tag;
-      whereClause.OR = [
-        { title: { contains: searchTerm, mode: "insensitive" } },
-        { description: { contains: searchTerm, mode: "insensitive" } },
-      ];
+      const placeholder = addParam(`%${searchTerm}%`);
+      conditions.push(`(title ILIKE ${placeholder} OR description ILIKE ${placeholder})`);
     }
 
     if (query.status) {
-      whereClause.status = query.status;
+      conditions.push(`status = ${addParam(query.status)}`);
+    }
+    if (query.min_budget !== undefined) {
+      conditions.push(`budget_usdc >= ${addParam(query.min_budget)}`);
+    }
+    if (query.max_budget !== undefined) {
+      conditions.push(`budget_usdc <= ${addParam(query.max_budget)}`);
+    }
+    if (query.skills) {
+      const skills = query.skills
+        .split(",")
+        .map((skill) => skill.trim())
+        .filter(Boolean);
+      if (skills.length > 0) {
+        conditions.push(`skills && ${addParam(skills)}::text[]`);
+      }
+    }
+    if (query.deadline_before) {
+      conditions.push(`deadline_at <= ${addParam(query.deadline_before)}`);
+    }
+    if (query.cursor_created_at && query.cursor_id) {
+      conditions.push(
+        `(created_at, id) < (${addParam(query.cursor_created_at)}, ${addParam(query.cursor_id)}::uuid)`
+      );
     }
 
-    let orderByClause: any = { created_at: "desc" };
-    if (query.sort === "budget") {
-      orderByClause = { budget_usdc: "desc" };
-    }
+    const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const orderSql =
+      query.sort === "budget"
+        ? "ORDER BY budget_usdc DESC, created_at DESC, id DESC"
+        : "ORDER BY created_at DESC, id DESC";
+    const limitPlaceholder = addParam(query.limit + 1);
 
-    const jobs = await prisma.jobs.findMany({
-      where: whereClause,
-      orderBy: orderByClause,
+    const result = await pool.query(
+      `SELECT id, title, description, budget_usdc, milestones, client_address,
+              freelancer_address, status, metadata_hash, on_chain_job_id, skills, deadline_at,
+              created_at, updated_at
+       FROM jobs
+       ${whereSql}
+       ${orderSql}
+       LIMIT ${limitPlaceholder}`,
+      params
+    );
+
+    const rows = result.rows;
+    const hasNext = rows.length > query.limit;
+    const items = (hasNext ? rows.slice(0, query.limit) : rows).map(serializeJob);
+    const cursorSource = hasNext ? items[items.length - 1] : null;
+
+    logger.info("Paginated jobs queried", {
+      returned: items.length,
+      hasNext,
+      status: query.status || "any",
+      sort: query.sort || "created_at",
     });
 
-    // Convert BigInt to Number/String for JSON serialization
-    const serializedJobs = jobs.map((job) => ({
-      ...job,
-      budget_usdc: Number(job.budget_usdc),
-      on_chain_job_id: job.on_chain_job_id ? Number(job.on_chain_job_id) : null,
-    }));
-
-    res.json(serializedJobs);
+    res.json({
+      items,
+      next_cursor: cursorSource
+        ? {
+            created_at: cursorSource.created_at,
+            id: cursorSource.id,
+          }
+        : null,
+      limit: query.limit,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.issues });
@@ -88,6 +168,8 @@ router.post("/", async (req: Request, res: Response) => {
           milestones: data.milestones,
           client_address: data.client_address,
           status: "open",
+          skills: data.skills,
+          deadline_at: data.deadline_at,
         },
       });
 

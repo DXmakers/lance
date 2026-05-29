@@ -11,7 +11,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.43.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "vitest": "^4.1.7"
   },
   "optionalDependencies": {
     "@next/swc-linux-x64-gnu": "16.1.6",

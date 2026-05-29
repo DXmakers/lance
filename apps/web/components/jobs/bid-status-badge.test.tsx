@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { BidStatusBadge, BidStatusIndicator } from "../bid-status-badge";
+import { BidStatusBadge, BidStatusIndicator } from "./bid-status-badge";
 
 describe("BidStatusBadge Component", () => {
   describe("Rendering", () => {
