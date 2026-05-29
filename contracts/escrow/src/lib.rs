@@ -43,12 +43,30 @@ pub struct EscrowJob {
 }
 
 #[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct TreasuryConfig {
+    pub routing_address: Address,
+    pub fee_bps: u32,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct FeeConfigUpdatedEvent {
+    pub treasury: Address,
+    pub fee_bps: u32,
+    pub updated_at: u64,
+}
+
+pub const MAX_FEE_BPS: u32 = 10_000;
+
+#[contracttype]
 pub enum DataKey {
     Job(u64),
     Admin,
     AgentJudge,
     GuardFlag(u64),
     Milestone(u64, u32),
+    Treasury,
 }
 
 #[contracttype]
@@ -87,6 +105,41 @@ impl EscrowContract {
         env.storage()
             .instance()
             .set(&DataKey::AgentJudge, &new_agent_judge);
+    }
+
+    pub fn configure_treasury(env: Env, routing_address: Address, fee_bps: u32) {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("not initialized");
+        admin.require_auth();
+
+        assert!(fee_bps <= MAX_FEE_BPS, "FeeTooHigh");
+
+        let config = TreasuryConfig {
+            routing_address: routing_address.clone(),
+            fee_bps,
+        };
+
+        env.storage().instance().set(&DataKey::Treasury, &config);
+
+        env.events().publish(
+            ("escrow", "FeeConfigUpdated"),
+            FeeConfigUpdatedEvent {
+                treasury: routing_address,
+                fee_bps,
+                updated_at: env.ledger().timestamp(),
+            },
+        );
+    }
+
+    pub fn get_treasury(env: Env) -> Option<Address> {
+        if let Some(config) = env.storage().instance().get::<_, TreasuryConfig>(&DataKey::Treasury) {
+            Some(config.routing_address)
+        } else {
+            None
+        }
     }
 
     /// Client creates a job entry in Setup phase.
@@ -359,11 +412,33 @@ impl EscrowContract {
         assert!(total_payout <= remaining, "payout exceeds remaining funds");
 
         let token_client = token::Client::new(&env, &job.token);
-        if payee_amount > 0 {
+        let mut freelancer_amount = payee_amount;
+
+        if let Some(treasury_config) = env.storage().instance().get::<_, TreasuryConfig>(&DataKey::Treasury) {
+            let fee = payee_amount
+                .checked_mul(treasury_config.fee_bps as i128)
+                .expect("overflow")
+                .checked_div(10000)
+                .expect("overflow");
+
+            if fee > 0 {
+                freelancer_amount = payee_amount
+                    .checked_sub(fee)
+                    .expect("overflow");
+
+                token_client.transfer(
+                    &env.current_contract_address(),
+                    &treasury_config.routing_address,
+                    &fee,
+                );
+            }
+        }
+
+        if freelancer_amount > 0 {
             token_client.transfer(
                 &env.current_contract_address(),
                 &job.freelancer,
-                &payee_amount,
+                &freelancer_amount,
             );
         }
         if payer_amount > 0 {
@@ -486,18 +561,46 @@ impl EscrowContract {
             .expect("overflow");
         job.status = EscrowStatus::WorkInProgress;
 
-        let token_client = token::Client::new(&env, &job.token);
-        token_client.transfer(
-            &env.current_contract_address(),
-            &job.freelancer,
-            &milestone.amount,
-        );
+        Self::payout_with_fee(&env, job, milestone.amount);
 
         if job.released_amount == job.total_amount {
             job.status = EscrowStatus::Completed;
         }
 
         env.storage().persistent().set(&DataKey::Job(job_id), job);
+    }
+
+    fn payout_with_fee(env: &Env, job: &EscrowJob, amount: i128) {
+        let token_client = token::Client::new(env, &job.token);
+        let mut freelancer_amount = amount;
+
+        if let Some(treasury_config) = env.storage().instance().get::<_, TreasuryConfig>(&DataKey::Treasury) {
+            let fee = amount
+                .checked_mul(treasury_config.fee_bps as i128)
+                .expect("overflow")
+                .checked_div(10000)
+                .expect("overflow");
+
+            if fee > 0 {
+                freelancer_amount = amount
+                    .checked_sub(fee)
+                    .expect("overflow");
+
+                token_client.transfer(
+                    &env.current_contract_address(),
+                    &treasury_config.routing_address,
+                    &fee,
+                );
+            }
+        }
+
+        if freelancer_amount > 0 {
+            token_client.transfer(
+                &env.current_contract_address(),
+                &job.freelancer,
+                &freelancer_amount,
+            );
+        }
     }
 }
 
