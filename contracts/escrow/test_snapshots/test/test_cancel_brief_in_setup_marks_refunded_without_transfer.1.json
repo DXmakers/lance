@@ -346,6 +346,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "funded_ledger_seq"
+                      },
+                      "val": {
+                        "u32": 0
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "milestones"
                       },
                       "val": {
@@ -1141,6 +1149,14 @@
                   },
                   "val": {
                     "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "funded_ledger_seq"
+                  },
+                  "val": {
+                    "u32": 0
                   }
                 },
                 {

@@ -6,15 +6,21 @@ import milestonesRoutes from "./milestones";
 import deliverablesRoutes from "./deliverables";
 import jobDisputesRoutes from "./job-disputes";
 import { logger } from "../utils/tracing";
+import { buildJobSearchQuery, executeReadOnlyJobSearch } from "../utils/jobSearchPlan";
 
 const router = Router();
+
+function positiveTimeoutMs(name: string, fallback: number): number {
+  const parsed = Number.parseInt(process.env[name] || String(fallback), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 // Validation schemas
 const getJobsQuerySchema = z.object({
   query: z.string().optional(),
   status: z.string().optional(),
   tag: z.string().optional(),
-  sort: z.string().optional(),
+  sort: z.enum(["created_at", "budget"]).default("created_at"),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   cursor_created_at: z.coerce.date().optional(),
   cursor_id: z.string().uuid().optional(),
@@ -48,6 +54,7 @@ function serializeJob(row: any) {
 
 // GET /api/v1/jobs
 router.get("/", async (req: Request, res: Response) => {
+  const startedAt = Date.now();
   try {
     const query = getJobsQuerySchema.parse(req.query);
 
@@ -65,91 +72,61 @@ router.get("/", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "min_budget cannot be greater than max_budget" });
     }
 
-    const conditions: string[] = [];
-    const params: any[] = [];
-    const addParam = (value: any): string => {
-      params.push(value);
-      return `$${params.length}`;
-    };
+    const builtQuery = buildJobSearchQuery(query);
+    const client = await pool.connect();
 
-    if (query.query || (query.tag && query.tag !== "all")) {
-      const searchTerm = query.query || query.tag;
-      const placeholder = addParam(`%${searchTerm}%`);
-      conditions.push(`(title ILIKE ${placeholder} OR description ILIKE ${placeholder})`);
-    }
+    try {
+      // Read-only transaction settings are local to this request and protect
+      // the pool from expensive ad-hoc filters under concurrency.
+      await client.query("BEGIN READ ONLY ISOLATION LEVEL READ COMMITTED");
+      await client.query(`SET LOCAL statement_timeout = ${positiveTimeoutMs("JOB_SEARCH_STATEMENT_TIMEOUT_MS", 1500)}`);
+      const result = await executeReadOnlyJobSearch(client, builtQuery);
+      await client.query("COMMIT");
 
-    if (query.status) {
-      conditions.push(`status = ${addParam(query.status)}`);
-    }
-    if (query.min_budget !== undefined) {
-      conditions.push(`budget_usdc >= ${addParam(query.min_budget)}`);
-    }
-    if (query.max_budget !== undefined) {
-      conditions.push(`budget_usdc <= ${addParam(query.max_budget)}`);
-    }
-    if (query.skills) {
-      const skills = query.skills
-        .split(",")
-        .map((skill) => skill.trim())
-        .filter(Boolean);
-      if (skills.length > 0) {
-        conditions.push(`skills && ${addParam(skills)}::text[]`);
-      }
-    }
-    if (query.deadline_before) {
-      conditions.push(`deadline_at <= ${addParam(query.deadline_before)}`);
-    }
-    if (query.cursor_created_at && query.cursor_id) {
-      conditions.push(
-        `(created_at, id) < (${addParam(query.cursor_created_at)}, ${addParam(query.cursor_id)}::uuid)`
-      );
-    }
+      const rows = result.rows;
+      const hasNext = rows.length > query.limit;
+      const items = (hasNext ? rows.slice(0, query.limit) : rows).map(serializeJob);
+      const cursorSource = hasNext ? items[items.length - 1] : null;
 
-    const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-    const orderSql =
-      query.sort === "budget"
-        ? "ORDER BY budget_usdc DESC, created_at DESC, id DESC"
-        : "ORDER BY created_at DESC, id DESC";
-    const limitPlaceholder = addParam(query.limit + 1);
+      logger.info("Paginated jobs queried", {
+        returned: items.length,
+        hasNext,
+        status: query.status || "any",
+        sort: query.sort,
+        planKey: builtQuery.planKey,
+        poolTotal: pool.totalCount,
+        poolIdle: pool.idleCount,
+        poolWaiting: pool.waitingCount,
+        durationMs: Date.now() - startedAt,
+      });
 
-    const result = await pool.query(
-      `SELECT id, title, description, budget_usdc, milestones, client_address,
-              freelancer_address, status, metadata_hash, on_chain_job_id, skills, deadline_at,
-              created_at, updated_at
-       FROM jobs
-       ${whereSql}
-       ${orderSql}
-       LIMIT ${limitPlaceholder}`,
-      params
-    );
-
-    const rows = result.rows;
-    const hasNext = rows.length > query.limit;
-    const items = (hasNext ? rows.slice(0, query.limit) : rows).map(serializeJob);
-    const cursorSource = hasNext ? items[items.length - 1] : null;
-
-    logger.info("Paginated jobs queried", {
-      returned: items.length,
-      hasNext,
-      status: query.status || "any",
-      sort: query.sort || "created_at",
-    });
-
-    res.json({
-      items,
-      next_cursor: cursorSource
-        ? {
-            created_at: cursorSource.created_at,
-            id: cursorSource.id,
-          }
-        : null,
-      limit: query.limit,
-    });
-  } catch (error) {
+      return res.status(200).json({
+        items,
+        next_cursor: cursorSource
+          ? {
+              created_at: cursorSource.created_at,
+              id: cursorSource.id,
+            }
+          : null,
+        limit: query.limit,
+      });
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.issues });
     }
-    console.error("GET /jobs error:", error);
+    logger.error("GET /jobs error", {
+      error: error.message || String(error),
+      durationMs: Date.now() - startedAt,
+      poolTotal: pool.totalCount,
+      poolIdle: pool.idleCount,
+      poolWaiting: pool.waitingCount,
+    });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -159,7 +136,7 @@ router.post("/", async (req: Request, res: Response) => {
   try {
     const data = createJobSchema.parse(req.body);
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       const job = await tx.jobs.create({
         data: {
           title: data.title,
