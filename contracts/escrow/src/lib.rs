@@ -1150,14 +1150,19 @@ impl EscrowContract {
             return Err(EscrowError::Unauthorized);
         }
 
-        let remaining = Self::checked_sub_i128(&env, job.total_amount, job.released_amount)?;
+        let _guard = enter_reentrancy_guard(&env);
         let lock_key = Self::enter_job_lock(&env, job_id)?;
+        if env.ledger().timestamp() < job.expires_at {
+            Self::exit_job_lock(&env, lock_key);
+            return Err(EscrowError::InvalidState);
+        }
+
+        let remaining = Self::checked_sub_i128(&env, job.total_amount, job.released_amount)?;
         let next_status = EscrowStatus::Refunded;
         job.status.validate_transition(&next_status)?;
         job.released_amount = job.total_amount;
         job.status = next_status;
 
-        let _guard = enter_reentrancy_guard(&env);
         env.storage().persistent().set(&key, &job);
 
         if remaining > 0 {
