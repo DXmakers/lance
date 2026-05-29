@@ -1,4 +1,4 @@
-﻿use soroban_sdk::{contracttype, Address, Bytes, Env};
+use soroban_sdk::{contracttype, Address, Bytes, Env};
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
@@ -124,9 +124,15 @@ impl Profile {
 
     pub fn refresh_badges(&mut self) {
         let blacklisted = self.is_blacklisted;
-        self.client.badge_level =
-            if blacklisted { 0 } else { BadgeLevel::from_score(self.client.score).to_u32() };
-        self.freelancer.badge_level =
-            if blacklisted { 0 } else { BadgeLevel::from_score(self.freelancer.score).to_u32() };
+        self.client.badge_level = if blacklisted {
+            0
+        } else {
+            BadgeLevel::from_score(self.client.score).to_u32()
+        };
+        self.freelancer.badge_level = if blacklisted {
+            0
+        } else {
+            BadgeLevel::from_score(self.freelancer.score).to_u32()
+        };
     }
 }

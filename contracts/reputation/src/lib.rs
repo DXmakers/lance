@@ -1,10 +1,10 @@
-﻿#![no_std]
+#![no_std]
 
+pub use profile::BadgeLevel;
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, Address, Bytes, BytesN, Env, IntoVal,
     Symbol, Vec,
 };
-pub use profile::BadgeLevel;
 
 mod profile;
 mod storage;
@@ -239,11 +239,7 @@ impl ReputationContract {
         }
     }
 
-    fn score_from_profile(
-        address: &Address,
-        role: Role,
-        profile: &Profile,
-    ) -> ReputationScore {
+    fn score_from_profile(address: &Address, role: Role, profile: &Profile) -> ReputationScore {
         let metrics = Self::role_metrics(profile, &role);
         ReputationScore {
             address: address.clone(),
@@ -259,9 +255,9 @@ impl ReputationContract {
     }
 
     fn checked_add_points(env: &Env, current: i128, incoming: u32) -> i128 {
-        current
-            .checked_add(incoming as i128)
-            .unwrap_or_else(|| soroban_sdk::panic_with_error!(env, ReputationError::ContractStateError))
+        current.checked_add(incoming as i128).unwrap_or_else(|| {
+            soroban_sdk::panic_with_error!(env, ReputationError::ContractStateError)
+        })
     }
 
     fn average_rating_bps(env: &Env, total_points: i128, reviews: u32) -> i32 {
@@ -271,10 +267,14 @@ impl ReputationContract {
 
         let numerator = total_points
             .checked_mul(Self::SCORE_SCALE)
-            .unwrap_or_else(|| soroban_sdk::panic_with_error!(env, ReputationError::ContractStateError));
+            .unwrap_or_else(|| {
+                soroban_sdk::panic_with_error!(env, ReputationError::ContractStateError)
+            });
         let denominator = (reviews as i128)
             .checked_mul(Self::MAX_RATING)
-            .unwrap_or_else(|| soroban_sdk::panic_with_error!(env, ReputationError::ContractStateError));
+            .unwrap_or_else(|| {
+                soroban_sdk::panic_with_error!(env, ReputationError::ContractStateError)
+            });
 
         if denominator == 0 {
             return Self::DEFAULT_SCORE_BPS;
@@ -286,7 +286,9 @@ impl ReputationContract {
     fn apply_decay_bps(env: &Env, score: i32, decay_bps: i32) -> i32 {
         let decayed = (score as i128)
             .checked_mul(decay_bps as i128)
-            .unwrap_or_else(|| soroban_sdk::panic_with_error!(env, ReputationError::ContractStateError))
+            .unwrap_or_else(|| {
+                soroban_sdk::panic_with_error!(env, ReputationError::ContractStateError)
+            })
             / Self::SCORE_SCALE;
         Self::clamp_score_i128(decayed)
     }
@@ -319,7 +321,12 @@ impl ReputationContract {
         Self::refresh_badge(metrics, is_blacklisted);
     }
 
-    fn apply_role_decay(env: &Env, metrics: &mut RoleMetrics, decay_bps: i32, is_blacklisted: bool) {
+    fn apply_role_decay(
+        env: &Env,
+        metrics: &mut RoleMetrics,
+        decay_bps: i32,
+        is_blacklisted: bool,
+    ) {
         metrics.score = Self::apply_decay_bps(env, metrics.score, decay_bps);
         Self::refresh_badge(metrics, is_blacklisted);
     }
@@ -375,7 +382,9 @@ impl ReputationContract {
 
     pub fn set_job_registry(env: Env, admin: Address, registry: Address) {
         Self::require_admin(&env, &admin);
-        env.storage().instance().set(&DataKey::JobRegistry, &registry);
+        env.storage()
+            .instance()
+            .set(&DataKey::JobRegistry, &registry);
         Self::bump_instance_ttl(&env);
     }
 
@@ -401,7 +410,9 @@ impl ReputationContract {
             soroban_sdk::panic_with_error!(&env, ReputationError::InvalidInput);
         }
         let old_value = Self::read_slash_decay_bps(&env);
-        env.storage().instance().set(&DataKey::SlashDecayBps, &decay_bps);
+        env.storage()
+            .instance()
+            .set(&DataKey::SlashDecayBps, &decay_bps);
         env.events().publish(
             ("reputation", "DecayParameterUpdated"),
             DecayParameterUpdatedEvent {
@@ -421,7 +432,9 @@ impl ReputationContract {
             soroban_sdk::panic_with_error!(&env, ReputationError::InvalidInput);
         }
         let old_value = Self::read_blacklist_decay_bps(&env);
-        env.storage().instance().set(&DataKey::BlacklistDecayBps, &decay_bps);
+        env.storage()
+            .instance()
+            .set(&DataKey::BlacklistDecayBps, &decay_bps);
         env.events().publish(
             ("reputation", "DecayParameterUpdated"),
             DecayParameterUpdatedEvent {
@@ -536,7 +549,13 @@ impl ReputationContract {
 
     /// Update reputation after a completed job. `delta` in basis points.
     /// Score is clamped to [0, 10000]. Only callable by admin or authorized contract address.
-    pub fn update_score(env: Env, caller_contract: Address, address: Address, role: Role, delta: i32) {
+    pub fn update_score(
+        env: Env,
+        caller_contract: Address,
+        address: Address,
+        role: Role,
+        delta: i32,
+    ) {
         Self::require_authorized_contract(&env, &caller_contract);
 
         let mut profile = storage::read_profile_or_default(&env, &address);
@@ -571,7 +590,13 @@ impl ReputationContract {
     }
 
     /// Slash address for fraud / abandonment — reduces score by 20%. Only callable by admin or authorized contract.
-    pub fn slash(env: Env, caller_contract: Address, address: Address, role: Role, _reason: Symbol) {
+    pub fn slash(
+        env: Env,
+        caller_contract: Address,
+        address: Address,
+        role: Role,
+        _reason: Symbol,
+    ) {
         Self::require_authorized_contract(&env, &caller_contract);
 
         let mut profile = storage::read_profile_or_default(&env, &address);
@@ -605,7 +630,12 @@ impl ReputationContract {
         Self::bump_instance_ttl(&env);
     }
 
-    pub fn blacklist_profile(env: Env, caller_contract: Address, address: Address, _reason: Symbol) {
+    pub fn blacklist_profile(
+        env: Env,
+        caller_contract: Address,
+        address: Address,
+        _reason: Symbol,
+    ) {
         Self::require_authorized_contract(&env, &caller_contract);
 
         let mut profile = storage::read_profile_or_default(&env, &address);
@@ -614,12 +644,7 @@ impl ReputationContract {
             let is_blacklisted = profile.is_blacklisted;
             let decay_bps = Self::read_blacklist_decay_bps(&env);
             Self::apply_role_decay(&env, &mut profile.client, decay_bps, is_blacklisted);
-            Self::apply_role_decay(
-                &env,
-                &mut profile.freelancer,
-                decay_bps,
-                is_blacklisted,
-            );
+            Self::apply_role_decay(&env, &mut profile.freelancer, decay_bps, is_blacklisted);
         }
 
         let client_score = profile.client.score;
@@ -680,13 +705,21 @@ impl ReputationContract {
         for i in 0..len {
             let entry = profile.badge_metadata.get(i).unwrap();
             if entry.tier == tier {
-                profile.badge_metadata.set(i, BadgeMetadataEntry { tier: tier.clone(), uri: uri.clone() });
+                profile.badge_metadata.set(
+                    i,
+                    BadgeMetadataEntry {
+                        tier: tier.clone(),
+                        uri: uri.clone(),
+                    },
+                );
                 found = true;
                 break;
             }
         }
         if !found {
-            profile.badge_metadata.push_back(BadgeMetadataEntry { tier, uri });
+            profile
+                .badge_metadata
+                .push_back(BadgeMetadataEntry { tier, uri });
         }
 
         storage::write_profile(&env, &address, &profile);
@@ -694,11 +727,7 @@ impl ReputationContract {
     }
 
     /// Return the metadata URI for a given badge tier, or `None` if not set.
-    pub fn get_badge_metadata(
-        env: Env,
-        address: Address,
-        tier: BadgeTier,
-    ) -> Option<Bytes> {
+    pub fn get_badge_metadata(env: Env, address: Address, tier: BadgeTier) -> Option<Bytes> {
         Self::bump_instance_ttl(&env);
         let profile = storage::read_profile_or_default(&env, &address);
         for i in 0..profile.badge_metadata.len() {
@@ -798,14 +827,23 @@ impl ReputationContract {
         while i < profile.badge_metadata.len() {
             let entry = profile.badge_metadata.get(i).unwrap();
             if entry.tier == tier {
-                profile.badge_metadata.set(i, BadgeMetadataEntry { tier: tier.clone(), uri: uri.clone() });
+                profile.badge_metadata.set(
+                    i,
+                    BadgeMetadataEntry {
+                        tier: tier.clone(),
+                        uri: uri.clone(),
+                    },
+                );
                 found = true;
                 break;
             }
             i += 1;
         }
         if !found {
-            profile.badge_metadata.push_back(BadgeMetadataEntry { tier, uri: uri.clone() });
+            profile.badge_metadata.push_back(BadgeMetadataEntry {
+                tier,
+                uri: uri.clone(),
+            });
         }
 
         storage::write_profile(&env, &badge_address, &profile);
@@ -826,8 +864,6 @@ impl ReputationContract {
         None
     }
 }
-
-
 
 #[cfg(test)]
 mod test {
@@ -1014,7 +1050,12 @@ mod test {
         assert_eq!(after_first.get(4), Some(4));
 
         // Slash down to 8,000 → Gold (3), verified immediately
-        adjuster.slash(&reputation_id, &freelancer, &Role::Freelancer, &Symbol::new(&env, "penalty"));
+        adjuster.slash(
+            &reputation_id,
+            &freelancer,
+            &Role::Freelancer,
+            &Symbol::new(&env, "penalty"),
+        );
         let after_slash = client.get_public_metrics(&freelancer, &Symbol::new(&env, "freelancer"));
         assert_eq!(after_slash.get(4), Some(3));
         assert_eq!(after_slash.get(0), Some(8_000));
@@ -1064,7 +1105,6 @@ mod test {
         assert!(view.is_blacklisted);
         assert!(client.is_blacklisted(&freelancer));
     }
-
 
     #[test]
     #[should_panic(expected = "Error(Contract, #3)")]
@@ -1294,7 +1334,10 @@ mod test {
         client.set_badge_metadata(&admin, &addr, &BadgeTier::Silver, &uri_v1);
         client.set_badge_metadata(&admin, &addr, &BadgeTier::Silver, &uri_v2);
 
-        assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Silver), Some(uri_v2));
+        assert_eq!(
+            client.get_badge_metadata(&addr, &BadgeTier::Silver),
+            Some(uri_v2)
+        );
     }
 
     #[test]
@@ -1308,12 +1351,18 @@ mod test {
         client.initialize(&admin);
 
         let bronze_uri = Bytes::from_slice(&env, b"ipfs://Bronze");
-        let gold_uri   = Bytes::from_slice(&env, b"ipfs://Gold");
+        let gold_uri = Bytes::from_slice(&env, b"ipfs://Gold");
         client.set_badge_metadata(&admin, &addr, &BadgeTier::Bronze, &bronze_uri);
-        client.set_badge_metadata(&admin, &addr, &BadgeTier::Gold,   &gold_uri);
+        client.set_badge_metadata(&admin, &addr, &BadgeTier::Gold, &gold_uri);
 
-        assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Bronze), Some(bronze_uri));
-        assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Gold),   Some(gold_uri));
+        assert_eq!(
+            client.get_badge_metadata(&addr, &BadgeTier::Bronze),
+            Some(bronze_uri)
+        );
+        assert_eq!(
+            client.get_badge_metadata(&addr, &BadgeTier::Gold),
+            Some(gold_uri)
+        );
         assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Silver), None);
     }
 
@@ -1337,7 +1386,12 @@ mod test {
         assert_eq!(client.get_score(&addr, &Role::Freelancer).score, 10_000);
 
         // Default slash decay is 8,000 BPS (80%) → 8,000
-        adjuster.slash(&reputation_id, &addr, &Role::Freelancer, &Symbol::new(&env, "test"));
+        adjuster.slash(
+            &reputation_id,
+            &addr,
+            &Role::Freelancer,
+            &Symbol::new(&env, "test"),
+        );
         assert_eq!(client.get_score(&addr, &Role::Freelancer).score, 8_000);
     }
 
@@ -1361,7 +1415,12 @@ mod test {
         assert_eq!(client.get_score(&addr, &Role::Freelancer).score, 10_000);
 
         // Now slash at 50% → 5,000
-        adjuster.slash(&reputation_id, &addr, &Role::Freelancer, &Symbol::new(&env, "test"));
+        adjuster.slash(
+            &reputation_id,
+            &addr,
+            &Role::Freelancer,
+            &Symbol::new(&env, "test"),
+        );
         assert_eq!(client.get_score(&addr, &Role::Freelancer).score, 5_000);
     }
 
@@ -1457,7 +1516,7 @@ mod test {
         let score = client.get_score(&address, &Role::Freelancer);
         assert_eq!(score.score, 5000);
         assert_eq!(score.badge_level, 0);
-        
+
         let level = client.get_badge_level(&address, &Role::Freelancer);
         assert_eq!(level, 0);
     }
@@ -1492,7 +1551,8 @@ mod test {
         assert_eq!(client.get_badge_level(&address, &Role::Freelancer), 1);
 
         // Check public metrics
-        let metrics = client.get_public_metrics(&address, &soroban_sdk::Symbol::new(&env, "freelancer"));
+        let metrics =
+            client.get_public_metrics(&address, &soroban_sdk::Symbol::new(&env, "freelancer"));
         assert_eq!(metrics.get(0).unwrap(), 6500);
         assert_eq!(metrics.get(1).unwrap(), 3);
         assert_eq!(metrics.get(4).unwrap(), 1);
@@ -1507,12 +1567,12 @@ mod test {
         let authorized_contract = Address::generate(&env);
         let unauthorized_contract = Address::generate(&env);
         let address = Address::generate(&env);
-        
+
         let contract_id = env.register_contract(None, ReputationContract);
         let client = ReputationContractClient::new(&env, &contract_id);
 
         client.initialize(&admin);
-        
+
         // Authorize the contract
         client.authorize_contract(&admin, &authorized_contract);
         assert!(client.is_contract_authorized(&authorized_contract));
@@ -1524,13 +1584,14 @@ mod test {
         assert_eq!(score.score, 5100);
 
         // Unauthorized contract attempt to adjust score should panic
-        let res = client.try_update_score(&unauthorized_contract, &address, &Role::Freelancer, &100);
+        let res =
+            client.try_update_score(&unauthorized_contract, &address, &Role::Freelancer, &100);
         assert!(res.is_err());
-        
+
         // Deauthorize
         client.deauthorize_contract(&admin, &authorized_contract);
         assert!(!client.is_contract_authorized(&authorized_contract));
-        
+
         // Now it should fail
         let res2 = client.try_update_score(&authorized_contract, &address, &Role::Freelancer, &100);
         assert!(res2.is_err());
@@ -1545,7 +1606,7 @@ mod test {
         let client_addr = Address::generate(&env);
         let freelancer_addr = Address::generate(&env);
         let attacker = Address::generate(&env);
-        
+
         let contract_id = env.register_contract(None, ReputationContract);
         let client = ReputationContractClient::new(&env, &contract_id);
         client.initialize(&admin);
