@@ -23,11 +23,13 @@
 
 import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import { StrKey } from "@stellar/stellar-sdk";
 import { isTokenBlacklisted } from "../routes/auth";
+import type { UserRole } from "./rbac";
 
 /** Augments Express Request with the decoded JWT payload. */
 export interface AuthRequest extends Request {
-  auth?: JwtPayload & { address: string; jti: string };
+  auth?: JwtPayload & { address: string; jti: string; role?: UserRole };
 }
 
 const ACCESS_TOKEN_COOKIE = "lance_access_token";
@@ -71,6 +73,14 @@ export async function authGuard(
 
   if (!decoded.jti) {
     res.status(401).json({ error: "Token missing jti claim" });
+    return;
+  }
+
+  // Validate the address claim is a real Stellar key. A tampered or
+  // manually-crafted token that carries a non-address payload fails here
+  // before it can reach any business logic (session-hijacking guard).
+  if (!StrKey.isValidEd25519PublicKey(decoded.address)) {
+    res.status(401).json({ error: "Token contains invalid address claim" });
     return;
   }
 
