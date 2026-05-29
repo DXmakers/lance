@@ -64,6 +64,8 @@ model auth_challenges {
   address    String   @id
   challenge  String
   expires_at DateTime @db.Timestamptz(6)
+
+  @@index([expires_at], map: "idx_auth_challenges_expires_at")
 }
 
 model bid_status_transitions {
@@ -266,6 +268,8 @@ model sessions {
   expires_at DateTime @db.Timestamptz(6)
 
   @@index([address], map: "idx_sessions_address")
+  @@index([expires_at], map: "idx_sessions_expires_at")
+  @@index([address, expires_at(sort: Desc)], map: "idx_sessions_address_expires_at")
 }
 
 model transaction_metadata_cache {
