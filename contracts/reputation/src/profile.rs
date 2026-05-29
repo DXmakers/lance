@@ -25,6 +25,8 @@ pub struct RoleMetrics {
     pub completed_jobs: u32,
     pub review: ReviewAggregate,
     pub badge_level: u32,
+    /// Number of failed disputes - used for badge revocation
+    pub dispute_failures: u32,
 }
 
 impl RoleMetrics {
@@ -104,6 +106,8 @@ pub struct Profile {
     pub freelancer: RoleMetrics,
     pub is_blacklisted: bool,
     pub metadata_hash: Option<Bytes>,
+    /// unix timestamp of last activity that affected reputation (seconds)
+    pub last_activity: u64,
     /// Per-tier badge metadata URIs set by the admin.
     pub badge_metadata: soroban_sdk::Vec<BadgeMetadataEntry>,
     pub client_badge: BadgeLevel,
@@ -118,6 +122,7 @@ impl Profile {
             freelancer: RoleMetrics::new(),
             is_blacklisted: false,
             metadata_hash: None,
+            last_activity: 0,
             badge_metadata: soroban_sdk::Vec::new(env),
         }
     }
