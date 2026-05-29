@@ -112,10 +112,11 @@ export function sqlInjectionGuard(req: Request, res: Response, next: NextFunctio
           ip: req.ip,
           path: req.originalUrl,
         });
-        return res.status(400).json({
+        res.status(400).json({
           error: "Invalid query parameter detected",
           detail: `Parameter '${key}' contains invalid characters`,
         });
+        return;
       }
       // Handle array query params
       if (Array.isArray(value)) {
@@ -126,10 +127,11 @@ export function sqlInjectionGuard(req: Request, res: Response, next: NextFunctio
               ip: req.ip,
               path: req.originalUrl,
             });
-            return res.status(400).json({
+            res.status(400).json({
               error: "Invalid query parameter detected",
               detail: `Parameter '${key}' contains invalid characters`,
             });
+            return;
           }
         }
       }
@@ -145,10 +147,11 @@ export function sqlInjectionGuard(req: Request, res: Response, next: NextFunctio
         ip: req.ip,
         path: req.originalUrl,
       });
-      return res.status(400).json({
+      res.status(400).json({
         error: "Invalid request body detected",
         detail: "Request body contains invalid characters",
       });
+      return;
     }
   }
 
@@ -163,7 +166,7 @@ function hasQueryParams(req: Request): boolean {
  * Recursively searches an object for SQL injection patterns in string values.
  * Returns a list of field paths that contain potentially dangerous content.
  */
-function findSqlInjectionInObject(
+export function findSqlInjectionInObject(
   obj: any,
   path: string = "",
   results: string[] = [],

@@ -1,4 +1,7 @@
 "use strict";
+/**
+ * auth.ts — Secure JWT Session + Refresh Token Flow
+ */
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -9,7 +12,8 @@ exports.verifyStellarSignature = verifyStellarSignature;
 exports.isChallengeExpired = isChallengeExpired;
 const express_1 = require("express");
 const crypto_1 = __importDefault(require("crypto"));
-const db_1 = require("../config/db");
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const zod_1 = require("zod");
 const stellar_sdk_1 = require("@stellar/stellar-sdk");
 const ioredis_1 = __importDefault(require("ioredis"));
 const router = (0, express_1.Router)();
@@ -167,11 +171,12 @@ router.post("/challenge", async (req, res) => {
         res.json({ challenge, expires_at: expiresAt.toISOString() });
     }
     catch (error) {
-        console.error("Auth challenge error:", error);
-        res.status(500).json({ error: "Internal server error" });
+        console.error("[auth/challenge]", error);
+        return res.status(500).json({
+            error: "Internal server error",
+        });
     }
 });
-// Verify route
 router.post("/verify", async (req, res) => {
     try {
         const address = normalizeStellarAddress(req.body.address);
@@ -214,8 +219,147 @@ router.post("/verify", async (req, res) => {
         res.json({ token, address, expires_at: expiresAt.toISOString() });
     }
     catch (error) {
-        console.error("Auth verify error:", error);
-        res.status(500).json({ error: "Internal server error" });
+        console.error("[auth/verify]", error);
+        return res.status(500).json({
+            error: "Internal server error",
+        });
+    }
+});
+router.post("/refresh", async (req, res) => {
+    try {
+        const parsed = RefreshRequestSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(400).json({
+                error: "Invalid request body",
+            });
+        }
+        let refreshToken = parsed.data.refresh_token;
+        if (!refreshToken) {
+            refreshToken =
+                req.cookies?.[REFRESH_TOKEN_COOKIE];
+        }
+        if (!refreshToken ||
+            typeof refreshToken !== "string") {
+            return res.status(400).json({
+                error: "refresh_token is required",
+            });
+        }
+        const incomingHash = crypto_1.default
+            .createHash("sha256")
+            .update(refreshToken)
+            .digest("hex");
+        // Look up refresh token in Redis
+        const recordJson = await redis_1.redis.get(`refresh_token:${incomingHash}`);
+        const record = recordJson ? JSON.parse(recordJson) : null;
+        if (!record) {
+            return res.status(401).json({
+                error: "Invalid refresh token",
+            });
+        }
+        if (record.revoked) {
+            console.warn(`[auth/refresh] Revoked token replay attempt for ${record.address}`);
+            return res.status(401).json({
+                error: "Refresh token has been revoked",
+            });
+        }
+        if (record.expires_at.getTime() <=
+            Date.now()) {
+            return res.status(401).json({
+                error: "Refresh token expired",
+            });
+        }
+        const newAccessJti = crypto_1.default.randomUUID();
+        const newAccessToken = issueAccessToken(record.address, newAccessJti);
+        const { rawToken: newRefreshToken, } = await issueRefreshToken(record.address, record.token_hash);
+        res.cookie(ACCESS_TOKEN_COOKIE, newAccessToken, {
+            ...COOKIE_BASE_OPTIONS,
+            maxAge: ACCESS_TOKEN_TTL_SEC * 1000,
+        });
+        res.cookie(REFRESH_TOKEN_COOKIE, newRefreshToken, {
+            ...COOKIE_BASE_OPTIONS,
+            maxAge: REFRESH_TOKEN_TTL_SEC * 1000,
+        });
+        return res.status(200).json({
+            access_token: newAccessToken,
+            refresh_token: newRefreshToken,
+            token_type: "Bearer",
+            expires_in: ACCESS_TOKEN_TTL_SEC,
+        });
+    }
+    catch (error) {
+        console.error("[auth/refresh]", error);
+        return res.status(500).json({
+            error: "Internal server error",
+        });
+    }
+});
+// ---------------------------------------------------------------------------
+// Route: POST /logout
+// ---------------------------------------------------------------------------
+router.post("/logout", async (req, res) => {
+    try {
+        let rawAccessToken = req.cookies?.[ACCESS_TOKEN_COOKIE];
+        const authHeader = req.headers.authorization;
+        if (!rawAccessToken &&
+            authHeader?.startsWith("Bearer ")) {
+            rawAccessToken =
+                authHeader.slice(7);
+        }
+        let refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
+        const body = req.body;
+        if (!refreshToken &&
+            body.refresh_token) {
+            refreshToken =
+                body.refresh_token;
+        }
+        if (rawAccessToken) {
+            const secret = process.env.JWT_SECRET;
+            if (secret) {
+                try {
+                    const decoded = jsonwebtoken_1.default.verify(rawAccessToken, secret, {
+                        issuer: "lance-marketplace",
+                        audience: "lance-frontend",
+                    });
+                    if (decoded.jti &&
+                        decoded.exp) {
+                        await blacklistToken(decoded.jti, decoded.exp);
+                    }
+                }
+                catch {
+                    // Ignore invalid/expired token
+                }
+            }
+        }
+        if (refreshToken &&
+            typeof refreshToken ===
+                "string") {
+            const hash = crypto_1.default
+                .createHash("sha256")
+                .update(refreshToken)
+                .digest("hex");
+            await db_1.prisma.refresh_tokens
+                .updateMany({
+                where: {
+                    token_hash: hash,
+                    revoked: false,
+                },
+                data: {
+                    revoked: true,
+                },
+            })
+                .catch(() => { });
+        }
+        res.clearCookie(ACCESS_TOKEN_COOKIE, COOKIE_BASE_OPTIONS);
+        res.clearCookie(REFRESH_TOKEN_COOKIE, COOKIE_BASE_OPTIONS);
+        return res.status(200).json({
+            message: "Logged out successfully",
+        });
+    }
+    catch (error) {
+        console.error("[auth/logout]", error);
+        return res.status(500).json({
+            error: "Internal server error",
+        });
     }
 });
 router.get("/session", async (req, res) => {

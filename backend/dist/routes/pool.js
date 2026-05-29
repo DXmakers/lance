@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = require("../config/db");
+const intakeRateLimit_1 = require("../middleware/intakeRateLimit");
 const tracing_1 = require("../utils/tracing");
 const router = (0, express_1.Router)();
 /**
@@ -104,6 +105,10 @@ router.get("/stats", async (req, res) => {
             uptimeSeconds: stats.uptimeSeconds,
             healthChecksPassed: stats.healthChecksPassed,
             healthChecksFailed: stats.healthChecksFailed,
+            intakeRateLimit: {
+                effectiveRpm: (0, intakeRateLimit_1.effectiveRpm)(),
+                trackedClients: (0, intakeRateLimit_1.intakeBucketCount)(),
+            },
         });
     }
     catch (error) {

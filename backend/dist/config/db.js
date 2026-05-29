@@ -156,47 +156,51 @@ async function connectWithRetry() {
 // ---------------------------------------------------------------------------
 const adapter = new adapter_pg_1.PrismaPg(exports.pool);
 const globalForPrisma = global;
-// Initialize Prisma with optimized middleware for tracing and performance monitoring
-exports.prisma = globalForPrisma.prisma ||
-    new client_1.PrismaClient({
+function createPrismaClient() {
+    const client = new client_1.PrismaClient({
         adapter,
         log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
     });
-// Add query middleware for tracing and performance monitoring
-exports.prisma.$use(async (params, next) => {
-    const spanContext = tracing_1.context.active();
-    const startTime = Date.now();
-    const logger = tracing_1.trace.getLogger("db-query");
-    try {
-        const result = await next(params);
-        const duration = Date.now() - startTime;
-        // Log slow queries (> 1000ms)
-        if (duration > 1000) {
-            logger.warn(`Slow query detected: ${params.model}.${params.action}`, {
-                duration,
-                model: params.model,
-                action: params.action,
-                args: JSON.stringify(params.args).substring(0, 200),
-            });
-        }
-        logger.debug(`Query completed: ${params.model}.${params.action}`, {
-            duration,
-            model: params.model,
-            action: params.action,
-        });
-        return result;
-    }
-    catch (error) {
-        const duration = Date.now() - startTime;
-        logger.error(`Query failed: ${params.model}.${params.action}`, {
-            duration,
-            model: params.model,
-            action: params.action,
-            error: error instanceof Error ? error.message : String(error),
-        });
-        throw error;
-    }
-});
+    return client.$extends({
+        query: {
+            $allModels: {
+                async $allOperations({ model, operation, args, query }) {
+                    const startTime = Date.now();
+                    const logger = tracing_1.trace.getLogger("db-query");
+                    try {
+                        const result = await query(args);
+                        const duration = Date.now() - startTime;
+                        if (duration > 1000) {
+                            logger.warn(`Slow query detected: ${model}.${operation}`, {
+                                duration,
+                                model,
+                                action: operation,
+                                args: JSON.stringify(args).substring(0, 200),
+                            });
+                        }
+                        logger.debug(`Query completed: ${model}.${operation}`, {
+                            duration,
+                            model,
+                            action: operation,
+                        });
+                        return result;
+                    }
+                    catch (error) {
+                        const duration = Date.now() - startTime;
+                        logger.error(`Query failed: ${model}.${operation}`, {
+                            duration,
+                            model,
+                            action: operation,
+                            error: error instanceof Error ? error.message : String(error),
+                        });
+                        throw error;
+                    }
+                },
+            },
+        },
+    });
+}
+exports.prisma = globalForPrisma.prisma || createPrismaClient();
 if (process.env.NODE_ENV !== "production")
     globalForPrisma.prisma = exports.prisma;
 // ---------------------------------------------------------------------------
