@@ -30,19 +30,25 @@ export interface AuthRequest extends Request {
   auth?: JwtPayload & { address: string; jti: string };
 }
 
+const ACCESS_TOKEN_COOKIE = "lance_access_token";
+
 export async function authGuard(
   req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> {
+  // Try to get token from cookie first, then from Authorization header
+  let token = req.cookies[ACCESS_TOKEN_COOKIE];
   const header = req.headers.authorization;
+  if (!token && header?.startsWith("Bearer ")) {
+    token = header.slice(7);
+  }
 
-  if (!header?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Authorization header missing or malformed" });
+  if (!token) {
+    res.status(401).json({ error: "Authorization token missing or malformed" });
     return;
   }
 
-  const token  = header.slice(7);
   const secret = process.env.JWT_SECRET;
 
   if (!secret) {

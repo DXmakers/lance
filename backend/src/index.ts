@@ -1,5 +1,7 @@
-import express, { Express, Request, Response } from "express";
+import express, { Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
+import crypto from "crypto";
 import dotenv from "dotenv";
 import { prisma, connectWithRetry, startPoolHealthCheck } from "./config/db";
 import { trace } from "./config/tracing";
@@ -25,10 +27,54 @@ dotenv.config();
 const app: Express = express();
 const port = process.env.PORT || 3001;
 const logger = trace.getLogger("server");
+const isProduction = process.env.NODE_ENV === "production";
+const CSRF_COOKIE_NAME = "lance-csrf-token";
 
-// Enable CORS for frontend requests
-app.use(cors({ origin: "*" }));
+// Enable CORS for frontend requests with credentials support
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+app.use(cors({
+  origin: FRONTEND_URL,
+  credentials: true,
+}));
+app.use(cookieParser());
 app.use(express.json());
+
+// CSRF protection middleware (double-submit cookie pattern)
+const csrfMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  // Skip CSRF for GET/HEAD/OPTIONS and auth challenge/verify routes
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method) || 
+      (req.path.startsWith("/api/v1/auth/") && 
+       (req.path.endsWith("/challenge") || req.path.endsWith("/verify")))) {
+    return next();
+  }
+
+  const csrfCookie = req.cookies[CSRF_COOKIE_NAME];
+  const csrfHeader = req.headers["x-csrf-token"];
+  const csrfHeaderStr = Array.isArray(csrfHeader) ? csrfHeader[0] : csrfHeader;
+
+  if (!csrfCookie || !csrfHeaderStr || !crypto.timingSafeEqual(Buffer.from(csrfCookie), Buffer.from(csrfHeaderStr))) {
+    return res.status(403).json({ error: "Invalid CSRF token" });
+  }
+
+  next();
+};
+
+// Route to get CSRF token
+app.get("/api/v1/auth/csrf", (req: Request, res: Response) => {
+  const csrfToken = crypto.randomBytes(32).toString("hex");
+  
+  // Set CSRF cookie (HttpOnly false so frontend can read it, SameSite strict)
+  res.cookie(CSRF_COOKIE_NAME, csrfToken, {
+    httpOnly: false,
+    secure: isProduction,
+    sameSite: isProduction ? "strict" : "lax",
+    path: "/",
+  });
+
+  res.json({ csrfToken });
+});
+
+app.use(csrfMiddleware);
 app.use(tracingMiddleware); // Global request tracing and diagnostics
 app.use(intakeRateLimit);
 app.use(metricsMiddleware);

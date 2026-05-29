@@ -28,6 +28,17 @@ import { Keypair } from "@stellar/stellar-sdk";
 import { prisma } from "../config/db";
 import { redis } from "../config/redis";
 
+// Cookie configuration constants
+const isProduction = process.env.NODE_ENV === "production";
+const ACCESS_TOKEN_COOKIE = "lance_access_token";
+const REFRESH_TOKEN_COOKIE = "lance_refresh_token";
+const COOKIE_BASE_OPTIONS = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? "strict" : "lax",
+  path: "/",
+} as const;
+
 const router = Router();
 
 // ---------------------------------------------------------------------------
@@ -323,6 +334,16 @@ router.post(
       const accessToken = issueAccessToken(address, accessJti);
       const { rawToken: refreshToken } = await issueRefreshToken(address);
 
+      // Set secure cookies
+      res.cookie(ACCESS_TOKEN_COOKIE, accessToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: ACCESS_TOKEN_TTL_SEC * 1000,
+      });
+      res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: REFRESH_TOKEN_TTL_SEC * 1000,
+      });
+
       return res.status(200).json({
         access_token: accessToken,
         refresh_token: refreshToken,
@@ -347,23 +368,26 @@ router.post(
 // ---------------------------------------------------------------------------
 
 interface RefreshBody {
-  refresh_token: string;
+  refresh_token?: string;
 }
 
 router.post(
   "/refresh",
   async (req: Request<{}, {}, RefreshBody>, res: Response) => {
     try {
-      const { refresh_token } = req.body;
+      let refreshToken = req.body.refresh_token;
+      if (!refreshToken) {
+        refreshToken = req.cookies[REFRESH_TOKEN_COOKIE];
+      }
 
-      if (!refresh_token || typeof refresh_token !== "string") {
+      if (!refreshToken || typeof refreshToken !== "string") {
         return res.status(400).json({ error: "refresh_token is required" });
       }
 
       // Hash the incoming token and look it up — never store/compare raw.
       const incomingHash = crypto
         .createHash("sha256")
-        .update(refresh_token)
+        .update(refreshToken)
         .digest("hex");
 
       const record = await prisma.refresh_tokens.findUnique({
@@ -395,6 +419,16 @@ router.post(
         record.id           // Marks this record as revoked inside issueRefreshToken
       );
 
+      // Set secure cookies
+      res.cookie(ACCESS_TOKEN_COOKIE, newAccessToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: ACCESS_TOKEN_TTL_SEC * 1000,
+      });
+      res.cookie(REFRESH_TOKEN_COOKIE, newRefreshToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: REFRESH_TOKEN_TTL_SEC * 1000,
+      });
+
       return res.status(200).json({
         access_token: newAccessToken,
         refresh_token: newRefreshToken,
@@ -416,52 +450,65 @@ router.post(
 // ---------------------------------------------------------------------------
 
 router.post("/logout", async (req: Request, res: Response) => {
-  try {
-    const authHeader = req.headers.authorization;
-    const { refresh_token } = req.body as { refresh_token?: string };
+    try {
+      // Try to get access token from cookie first, then header
+      let rawAccessToken = req.cookies[ACCESS_TOKEN_COOKIE];
+      const authHeader = req.headers.authorization;
+      if (!rawAccessToken && authHeader?.startsWith("Bearer ")) {
+        rawAccessToken = authHeader.slice(7);
+      }
+      // Try to get refresh token from cookie first, then body
+      let refreshToken = req.cookies[REFRESH_TOKEN_COOKIE];
+      const { refresh_token } = req.body as { refresh_token?: string };
+      if (!refreshToken && refresh_token) {
+        refreshToken = refresh_token;
+      }
 
-    // ── Blacklist the access token ─────────────────────────────────────────
-    if (authHeader?.startsWith("Bearer ")) {
-      const rawAccessToken = authHeader.slice(7);
-      const secret = process.env.JWT_SECRET;
+      // ── Blacklist the access token ─────────────────────────────────────
+      if (rawAccessToken) {
+        const secret = process.env.JWT_SECRET;
 
-      if (secret) {
-        try {
-          const decoded = jwt.verify(rawAccessToken, secret, {
-            issuer: "lance-marketplace",
-            audience: "lance-frontend",
-          }) as JwtPayload;
+        if (secret) {
+          try {
+            const decoded = jwt.verify(rawAccessToken, secret, {
+              issuer: "lance-marketplace",
+              audience: "lance-frontend",
+            }) as JwtPayload;
 
-          if (decoded.jti && decoded.exp) {
-            await blacklistToken(decoded.jti, decoded.exp);
+            if (decoded.jti && decoded.exp) {
+              await blacklistToken(decoded.jti, decoded.exp);
+            }
+          } catch {
+            // Expired / malformed tokens are silently ignored — we're logging out.
           }
-        } catch {
-          // Expired / malformed tokens are silently ignored — we're logging out.
         }
       }
+
+      // ── Revoke the refresh token ───────────────────────────────────────
+      if (refreshToken && typeof refreshToken === "string") {
+        const hash = crypto
+          .createHash("sha256")
+          .update(refreshToken)
+          .digest("hex");
+
+        await prisma.refresh_tokens
+          .updateMany({
+            where: { token_hash: hash, revoked: false },
+            data: { revoked: true },
+          })
+          .catch(() => {}); // Best-effort; missing record is not an error.
+      }
+
+      // Clear cookies
+      res.clearCookie(ACCESS_TOKEN_COOKIE, COOKIE_BASE_OPTIONS);
+      res.clearCookie(REFRESH_TOKEN_COOKIE, COOKIE_BASE_OPTIONS);
+
+      return res.status(200).json({ message: "Logged out successfully" });
+    } catch (error) {
+      console.error("[auth/logout] Unexpected error:", error);
+      return res.status(500).json({ error: "Internal server error" });
     }
-
-    // ── Revoke the refresh token ───────────────────────────────────────────
-    if (refresh_token && typeof refresh_token === "string") {
-      const hash = crypto
-        .createHash("sha256")
-        .update(refresh_token)
-        .digest("hex");
-
-      await prisma.refresh_tokens
-        .updateMany({
-          where: { token_hash: hash, revoked: false },
-          data: { revoked: true },
-        })
-        .catch(() => {}); // Best-effort; missing record is not an error.
-    }
-
-    return res.status(200).json({ message: "Logged out successfully" });
-  } catch (error) {
-    console.error("[auth/logout] Unexpected error:", error);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-});
+  });
 
 // ---------------------------------------------------------------------------
 // Utility exports — consumed by auth middleware in other routes
