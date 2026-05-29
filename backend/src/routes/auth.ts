@@ -145,17 +145,11 @@ function issueAccessToken(address: string, jti: string): string {
 
 async function issueRefreshToken(
 	address: string,
-	previousTokenId?: number
+	previousTokenId?: string
 ): Promise<{ rawToken: string; hashedToken: string }> {
+	// If there was a previous token ID (hash), revoke it in Redis
 	if (previousTokenId !== undefined) {
-		await prisma.refresh_tokens.update({
-			where: {
-				id: previousTokenId,
-			},
-			data: {
-				revoked: true,
-			},
-		});
+		await redis.del(`refresh_token:${previousTokenId}`);
 	}
 
 	const rawToken = crypto.randomBytes(48).toString("base64url");
@@ -169,14 +163,19 @@ async function issueRefreshToken(
 		Date.now() + REFRESH_TOKEN_TTL_SEC * 1000
 	);
 
-	await prisma.refresh_tokens.create({
-		data: {
+	// Store refresh token in Redis with TTL
+	await redis.set(
+		`refresh_token:${hashedToken}`,
+		JSON.stringify({
 			token_hash: hashedToken,
 			address,
-			expires_at: expiresAt,
+			expires_at: expiresAt.toISOString(),
 			revoked: false,
-		},
-	});
+		}),
+		"EX",
+		REFRESH_TOKEN_TTL_SEC,
+		"NX"
+	);
 
 	return {
 		rawToken,
@@ -510,12 +509,11 @@ router.post(
 				.update(refreshToken)
 				.digest("hex");
 
-			const record =
-				await prisma.refresh_tokens.findUnique({
-					where: {
-						token_hash: incomingHash,
-					},
-				});
+			// Look up refresh token in Redis
+			const recordJson =
+				await redis.get(`refresh_token:${incomingHash}`);
+
+			const record = recordJson ? JSON.parse(recordJson) : null;
 
 			if (!record) {
 				return res.status(401).json({
@@ -556,7 +554,7 @@ router.post(
 				rawToken: newRefreshToken,
 			} = await issueRefreshToken(
 				record.address,
-				record.id
+				record.token_hash
 			);
 
 			res.cookie(
