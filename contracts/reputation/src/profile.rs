@@ -35,8 +35,7 @@ impl RoleMetrics {
             score: 5_000,
             completed_jobs: 0,
             review: ReviewAggregate::new(),
-            badge_level: 0,
-            dispute_failures: 0,
+            badge_level: BadgeLevel::from_score(5_000).to_u32(),
         }
     }
 }

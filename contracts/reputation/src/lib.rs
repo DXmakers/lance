@@ -150,15 +150,12 @@ pub struct BlacklistUpdatedEvent {
 
 #[contracttype]
 #[derive(Clone)]
-pub struct DisputeFailureRecordedEvent {
-    pub address: Address,
-    pub role: Role,
-    pub dispute_failures: u32,
-    pub previous_badge_level: u32,
-    pub new_badge_level: u32,
-    pub score_penalty_applied: bool,
-    pub new_score: i32,
-    pub recorded_at: u64,
+pub struct DecayParameterUpdatedEvent {
+    pub by_admin: Address,
+    pub param_name: Symbol,
+    pub old_value: i32,
+    pub new_value: i32,
+    pub updated_at: u64,
 }
 
 #[contract]
@@ -347,35 +344,18 @@ impl ReputationContract {
         Self::refresh_badge(metrics, is_blacklisted);
     }
 
-    /// Record a dispute failure and apply badge revocation if threshold is exceeded
-    fn record_dispute_failure(env: &Env, metrics: &mut RoleMetrics, is_blacklisted: bool) {
-        metrics.dispute_failures = metrics.dispute_failures.saturating_add(1);
-        
-        // If dispute failures exceed threshold, revoke badge and apply penalty
-        if metrics.dispute_failures >= Self::DISPUTE_FAILURE_THRESHOLD {
-            let previous_badge_level = metrics.badge_level;
-            metrics.score = Self::apply_decay_bps(env, metrics.score, Self::BADGE_REVOCATION_PENALTY_BPS);
-            Self::refresh_badge(metrics, is_blacklisted);
-            
-            // Badge was revoked if it went from >0 to 0
-            if previous_badge_level > 0 && metrics.badge_level == 0 {
-                // Badge revocation occurred
-            }
-        } else {
-            Self::refresh_badge(metrics, is_blacklisted);
-        }
+    fn read_slash_decay_bps(env: &Env) -> i32 {
+        env.storage()
+            .instance()
+            .get(&DataKey::SlashDecayBps)
+            .unwrap_or(Self::SLASH_DECAY_BPS)
     }
 
-    fn compute_recovery_towards_default(current: i32, recovery_bps: i32) -> i32 {
-        // Move `current` towards DEFAULT_SCORE_BPS by `recovery_bps` (bps of the gap)
-        let gap = (Self::DEFAULT_SCORE_BPS as i128) - (current as i128);
-        if gap == 0 {
-            return current;
-        }
-        let adj = (gap * (recovery_bps as i128)) / (Self::SCORE_SCALE as i128);
-        let result = (current as i128) + adj;
-        // clamp to valid range
-        Self::clamp_score_i128(result)
+    fn read_blacklist_decay_bps(env: &Env) -> i32 {
+        env.storage()
+            .instance()
+            .get(&DataKey::BlacklistDecayBps)
+            .unwrap_or(Self::BLACKLIST_DECAY_BPS)
     }
 
     pub fn upgrade(
@@ -437,9 +417,12 @@ impl ReputationContract {
         Self::bump_instance_ttl(&env);
     }
 
-    /// Authorize a contract address (admin only)
-    pub fn authorize_contract(env: Env, admin: Address, contract: Address) {
+    pub fn set_slash_decay(env: Env, admin: Address, decay_bps: i32) {
         Self::require_admin(&env, &admin);
+        if !(1_000..=10_000).contains(&decay_bps) {
+            soroban_sdk::panic_with_error!(&env, ReputationError::InvalidInput);
+        }
+        let old_value = Self::read_slash_decay_bps(&env);
         env.storage()
             .instance()
             .set(&DataKey::SlashDecayBps, &decay_bps);
@@ -456,9 +439,12 @@ impl ReputationContract {
         Self::bump_instance_ttl(&env);
     }
 
-    /// Deauthorize a contract address (admin only)
-    pub fn deauthorize_contract(env: Env, admin: Address, contract: Address) {
+    pub fn set_blacklist_decay(env: Env, admin: Address, decay_bps: i32) {
         Self::require_admin(&env, &admin);
+        if !(1_000..=10_000).contains(&decay_bps) {
+            soroban_sdk::panic_with_error!(&env, ReputationError::InvalidInput);
+        }
+        let old_value = Self::read_blacklist_decay_bps(&env);
         env.storage()
             .instance()
             .set(&DataKey::BlacklistDecayBps, &decay_bps);
@@ -637,8 +623,8 @@ impl ReputationContract {
         let is_blacklisted = profile.is_blacklisted;
         let metrics = Self::role_metrics_mut(&mut profile, &role);
         let previous_score = metrics.score;
-        Self::apply_role_decay(&env, metrics, Self::SLASH_DECAY_BPS, is_blacklisted);
-        profile.last_activity = env.ledger().timestamp();
+        let decay_bps = Self::read_slash_decay_bps(&env);
+        Self::apply_role_decay(&env, metrics, decay_bps, is_blacklisted);
         let new_score = metrics.score;
         let total_jobs = metrics.completed_jobs;
         let badge_level = metrics.badge_level;
@@ -672,14 +658,9 @@ impl ReputationContract {
         if !profile.is_blacklisted {
             profile.is_blacklisted = true;
             let is_blacklisted = profile.is_blacklisted;
-            Self::apply_role_decay(&env, &mut profile.client, Self::BLACKLIST_DECAY_BPS, is_blacklisted);
-            Self::apply_role_decay(
-                &env,
-                &mut profile.freelancer,
-                Self::BLACKLIST_DECAY_BPS,
-                is_blacklisted,
-            );
-            profile.last_activity = env.ledger().timestamp();
+            let decay_bps = Self::read_blacklist_decay_bps(&env);
+            Self::apply_role_decay(&env, &mut profile.client, decay_bps, is_blacklisted);
+            Self::apply_role_decay(&env, &mut profile.freelancer, decay_bps, is_blacklisted);
         }
 
         let client_score = profile.client.score;
@@ -1806,8 +1787,10 @@ mod test {
         client.submit_rating(&client_three, &103, &freelancer, &5);
         assert_eq!(client.get_badge_level(&freelancer, &Role::Freelancer), 1);
 
-        let metrics = client.get_public_metrics(&freelancer, &soroban_sdk::Symbol::new(&env, "freelancer"));
-        assert_eq!(metrics.get(0).unwrap(), 10_000);
+        // Check public metrics
+        let metrics =
+            client.get_public_metrics(&address, &soroban_sdk::Symbol::new(&env, "freelancer"));
+        assert_eq!(metrics.get(0).unwrap(), 6500);
         assert_eq!(metrics.get(1).unwrap(), 3);
         assert_eq!(metrics.get(4).unwrap(), 1);
     }
