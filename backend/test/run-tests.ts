@@ -46,6 +46,30 @@ async function main() {
     const auth = require("../src/routes/auth");
     const authGuardModule = require("../src/middleware/authGuard");
 
+    // Additional tests: signature decoder robustness
+    // Ensure malformed signature inputs do not crash the process and are
+    // rejected with a controlled error.
+    try {
+        // invalid base64 / garbage should throw
+        let threw = false;
+        try {
+            // @ts-ignore
+            auth.decodeSignature("not-a-valid-base64!!!");
+        } catch (e) {
+            threw = true;
+        }
+        assert(threw, "decodeSignature should throw on invalid input");
+
+        // valid 64-byte buffer encoded as base64 should decode
+        const validBuf = crypto.randomBytes(64);
+        const b64 = validBuf.toString("base64");
+        const out = auth.decodeSignature(b64);
+        assert(out && out.length === 64, "decodeSignature should accept valid 64-byte base64");
+    } catch (e) {
+        console.error("Signature decoder tests failed:", e);
+        throw e;
+    }
+
     // Test 1: blacklistToken stores the key and isTokenBlacklisted reads it
     const jti = "test-jti-1";
     const expiresAt = Math.floor(Date.now() / 1000) + 60; // expires in 60s
