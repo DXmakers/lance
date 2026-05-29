@@ -25,7 +25,7 @@ pub enum DataKey {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct JobConfig {
     pub creator: Address,
-    pub ipfs_cid: Bytes,       // Compressed project text parameters (IPFS Hash)
+    pub ipfs_cid: Bytes,
     pub budget: i128,
     pub status: JobStatus,
     pub freelancer: Option<Address>,
@@ -54,14 +54,6 @@ pub struct JobCreatedIndexEvent {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BidPlacedIndexEvent {
-    pub job_id: u64,
-    pub bidder: Address,
-    pub amount: i128,
-}
-
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct JobAssignedIndexEvent {
     pub job_id: u64,
     pub freelancer: Address,
@@ -78,7 +70,6 @@ pub struct LanceJobRegistryContract;
 #[contractimpl]
 impl LanceJobRegistryContract {
 
-    /// Initializes contract layout control patterns.
     pub fn initialize(env: Env, admin: Address) {
         if env.storage().instance().has(&DataKey::Admin) {
             panic!("Registry already initialized");
@@ -95,7 +86,7 @@ impl LanceJobRegistryContract {
         }
         // Enforce basic IPFS hash length sanity boundary checking (e.g., standard v0/v1 length checks)
         if ipfs_cid.len() < 32 {
-            panic!("Invalid IPFS Content Identifier bounds provided");
+            panic!("Invalid IPFS Content Identifier bounds");
         }
 
         let job_key = DataKey::JobConfig(job_id);
@@ -160,21 +151,21 @@ impl LanceJobRegistryContract {
     /// Accepts a proposal. Strictly enforces ownership boundaries.
     pub fn accept_bid(env: Env, job_id: u64, bid_index: u32) {
         let job_key = DataKey::JobConfig(job_id);
-        let mut job: JobConfig = env.storage().persistent().get(&job_key).expect("Target job registry context not found");
+        let mut job: JobConfig = env.storage().persistent().get(&job_key).expect("Job context not found");
 
         // Implement strict ownership validation so that only the job creator can accept proposals
         job.creator.require_auth();
 
         if job.status != JobStatus::AwaitingFunding {
-            panic!("Invalid operational request sequence: Job state already locked or assigned");
+            panic!("Job state already locked or assigned");
         }
 
         let bids_key = DataKey::JobBids(job_id);
-        let bids: Vec<Bid> = env.storage().persistent().get(&bids_key).expect("Bids collection store missing");
+        let bids: Vec<Bid> = env.storage().persistent().get(&bids_key).expect("Bids store missing");
 
         // Boundary safety validation check against vector indexing targets
         if bid_index >= bids.len() {
-            panic!("Out-of-bounds input error: Selected bid target index does not exist");
+            panic!("Out-of-bounds input error: Selected bid index does not exist");
         }
 
         let chosen_bid = bids.get(bid_index).unwrap();
@@ -193,6 +184,50 @@ impl LanceJobRegistryContract {
                 freelancer: chosen_bid.bidder,
                 final_amount: chosen_bid.amount,
             },
+        );
+    }
+
+    /// Admin or Creator capability to mark a finalized job as completed.
+    pub fn complete_job(env: Env, job_id: u64) {
+        let job_key = DataKey::JobConfig(job_id);
+        let mut job: JobConfig = env.storage().persistent().get(&job_key).expect("Job context not found");
+        
+        job.creator.require_auth();
+
+        if job.status != JobStatus::Assigned {
+            panic!("Only active assigned jobs can be closed or completed");
+        }
+
+        job.status = JobStatus::Completed;
+        env.storage().persistent().set(&job_key, &job);
+    }
+
+    /// Explicit Storage Reclamation System.
+    /// Permanently expunges closed/completed postings to free storage keys and reclaim rent allocations.
+    pub fn reclaim_job_storage(env: Env, job_id: u64, reclaimer: Address) {
+        reclaimer.require_auth();
+
+        let job_key = DataKey::JobConfig(job_id);
+        let job: JobConfig = env.storage().persistent().get(&job_key).expect("Job context not found");
+
+        // Safety enforcement verification boundaries
+        if job.status != JobStatus::Completed {
+            panic!("Storage optimization block: Only completed jobs can have their footprints reclaimed");
+        }
+        if reclaimer != job.creator {
+            panic!("Unauthorized: Only the initial job creator can invoke storage reclamation");
+        }
+
+        let bids_key = DataKey::JobBids(job_id);
+
+        // Safely purge persistent keys completely from storage ledger allocation tables
+        env.storage().persistent().remove(&job_key);
+        env.storage().persistent().remove(&bids_key);
+
+        // Emit indexer synchronization notification event
+        env.events().publish(
+            (Symbol::new(&env, "job_storage_reclaimed"), job_id),
+            JobStorageReclaimedEvent { job_id, reclaimer },
         );
     }
 
