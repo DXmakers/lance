@@ -106,12 +106,31 @@ function buildMessageHash(challenge: string): Buffer {
 	return crypto.createHash("sha256").update(payload).digest();
 }
 
+/**
+ * Safely decodes a signature from either hex or base64 format.
+ * Enforces strict bounds checking: ed25519 signatures are exactly 64 bytes.
+ * Rejects any signature that decodes to a length other than 64 bytes.
+ */
 function decodeSignature(raw: string): Buffer {
 	const trimmed = raw.trim();
-	if (/^[0-9a-fA-F]+$/.test(trimmed) && trimmed.length % 2 === 0) {
-		return Buffer.from(trimmed, "hex");
+	if (trimmed.length === 0) {
+		throw new Error("Signature cannot be empty");
 	}
-	return Buffer.from(trimmed, "base64");
+
+	let buf: Buffer;
+	if (/^[0-9a-fA-F]+$/.test(trimmed) && trimmed.length % 2 === 0) {
+		buf = Buffer.from(trimmed, "hex");
+	} else {
+		buf = Buffer.from(trimmed, "base64");
+	}
+
+	// ed25519 signatures are exactly 64 bytes — reject any other size.
+	if (buf.length !== 64) {
+		throw new Error(
+			`Invalid signature length: expected 64 bytes, got ${buf.length}`
+		);
+	}
+	return buf;
 }
 
 function timingSafeEqualStrings(a: string, b: string): boolean {
@@ -485,17 +504,20 @@ router.post(
 				where: { address },
 			});
 
-			if (!challengeRecord) {
-				return res.status(404).json({ error: "No challenge found" });
-			}
+		// Return 401 (not 404) to avoid leaking whether an address has a pending challenge.
+		if (!challengeRecord) {
+			return res.status(401).json({ error: "Invalid credentials" });
+		}
 
-			if (challengeRecord.expires_at.getTime() <= Date.now()) {
-				await prisma.auth_challenges
-					.delete({ where: { address } })
-					.catch(() => {});
-
-				return res.status(401).json({ error: "Challenge expired" });
-			}
+		if (!isChallengeFresh(challengeRecord)) {
+			await prisma.auth_challenges
+				.deleteMany({
+					where: {
+						address,
+						challenge: challengeRecord.challenge,
+						expires_at: { gt: new Date(0) },
+					},
+				})
 
 			let isValid = verifyStellarSignature(
 				address,
@@ -516,11 +538,19 @@ router.post(
 				return res.status(401).json({ error: "Invalid signature" });
 			}
 
-			await prisma.auth_challenges.delete({ where: { address } });
+		// Atomically consume the challenge. count === 0 means another concurrent
+		// request already used it (TOCTOU guard).
+		const deleted = await prisma.auth_challenges.deleteMany({
+			where: {
+				address,
+				challenge: challengeRecord.challenge,
+				expires_at: { gt: new Date() },
+			},
+		});
 
-			const accessJti = crypto.randomUUID();
-			const accessToken = issueAccessToken(address, accessJti);
-			const { rawToken: refreshToken } = await issueRefreshToken(address);
+		if (deleted.count === 0) {
+			return res.status(401).json({ error: "Challenge already consumed" });
+		}
 
 			res.cookie(ACCESS_TOKEN_COOKIE, accessToken, {
 				...COOKIE_BASE_OPTIONS,
