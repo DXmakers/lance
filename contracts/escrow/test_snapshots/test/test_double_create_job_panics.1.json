@@ -132,14 +132,6 @@
                     },
                     {
                       "key": {
-                        "symbol": "dispute_deadline"
-                      },
-                      "val": {
-                        "u64": 0
-                      }
-                    },
-                    {
-                      "key": {
                         "symbol": "expires_at"
                       },
                       "val": {
@@ -156,10 +148,10 @@
                     },
                     {
                       "key": {
-                        "symbol": "milestones"
+                        "symbol": "milestone_count"
                       },
                       "val": {
-                        "vec": []
+                        "u32": 0
                       }
                     },
                     {
@@ -171,14 +163,6 @@
                           "hi": 0,
                           "lo": 0
                         }
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "requires_multisig"
-                      },
-                      "val": {
-                        "bool": false
                       }
                     },
                     {
@@ -203,14 +187,6 @@
                     },
                     {
                       "key": {
-                        "symbol": "token_decimals"
-                      },
-                      "val": {
-                        "u32": 0
-                      }
-                    },
-                    {
-                      "key": {
                         "symbol": "total_amount"
                       },
                       "val": {
@@ -226,7 +202,7 @@
             },
             "ext": "v0"
           },
-          150000
+          4095
         ]
       ],
       [
@@ -333,39 +309,6 @@
           "v0": {
             "topics": [
               {
-                "symbol": "log"
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "string": "create_job: id {} client {} freelancer {}"
-                },
-                {
-                  "u64": 1
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
-        "type_": "diagnostic",
-        "body": {
-          "v0": {
-            "topics": [
-              {
                 "symbol": "fn_return"
               },
               {
@@ -426,16 +369,27 @@
           "v0": {
             "topics": [
               {
-                "symbol": "fn_return"
-              },
-              {
-                "symbol": "create_job"
+                "symbol": "log"
               }
             ],
             "data": {
-              "error": {
-                "contract": 4
-              }
+              "vec": [
+                {
+                  "string": "caught panic 'job already exists' from contract function 'Symbol(obj#39)'"
+                },
+                {
+                  "u64": 1
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                }
+              ]
             }
           }
         }
@@ -455,12 +409,12 @@
               },
               {
                 "error": {
-                  "contract": 4
+                  "wasm_vm": "invalid_action"
                 }
               }
             ],
             "data": {
-              "string": "escalating Ok(ScErrorType::Contract) frame-exit to Err"
+              "string": "caught error from function"
             }
           }
         }
@@ -480,7 +434,7 @@
               },
               {
                 "error": {
-                  "contract": 4
+                  "wasm_vm": "invalid_action"
                 }
               }
             ],
@@ -528,7 +482,7 @@
               },
               {
                 "error": {
-                  "contract": 4
+                  "wasm_vm": "invalid_action"
                 }
               }
             ],

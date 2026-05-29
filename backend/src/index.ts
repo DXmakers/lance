@@ -21,6 +21,7 @@ import bulkRoutes from "./routes/bulk";
 import poolRoutes from "./routes/pool";
 import stateRoutes from "./routes/state";
 import { pool } from "./config/db";
+import { startStorageCleanup, stopStorageCleanup } from "./utils/storage-cleanup";
 
 dotenv.config();
 

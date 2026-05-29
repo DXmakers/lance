@@ -214,6 +214,11 @@ model jobs {
   @@index([client_address], map: "idx_jobs_client_address")
   @@index([freelancer_address], map: "idx_jobs_freelancer_address")
   @@index([status], map: "idx_jobs_status")
+  @@index([created_at(sort: Desc), id(sort: Desc)], map: "idx_jobs_created_id_desc")
+  @@index([status, created_at(sort: Desc), id(sort: Desc)], map: "idx_jobs_status_created_id_desc")
+  @@index([budget_usdc(sort: Desc), created_at(sort: Desc), id(sort: Desc)], map: "idx_jobs_budget_created_id_desc")
+  @@index([deadline_at, created_at(sort: Desc), id(sort: Desc)], map: "idx_jobs_deadline_created_id_desc")
+  @@index([skills], map: "idx_jobs_skills_gin", type: Gin)
 }
 
 model milestone_events {
@@ -315,4 +320,26 @@ model verdicts {
   on_chain_tx          String?
   created_at           DateTime @default(now()) @db.Timestamptz(6)
   disputes             disputes @relation(fields: [dispute_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// Captures operational proofs that SQLx migration advisory locking is shared by all API replicas.
+/// Check constraints are enforced in SQL migration 20260529000002_sqlx_migration_lock_audits.sql.
+model sqlx_migration_lock_audits {
+  id                      String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  database_name           String
+  lock_id                 BigInt
+  probe_concurrency       Int
+  blocked_probe_count     Int
+  available_after_release Boolean
+  pool_total_before       Int
+  pool_waiting_before     Int
+  pool_total_after        Int
+  pool_waiting_after      Int
+  duration_ms             Int
+  status                  String
+  details                 Json     @default("{}")
+  created_at              DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([created_at(sort: Desc), id(sort: Desc)], map: "idx_sqlx_migration_lock_audits_created")
+  @@index([database_name, status, created_at(sort: Desc), id(sort: Desc)], map: "idx_sqlx_migration_lock_audits_db_status_created")
 }
