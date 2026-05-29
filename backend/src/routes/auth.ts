@@ -1,43 +1,15 @@
 /**
  * auth.ts — Secure JWT Session + Refresh Token Flow
- *
- * Implements:
- *   BE-W3A-105  — JWT session + refresh token issuance / rotation
- *   BE-W3A-102  — Strict 5-minute challenge expiry with automated cleanup
- *
- * Security guarantees:
- *   • Nonce-bound challenges expire in exactly 5 minutes (enforced both in DB
- *     and at verify-time so clock skew cannot be exploited).
- *   • Replay protection: each challenge is deleted atomically on first use.
- *   • Freighter SEP-53 signing prefix applied before SHA-256 hash.
- *   • Access tokens are short-lived (15 min); refresh tokens are long-lived
- *     (7 days) and stored hashed in the DB so a leaked DB row cannot be
- *     replayed directly.
- *   • Refresh token rotation: every /auth/refresh call issues a *new* refresh
- *     token and invalidates the old one (prevents refresh token reuse attacks).
- *   • Redis blacklist: revoked tokens are tombstoned with TTL equal to the
- *     remaining token lifetime so lookups are O(1) and self-expiring.
- *   • All timing-sensitive comparisons use `timingSafeEqual` to defeat
- *     timing-oracle attacks.
  */
 
 import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import jwt, { SignOptions, JwtPayload } from "jsonwebtoken";
-import { Keypair } from "@stellar/stellar-sdk";
-import { prisma } from "../config/db";
-import { redis } from "../config/redis";
+import { z } from "zod";
+import { Keypair, StrKey } from "@stellar/stellar-sdk";
+import Redis from "ioredis";
 
-// Cookie configuration constants
-const isProduction = process.env.NODE_ENV === "production";
-const ACCESS_TOKEN_COOKIE = "lance_access_token";
-const REFRESH_TOKEN_COOKIE = "lance_refresh_token";
-const COOKIE_BASE_OPTIONS = {
-  httpOnly: true,
-  secure: isProduction,
-  sameSite: isProduction ? "strict" : "lax",
-  path: "/",
-} as const;
+import { prisma } from "../config/db";
 
 const router = Router();
 
@@ -45,55 +17,352 @@ const router = Router();
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Challenge validity window in milliseconds (5 minutes). */
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
-/** Access token lifetime. Short to limit blast radius if stolen. */
-const ACCESS_TOKEN_TTL_SEC = 15 * 60; // 15 minutes
+const ACCESS_TOKEN_TTL_SEC = 15 * 60;
+const REFRESH_TOKEN_TTL_SEC = 7 * 24 * 60 * 60;
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Refresh token lifetime. */
-const REFRESH_TOKEN_TTL_SEC = 7 * 24 * 60 * 60; // 7 days
-
-/** Prefix injected by Freighter / stellar-wallets-kit before signing. */
 const STELLAR_SIGN_PREFIX = "Stellar Signed Message:\n";
 
-/** Redis key namespace for the revocation blacklist. */
 const BLACKLIST_NS = "jwt:blacklist:";
+const SESSION_BLACKLIST_NS = "auth:blacklist:session:";
+
+const ACCESS_TOKEN_COOKIE = "lance_access_token";
+const REFRESH_TOKEN_COOKIE = "lance_refresh_token";
+const SESSION_COOKIE_NAME = "lance_session";
+
+const BLACKLIST_TIMEOUT_MS = 5;
+
+const isProduction = process.env.NODE_ENV === "production";
+
+const COOKIE_BASE_OPTIONS = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? "strict" : "lax",
+  path: "/",
+} as const;
+
+// ---------------------------------------------------------------------------
+// Redis
+// ---------------------------------------------------------------------------
+
+let redisClient: Redis | null | undefined;
+
+function getRedisClient(): Redis | null {
+  if (redisClient !== undefined) {
+    return redisClient;
+  }
+
+  const redisUrl = process.env.REDIS_URL;
+
+  if (!redisUrl) {
+    redisClient = null;
+    return redisClient;
+  }
+
+  redisClient = new Redis(redisUrl, {
+    enableOfflineQueue: false,
+    lazyConnect: false,
+    maxRetriesPerRequest: 0,
+  });
+
+  redisClient.on("error", (error) => {
+    console.error("Redis auth client error:", error);
+  });
+
+  return redisClient;
+}
+
+// ---------------------------------------------------------------------------
+// Validation Schemas
+// ---------------------------------------------------------------------------
+
+const ChallengeRequestSchema = z.object({
+  address: z.string().min(1).max(128),
+});
+
+const VerifyRequestSchema = z.object({
+  address: z.string().min(1).max(128),
+  signature: z.union([
+    z.string().min(1).max(1024),
+    z.object({
+      signature: z.string().min(1).max(1024),
+    }),
+  ]),
+});
+
+const RefreshRequestSchema = z.object({
+  refresh_token: z.string().optional(),
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Derives the SHA-256 hash of the prefixed challenge exactly as Freighter
- * would before producing the Ed25519 signature (SEP-53 compliant).
- */
+function sha256Hex(value: string): string {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function blacklistKeyForToken(token: string): string {
+  return `${SESSION_BLACKLIST_NS}${sha256Hex(token)}`;
+}
+
+async function isSessionBlacklisted(token: string): Promise<boolean> {
+  const client = getRedisClient();
+
+  if (!client) {
+    return false;
+  }
+
+  try {
+    const result = await Promise.race([
+      client.get(blacklistKeyForToken(token)),
+      new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), BLACKLIST_TIMEOUT_MS)
+      ),
+    ]);
+
+    return result !== null;
+  } catch {
+    return false;
+  }
+}
+
+async function cleanupExpiredSessions(now: Date): Promise<void> {
+  await prisma.sessions.deleteMany({
+    where: { expires_at: { lte: now } },
+  });
+}
+
+export function sanitizeStellarAddress(
+  rawAddress: unknown
+): string | null {
+  if (typeof rawAddress !== "string") {
+    return null;
+  }
+
+  const normalized = rawAddress.trim().toUpperCase();
+
+  if (!/^G[A-Z2-7]{55}$/.test(normalized)) {
+    return null;
+  }
+
+  try {
+    const decoded = StrKey.decodeEd25519PublicKey(normalized);
+
+    if (
+      decoded.length !== 32 ||
+      !StrKey.isValidEd25519PublicKey(normalized)
+    ) {
+      return null;
+    }
+
+    Keypair.fromPublicKey(normalized);
+
+    return StrKey.encodeEd25519PublicKey(decoded) === normalized
+      ? normalized
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function buildChallenge(
+  address: string,
+  nonce: string
+): string {
+  const issuedAt = new Date().toISOString();
+
+  return (
+    `Lance wants you to sign in with your Stellar account:\n${address}\n\n` +
+    `Nonce: ${nonce}\nIssued At: ${issuedAt}`
+  );
+}
+
 function buildMessageHash(challenge: string): Buffer {
-  const payload = Buffer.from(STELLAR_SIGN_PREFIX + challenge);
+  const payload = Buffer.from(
+    STELLAR_SIGN_PREFIX + challenge,
+    "utf8"
+  );
+
   return crypto.createHash("sha256").update(payload).digest();
 }
 
+function extractSignatureString(
+  signature: unknown
+): string | null {
+  if (typeof signature === "string") {
+    return signature.trim();
+  }
+
+  if (signature && typeof signature === "object") {
+    const wrapped = signature as Record<string, unknown>;
+
+    const candidate =
+      wrapped.signature ?? wrapped.signedMessage;
+
+    if (typeof candidate === "string") {
+      return candidate.trim();
+    }
+  }
+
+  return null;
 /**
- * Normalises a hex or base64 signature string into a Buffer.
- * Wallets may deliver either encoding; we try hex first.
+ * Safely decodes a signature from either hex or base64 format.
+ * Enforces strict bounds checking: ed25519 signatures are exactly 64 bytes.
+ * Rejects any signature that decodes to a length other than 64 bytes.
  */
 function decodeSignature(raw: string): Buffer {
-  const hexPattern = /^[0-9a-fA-F]+$/;
-  if (hexPattern.test(raw) && raw.length % 2 === 0) {
-    return Buffer.from(raw, "hex");
-  }
-  return Buffer.from(raw, "base64");
+	const trimmed = raw.trim();
+	if (trimmed.length === 0) {
+		throw new Error("Signature cannot be empty");
+	}
+
+	let buf: Buffer;
+	if (/^[0-9a-fA-F]+$/.test(trimmed) && trimmed.length % 2 === 0) {
+		buf = Buffer.from(trimmed, "hex");
+	} else {
+		buf = Buffer.from(trimmed, "base64");
+	}
+
+	// ed25519 signatures are exactly 64 bytes — reject any other size.
+	if (buf.length !== 64) {
+		throw new Error(
+			`Invalid signature length: expected 64 bytes, got ${buf.length}`
+		);
+	}
+	return buf;
 }
 
-/**
- * Issues a signed JWT access token.
- *
- * @param address  — Stellar public key (G…) used as the `sub` claim.
- * @param jti      — Unique token ID used for blacklisting.
- */
-function issueAccessToken(address: string, jti: string): string {
+export function decodeSignature(
+  signature: unknown
+): Buffer | null {
+  const sigString = extractSignatureString(signature);
+
+  if (!sigString) {
+    return null;
+  }
+
+  const candidates: Buffer[] = [];
+
+  if (
+    /^[0-9a-fA-F]+$/.test(sigString) &&
+    sigString.length % 2 === 0
+  ) {
+    candidates.push(Buffer.from(sigString, "hex"));
+  }
+
+  if (/^[A-Za-z0-9+/]+={0,2}$/.test(sigString)) {
+    candidates.push(Buffer.from(sigString, "base64"));
+  }
+
+  if (/^[A-Za-z0-9_-]+={0,2}$/.test(sigString)) {
+    candidates.push(
+      Buffer.from(
+        sigString.replace(/-/g, "+").replace(/_/g, "/"),
+        "base64"
+      )
+    );
+  }
+
+  return candidates.find((candidate) => candidate.length === 64) ?? null;
+}
+
+function timingSafeEqualStrings(
+  a: string,
+  b: string
+): boolean {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+
+  if (aBuf.length !== bBuf.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
+
+export function verifyStellarSignature(
+  address: string,
+  challenge: string,
+  signature: unknown
+): boolean {
+  try {
+    const normalizedAddress =
+      sanitizeStellarAddress(address);
+
+    const signatureBuffer = decodeSignature(signature);
+
+    if (!normalizedAddress || !signatureBuffer) {
+      return false;
+    }
+
+    const keypair =
+      Keypair.fromPublicKey(normalizedAddress);
+
+    return keypair.verify(
+      buildMessageHash(challenge),
+      signatureBuffer
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function isChallengeFresh(
+  record: { expires_at: Date },
+  now: Date = new Date()
+): boolean {
+  return record.expires_at.getTime() > now.getTime();
+}
+
+function extractBearerToken(req: Request): string | null {
+  const authorization = req.header("authorization");
+
+  if (authorization?.startsWith("Bearer ")) {
+    return authorization
+      .slice("Bearer ".length)
+      .trim();
+  }
+
+  const cookieHeader = req.header("cookie");
+
+  if (!cookieHeader) {
+    return null;
+  }
+
+  const cookies = cookieHeader
+    .split(";")
+    .map((cookie) => cookie.trim());
+
+  const sessionCookie = cookies.find((cookie) =>
+    cookie.startsWith(`${SESSION_COOKIE_NAME}=`)
+  );
+
+  return sessionCookie
+    ? decodeURIComponent(
+        sessionCookie.split("=").slice(1).join("=")
+      )
+    : null;
+}
+
+// ---------------------------------------------------------------------------
+// JWT Helpers
+// ---------------------------------------------------------------------------
+
+function issueAccessToken(
+  address: string,
+  jti: string,
+  role?: string
+): string {
   const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error("JWT_SECRET environment variable is not set");
+
+  if (!secret) {
+    throw new Error(
+      "JWT_SECRET environment variable is not set"
+    );
+  }
 
   const options: SignOptions = {
     subject: address,
@@ -103,20 +372,17 @@ function issueAccessToken(address: string, jti: string): string {
     audience: "lance-frontend",
   };
 
-  return jwt.sign({ address }, secret, options);
+  return jwt.sign(
+    { address, ...(role ? { role } : {}) },
+    secret,
+    options
+  );
 }
 
-/**
- * Issues a refresh token — a cryptographically random UUID — and persists a
- * SHA-256 hash of it to the database so the raw value never sits in storage.
- *
- * @returns  { rawToken, hashedToken }
- */
 async function issueRefreshToken(
   address: string,
   previousTokenId?: number
 ): Promise<{ rawToken: string; hashedToken: string }> {
-  // Invalidate previous refresh token before creating the new one (rotation).
   if (previousTokenId !== undefined) {
     await prisma.refresh_tokens.update({
       where: { id: previousTokenId },
@@ -124,13 +390,18 @@ async function issueRefreshToken(
     });
   }
 
-  const rawToken = crypto.randomBytes(48).toString("base64url"); // 384 bits
+  const rawToken = crypto
+    .randomBytes(48)
+    .toString("base64url");
+
   const hashedToken = crypto
     .createHash("sha256")
     .update(rawToken)
     .digest("hex");
 
-  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_SEC * 1000);
+  const expiresAt = new Date(
+    Date.now() + REFRESH_TOKEN_TTL_SEC * 1000
+  );
 
   await prisma.refresh_tokens.create({
     data: {
@@ -144,34 +415,48 @@ async function issueRefreshToken(
   return { rawToken, hashedToken };
 }
 
-/**
- * Adds a JWT `jti` to the Redis blacklist with a TTL equal to the remaining
- * token lifetime so the entry self-expires and memory is not leaked.
- *
- * Target latency: <1 ms (single SET NX EX command — no round-trip needed for
- * existence check).
- */
-async function blacklistToken(jti: string, expiresAt: number): Promise<void> {
-  const ttlSeconds = Math.max(1, expiresAt - Math.floor(Date.now() / 1000));
-  // SET key 1 EX ttl NX — atomic, no overwrite risk.
-  await redis.set(`${BLACKLIST_NS}${jti}`, "1", "EX", ttlSeconds, "NX");
+export async function blacklistToken(
+  jti: string,
+  expiresAt: number
+): Promise<void> {
+  const client = getRedisClient();
+
+  if (!client) {
+    return;
+  }
+
+  const ttlSeconds = Math.max(
+    1,
+    expiresAt - Math.floor(Date.now() / 1000)
+  );
+
+  await client.set(
+    `${BLACKLIST_NS}${jti}`,
+    "1",
+    "EX",
+    ttlSeconds,
+    "NX"
+  );
 }
 
-/**
- * Returns `true` if the token's `jti` appears in the revocation blacklist.
- * This is the hot path — a single Redis GET kept well under 1 ms in practice.
- */
-async function isTokenBlacklisted(jti: string): Promise<boolean> {
-  const result = await redis.get(`${BLACKLIST_NS}${jti}`);
+export async function isTokenBlacklisted(
+  jti: string
+): Promise<boolean> {
+  const client = getRedisClient();
+
+  if (!client) {
+    return false;
+  }
+
+  const result = await client.get(
+    `${BLACKLIST_NS}${jti}`
+  );
+
   return result !== null;
 }
 
 // ---------------------------------------------------------------------------
-// Route: POST /api/v1/auth/challenge
-//
-// BE-W3A-102 — Generates a nonce-bound challenge and records a strict
-// expiration timestamp.  Any verify request arriving after CHALLENGE_TTL_MS
-// will be rejected.
+// Routes
 // ---------------------------------------------------------------------------
 
 interface ChallengeBody {
@@ -180,192 +465,326 @@ interface ChallengeBody {
 
 router.post(
   "/challenge",
-  async (req: Request<{}, {}, ChallengeBody>, res: Response) => {
+  async (
+    req: Request<{}, {}, ChallengeBody>,
+    res: Response
+  ) => {
     try {
-      const { address } = req.body;
+      const parsed =
+        ChallengeRequestSchema.safeParse(req.body);
 
-      // ── Input validation ──────────────────────────────────────────────────
-      if (!address || typeof address !== "string") {
-        return res.status(400).json({ error: "address is required" });
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Invalid request body",
+        });
       }
 
-      // Reject obviously malformed Stellar addresses early (G + 55 base32 chars)
-      if (!/^G[A-Z2-7]{55}$/.test(address)) {
-        return res.status(400).json({ error: "Invalid Stellar address format" });
+      const address = sanitizeStellarAddress(
+        parsed.data.address
+      );
+
+      if (!address) {
+        return res.status(400).json({
+          error: "Invalid Stellar address",
+        });
       }
 
-      // Validate checksum by attempting to parse the address via the SDK.
-      // Keypair.fromPublicKey throws for invalid checksum bytes.
-      try {
-        Keypair.fromPublicKey(address);
-      } catch {
-        return res.status(400).json({ error: "Invalid Stellar address checksum" });
-      }
-
-      // ── Challenge generation ──────────────────────────────────────────────
       const nonce = crypto.randomUUID();
-      const issuedAt = new Date();
-      const expiresAt = new Date(issuedAt.getTime() + CHALLENGE_TTL_MS);
+      const challenge = buildChallenge(address, nonce);
 
-      // Matches the human-readable EIP-4361-style format Freighter expects.
-      const challenge =
-        `Lance wants you to sign in with your Stellar account:\n` +
-        `${address}\n\n` +
-        `Nonce: ${nonce}\n` +
-        `Issued At: ${issuedAt.toISOString()}`;
+      const expiresAt = new Date(
+        Date.now() + CHALLENGE_TTL_MS
+      );
 
-      // Upsert so repeated challenge requests rotate the nonce rather than
-      // accumulating stale rows.
-      await prisma.auth_challenges.upsert({
-        where: { address },
-        update: {
-          challenge,
-          issued_at: issuedAt,
-          expires_at: expiresAt,
-        },
-        create: {
-          address,
-          challenge,
-          issued_at: issuedAt,
-          expires_at: expiresAt,
-        },
+      await prisma.$transaction(async (tx) => {
+        await tx.auth_challenges.deleteMany({
+          where: {
+            expires_at: { lte: new Date() },
+          },
+        });
+
+        await tx.auth_challenges.upsert({
+          where: { address },
+          update: {
+            challenge,
+            expires_at: expiresAt,
+          },
+          create: {
+            address,
+            challenge,
+            expires_at: expiresAt,
+          },
+        });
       });
 
-      return res.status(200).json({ challenge });
+      return res.json({
+        challenge,
+        expires_at: expiresAt.toISOString(),
+      });
     } catch (error) {
-      console.error("[auth/challenge] Unexpected error:", error);
-      return res.status(500).json({ error: "Internal server error" });
+      console.error("[auth/challenge]", error);
+
+      return res.status(500).json({
+        error: "Internal server error",
+      });
     }
   }
 );
 
-// ---------------------------------------------------------------------------
-// Route: POST /api/v1/auth/verify
-//
-// BE-W3A-105 — Verifies a Freighter/SEP-53 signature, then issues a JWT
-//              access token plus a refresh token.
-// BE-W3A-102 — Enforces strict 5-minute challenge expiry.
-// ---------------------------------------------------------------------------
-
 interface VerifyBody {
   address: string;
-  /** Raw Ed25519 signature in hex or base64, or the wrapped wallet-kit object. */
   signature: string | { signature: string };
 }
 
 router.post(
   "/verify",
-  async (req: Request<{}, {}, VerifyBody>, res: Response) => {
+  async (
+    req: Request<{}, {}, VerifyBody>,
+    res: Response
+  ) => {
     try {
-      const { address } = req.body;
-      let { signature } = req.body;
+      const parsed =
+        VerifyRequestSchema.safeParse(req.body);
 
-      // ── Input validation ──────────────────────────────────────────────────
-      if (!address || !signature) {
-        return res
-          .status(400)
-          .json({ error: "address and signature are required" });
-      }
-
-      if (!/^G[A-Z2-7]{55}$/.test(address)) {
-        return res.status(400).json({ error: "Invalid Stellar address format" });
-      }
-
-      // Unwrap wallet-kit object signatures.
-      if (typeof signature === "object" && "signature" in signature) {
-        signature = (signature as { signature: string }).signature;
-      }
-
-      if (typeof signature !== "string" || signature.trim() === "") {
-        return res.status(400).json({ error: "Signature must be a non-empty string" });
-      }
-
-      // ── Challenge lookup & expiry enforcement (BE-W3A-102) ────────────────
-      const record = await prisma.auth_challenges.findUnique({
-        where: { address },
-      });
-
-      if (!record) {
-        return res.status(404).json({
-          error: "No pending challenge found — please request a new one",
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Invalid request body",
         });
       }
 
-      // Strict expiry check: reject if even one millisecond past deadline.
-      if (record.expires_at.getTime() < Date.now()) {
-        // Clean up expired record so it doesn't accumulate.
-        await prisma.auth_challenges.delete({ where: { address } }).catch(() => {});
-        return res.status(401).json({ error: "Challenge expired — please request a new one" });
+      const address = sanitizeStellarAddress(
+        parsed.data.address
+      );
+
+      if (!address) {
+        return res.status(400).json({
+          error: "Invalid Stellar address",
+        });
       }
 
-      // ── Signature verification (SEP-53 / Freighter) ───────────────────────
-      let isValid = false;
+      let signature = parsed.data.signature;
 
-      try {
-        const keypair = Keypair.fromPublicKey(address);
-        const sigBuffer = decodeSignature(signature);
-        const messageHash = buildMessageHash(record.challenge);
-        isValid = keypair.verify(messageHash, sigBuffer);
-      } catch (err) {
-        // Structural decode failures (bad encoding, bad public key) are treated
-        // as invalid signatures, not server errors.
-        console.warn("[auth/verify] Signature decode error:", err);
-        isValid = false;
+      if (
+        typeof signature === "object" &&
+        "signature" in signature
+      ) {
+        signature = signature.signature;
       }
 
-      // Non-production fallback for E2E test suites that use a mock wallet.
+      const challengeRecord =
+        await prisma.auth_challenges.findUnique({
+          where: { address },
+        });
+
+      if (!challengeRecord) {
+        return res.status(401).json({
+          error: "Invalid credentials",
+        });
+      }
+
+      if (!isChallengeFresh(challengeRecord)) {
+        await prisma.auth_challenges
+          .deleteMany({
+            where: {
+              address,
+              challenge: challengeRecord.challenge,
+            },
+          })
+          .catch(() => {});
+
+        return res.status(401).json({
+          error: "Challenge expired",
+        });
+      }
+
+      let isValid = verifyStellarSignature(
+        address,
+        challengeRecord.challenge,
+        signature
+      );
+
       if (!isValid && process.env.NODE_ENV !== "production") {
-        if (signature === "mock-signature" || signature === record.challenge) {
+        if (
+          signature === "mock-signature" ||
+          timingSafeEqualStrings(
+            signature,
+            challengeRecord.challenge
+          )
+        ) {
           isValid = true;
         }
       }
 
       if (!isValid) {
-        return res.status(401).json({ error: "Invalid signature" });
+        return res.status(401).json({
+          error: "Invalid signature",
+        });
       }
 
-      // ── Atomic challenge deletion (replay prevention) ─────────────────────
-      // Delete *before* issuing tokens. If this fails the client must
-      // request a fresh challenge rather than reusing the current one.
-      await prisma.auth_challenges.delete({ where: { address } });
+      const deleted =
+        await prisma.auth_challenges.deleteMany({
+          where: {
+            address,
+            challenge: challengeRecord.challenge,
+            expires_at: { gt: new Date() },
+          },
+        });
 
-      // ── Token issuance (BE-W3A-105) ───────────────────────────────────────
+      if (deleted.count === 0) {
+        return res.status(401).json({
+          error: "Challenge already consumed",
+        });
+      }
+
       const accessJti = crypto.randomUUID();
-      const accessToken = issueAccessToken(address, accessJti);
-      const { rawToken: refreshToken } = await issueRefreshToken(address);
 
-      // Set secure cookies
+      const accessToken = issueAccessToken(
+        address,
+        accessJti
+      );
+
+      const { rawToken: refreshToken } =
+        await issueRefreshToken(address);
+
+      const sessionToken = crypto.randomUUID();
+
+      const sessionExpiresAt = new Date(
+        Date.now() + SESSION_TTL_MS
+      );
+
+      await prisma.sessions.create({
+        data: {
+          token: sessionToken,
+          address,
+          expires_at: sessionExpiresAt,
+        },
+      });
+
       res.cookie(ACCESS_TOKEN_COOKIE, accessToken, {
         ...COOKIE_BASE_OPTIONS,
         maxAge: ACCESS_TOKEN_TTL_SEC * 1000,
       });
+
       res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
         ...COOKIE_BASE_OPTIONS,
         maxAge: REFRESH_TOKEN_TTL_SEC * 1000,
       });
 
+      res.cookie(SESSION_COOKIE_NAME, sessionToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: SESSION_TTL_MS,
+      });
+
       return res.status(200).json({
         access_token: accessToken,
         refresh_token: refreshToken,
+        session_token: sessionToken,
         token_type: "Bearer",
         expires_in: ACCESS_TOKEN_TTL_SEC,
       });
     } catch (error) {
-      console.error("[auth/verify] Unexpected error:", error);
-      return res.status(500).json({ error: "Internal server error" });
+      console.error("[auth/verify]", error);
+
+      return res.status(500).json({
+        error: "Internal server error",
+      });
     }
   }
-);
+	"/verify",
+	async (req: Request<{}, {}, VerifyBody>, res: Response) => {
+		try {
+			const parsed = VerifyRequestSchema.safeParse(req.body);
 
-// ---------------------------------------------------------------------------
-// Route: POST /api/v1/auth/refresh
-//
-// BE-W3A-105 — Refresh token rotation endpoint.
-//   1. Validates the incoming refresh token against the hashed DB record.
-//   2. Checks expiry and revocation status.
-//   3. Issues a new access token + new refresh token.
-//   4. Marks the old refresh token as revoked (rotation — prevents reuse).
-// ---------------------------------------------------------------------------
+			if (!parsed.success) {
+				return res.status(400).json({ error: "Invalid request body" });
+			}
+
+			const address = sanitizeStellarAddress(parsed.data.address);
+
+			if (!address) {
+				return res.status(400).json({ error: "Invalid Stellar address" });
+			}
+
+			let signature = parsed.data.signature;
+
+			if (typeof signature === "object" && "signature" in signature) {
+				signature = signature.signature;
+			}
+
+			const challengeRecord = await prisma.auth_challenges.findUnique({
+				where: { address },
+			});
+
+		// Return 401 (not 404) to avoid leaking whether an address has a pending challenge.
+		if (!challengeRecord) {
+			return res.status(401).json({ error: "Invalid credentials" });
+		}
+
+		if (!isChallengeFresh(challengeRecord)) {
+			await prisma.auth_challenges
+				.deleteMany({
+					where: {
+						address,
+						challenge: challengeRecord.challenge,
+						expires_at: { gt: new Date(0) },
+					},
+				})
+
+			let isValid = verifyStellarSignature(
+				address,
+				challengeRecord.challenge,
+				signature
+			);
+
+			if (!isValid && process.env.NODE_ENV !== "production") {
+				if (
+					signature === "mock-signature" ||
+					timingSafeEqualStrings(signature, challengeRecord.challenge)
+				) {
+					isValid = true;
+				}
+			}
+
+			if (!isValid) {
+				return res.status(401).json({ error: "Invalid signature" });
+			}
+
+		// Atomically consume the challenge. count === 0 means another concurrent
+		// request already used it (TOCTOU guard).
+		const deleted = await prisma.auth_challenges.deleteMany({
+			where: {
+				address,
+				challenge: challengeRecord.challenge,
+				expires_at: { gt: new Date() },
+			},
+		});
+
+		if (deleted.count === 0) {
+			return res.status(401).json({ error: "Challenge already consumed" });
+		}
+
+			res.cookie(ACCESS_TOKEN_COOKIE, accessToken, {
+				...COOKIE_BASE_OPTIONS,
+				maxAge: ACCESS_TOKEN_TTL_SEC * 1000,
+			});
+
+			res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+				...COOKIE_BASE_OPTIONS,
+				maxAge: REFRESH_TOKEN_TTL_SEC * 1000,
+			});
+
+			return res.status(200).json({
+				access_token: accessToken,
+				refresh_token: refreshToken,
+				token_type: "Bearer",
+				expires_in: ACCESS_TOKEN_TTL_SEC,
+			});
+		} catch (error) {
+			console.error("[auth/verify]", error);
+			return res.status(500).json({ error: "Internal server error" });
+		}
+	}
+);
 
 interface RefreshBody {
   refresh_token?: string;
@@ -373,61 +792,106 @@ interface RefreshBody {
 
 router.post(
   "/refresh",
-  async (req: Request<{}, {}, RefreshBody>, res: Response) => {
+  async (
+    req: Request<{}, {}, RefreshBody>,
+    res: Response
+  ) => {
     try {
-      let refreshToken = req.body.refresh_token;
+      const parsed =
+        RefreshRequestSchema.safeParse(req.body);
+
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Invalid request body",
+        });
+      }
+
+      let refreshToken =
+        parsed.data.refresh_token;
+
       if (!refreshToken) {
-        refreshToken = req.cookies[REFRESH_TOKEN_COOKIE];
+        refreshToken =
+          req.cookies?.[REFRESH_TOKEN_COOKIE];
       }
 
-      if (!refreshToken || typeof refreshToken !== "string") {
-        return res.status(400).json({ error: "refresh_token is required" });
+      if (
+        !refreshToken ||
+        typeof refreshToken !== "string"
+      ) {
+        return res.status(400).json({
+          error: "refresh_token is required",
+        });
       }
 
-      // Hash the incoming token and look it up — never store/compare raw.
       const incomingHash = crypto
         .createHash("sha256")
         .update(refreshToken)
         .digest("hex");
 
-      const record = await prisma.refresh_tokens.findUnique({
-        where: { token_hash: incomingHash },
-      });
+      const record =
+        await prisma.refresh_tokens.findUnique({
+          where: {
+            token_hash: incomingHash,
+          },
+        });
 
       if (!record) {
-        return res.status(401).json({ error: "Invalid refresh token" });
+        return res.status(401).json({
+          error: "Invalid refresh token",
+        });
       }
 
       if (record.revoked) {
-        // A revoked token being replayed may indicate token theft.
-        // Log the event for incident response and reject hard.
-        console.warn(
-          `[auth/refresh] Revoked token replay attempt for address ${record.address}`
+        return res.status(401).json({
+          error:
+            "Refresh token has been revoked",
+        });
+      }
+
+      if (
+        record.expires_at.getTime() <=
+        Date.now()
+      ) {
+        return res.status(401).json({
+          error: "Refresh token expired",
+        });
+      }
+
+      const newAccessJti =
+        crypto.randomUUID();
+
+      const newAccessToken =
+        issueAccessToken(
+          record.address,
+          newAccessJti
         );
-        return res.status(401).json({ error: "Refresh token has been revoked" });
-      }
 
-      if (record.expires_at.getTime() < Date.now()) {
-        return res.status(401).json({ error: "Refresh token expired" });
-      }
-
-      // ── Rotate: issue new tokens, revoke old refresh token ────────────────
-      const newAccessJti = crypto.randomUUID();
-      const newAccessToken = issueAccessToken(record.address, newAccessJti);
-      const { rawToken: newRefreshToken } = await issueRefreshToken(
+      const {
+        rawToken: newRefreshToken,
+      } = await issueRefreshToken(
         record.address,
-        record.id           // Marks this record as revoked inside issueRefreshToken
+        record.id
       );
 
-      // Set secure cookies
-      res.cookie(ACCESS_TOKEN_COOKIE, newAccessToken, {
-        ...COOKIE_BASE_OPTIONS,
-        maxAge: ACCESS_TOKEN_TTL_SEC * 1000,
-      });
-      res.cookie(REFRESH_TOKEN_COOKIE, newRefreshToken, {
-        ...COOKIE_BASE_OPTIONS,
-        maxAge: REFRESH_TOKEN_TTL_SEC * 1000,
-      });
+      res.cookie(
+        ACCESS_TOKEN_COOKIE,
+        newAccessToken,
+        {
+          ...COOKIE_BASE_OPTIONS,
+          maxAge:
+            ACCESS_TOKEN_TTL_SEC * 1000,
+        }
+      );
+
+      res.cookie(
+        REFRESH_TOKEN_COOKIE,
+        newRefreshToken,
+        {
+          ...COOKIE_BASE_OPTIONS,
+          maxAge:
+            REFRESH_TOKEN_TTL_SEC * 1000,
+        }
+      );
 
       return res.status(200).json({
         access_token: newAccessToken,
@@ -436,56 +900,85 @@ router.post(
         expires_in: ACCESS_TOKEN_TTL_SEC,
       });
     } catch (error) {
-      console.error("[auth/refresh] Unexpected error:", error);
-      return res.status(500).json({ error: "Internal server error" });
+      console.error("[auth/refresh]", error);
+
+      return res.status(500).json({
+        error: "Internal server error",
+      });
     }
   }
 );
 
-// ---------------------------------------------------------------------------
-// Route: POST /api/v1/auth/logout
-//
-// BE-W3A-105 — Revokes both the access token (via Redis blacklist) and the
-//              refresh token (via DB revocation flag).
-// ---------------------------------------------------------------------------
-
-router.post("/logout", async (req: Request, res: Response) => {
+router.post(
+  "/logout",
+  async (req: Request, res: Response) => {
     try {
-      // Try to get access token from cookie first, then header
-      let rawAccessToken = req.cookies[ACCESS_TOKEN_COOKIE];
-      const authHeader = req.headers.authorization;
-      if (!rawAccessToken && authHeader?.startsWith("Bearer ")) {
-        rawAccessToken = authHeader.slice(7);
-      }
-      // Try to get refresh token from cookie first, then body
-      let refreshToken = req.cookies[REFRESH_TOKEN_COOKIE];
-      const { refresh_token } = req.body as { refresh_token?: string };
-      if (!refreshToken && refresh_token) {
-        refreshToken = refresh_token;
+      let rawAccessToken =
+        req.cookies?.[ACCESS_TOKEN_COOKIE];
+
+      const authHeader =
+        req.headers.authorization;
+
+      if (
+        !rawAccessToken &&
+        authHeader?.startsWith("Bearer ")
+      ) {
+        rawAccessToken =
+          authHeader.slice(7);
       }
 
-      // ── Blacklist the access token ─────────────────────────────────────
+      let refreshToken =
+        req.cookies?.[
+          REFRESH_TOKEN_COOKIE
+        ];
+
+      const body =
+        req.body as RefreshBody;
+
+      if (
+        !refreshToken &&
+        body.refresh_token
+      ) {
+        refreshToken =
+          body.refresh_token;
+      }
+
       if (rawAccessToken) {
-        const secret = process.env.JWT_SECRET;
+        const secret =
+          process.env.JWT_SECRET;
 
         if (secret) {
           try {
-            const decoded = jwt.verify(rawAccessToken, secret, {
-              issuer: "lance-marketplace",
-              audience: "lance-frontend",
-            }) as JwtPayload;
+            const decoded = jwt.verify(
+              rawAccessToken,
+              secret,
+              {
+                issuer:
+                  "lance-marketplace",
+                audience:
+                  "lance-frontend",
+              }
+            ) as JwtPayload;
 
-            if (decoded.jti && decoded.exp) {
-              await blacklistToken(decoded.jti, decoded.exp);
+            if (
+              decoded.jti &&
+              decoded.exp
+            ) {
+              await blacklistToken(
+                decoded.jti,
+                decoded.exp
+              );
             }
           } catch {
-            // Expired / malformed tokens are silently ignored — we're logging out.
+            // Ignore invalid/expired token
           }
         }
       }
 
-      // ── Revoke the refresh token ───────────────────────────────────────
-      if (refreshToken && typeof refreshToken === "string") {
+      if (
+        refreshToken &&
+        typeof refreshToken === "string"
+      ) {
         const hash = crypto
           .createHash("sha256")
           .update(refreshToken)
@@ -493,25 +986,127 @@ router.post("/logout", async (req: Request, res: Response) => {
 
         await prisma.refresh_tokens
           .updateMany({
-            where: { token_hash: hash, revoked: false },
-            data: { revoked: true },
+            where: {
+              token_hash: hash,
+              revoked: false,
+            },
+            data: {
+              revoked: true,
+            },
           })
-          .catch(() => {}); // Best-effort; missing record is not an error.
+          .catch(() => {});
       }
 
-      // Clear cookies
-      res.clearCookie(ACCESS_TOKEN_COOKIE, COOKIE_BASE_OPTIONS);
-      res.clearCookie(REFRESH_TOKEN_COOKIE, COOKIE_BASE_OPTIONS);
+      const sessionToken =
+        extractBearerToken(req);
 
-      return res.status(200).json({ message: "Logged out successfully" });
+      if (sessionToken) {
+        const client =
+          getRedisClient();
+
+        if (client) {
+          await client.set(
+            blacklistKeyForToken(
+              sessionToken
+            ),
+            "1",
+            "EX",
+            REFRESH_TOKEN_TTL_SEC,
+            "NX"
+          );
+        }
+      }
+
+      res.clearCookie(
+        ACCESS_TOKEN_COOKIE,
+        COOKIE_BASE_OPTIONS
+      );
+
+      res.clearCookie(
+        REFRESH_TOKEN_COOKIE,
+        COOKIE_BASE_OPTIONS
+      );
+
+      res.clearCookie(
+        SESSION_COOKIE_NAME,
+        COOKIE_BASE_OPTIONS
+      );
+
+      return res.status(200).json({
+        message:
+          "Logged out successfully",
+      });
     } catch (error) {
-      console.error("[auth/logout] Unexpected error:", error);
-      return res.status(500).json({ error: "Internal server error" });
-    }
-  });
+      console.error("[auth/logout]", error);
 
-// ---------------------------------------------------------------------------
-// Utility exports — consumed by auth middleware in other routes
-// ---------------------------------------------------------------------------
-export { isTokenBlacklisted, blacklistToken };
+      return res.status(500).json({
+        error: "Internal server error",
+      });
+    }
+  }
+);
+
+router.get(
+  "/session",
+  async (req: Request, res: Response) => {
+    try {
+      const token =
+        extractBearerToken(req);
+
+      if (!token) {
+        return res.status(401).json({
+          error:
+            "Session token is required",
+        });
+      }
+
+      if (
+        await isSessionBlacklisted(
+          token
+        )
+      ) {
+        return res.status(401).json({
+          error:
+            "Session has been revoked",
+        });
+      }
+
+      const now = new Date();
+
+      const session =
+        await prisma.sessions.findUnique({
+          where: { token },
+        });
+
+      if (
+        !session ||
+        session.expires_at <= now
+      ) {
+        if (session) {
+          await cleanupExpiredSessions(
+            now
+          );
+        }
+
+        return res.status(401).json({
+          error:
+            "Session expired or not found",
+        });
+      }
+
+      return res.json({
+        address: session.address,
+        expires_at:
+          session.expires_at.toISOString(),
+      });
+    } catch (error) {
+      console.error("[auth/session]", error);
+
+      return res.status(500).json({
+        error: "Internal server error",
+      });
+    }
+  }
+);
+
 export default router;

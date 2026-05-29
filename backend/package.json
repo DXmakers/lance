@@ -7,7 +7,7 @@
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "ts-node test/run-tests.ts"
+    "test": "node --require ts-node/register --test tests/**/*.test.ts"
   },
   "keywords": [],
   "author": "",
