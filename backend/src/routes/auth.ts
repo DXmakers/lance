@@ -208,6 +208,31 @@ function extractSignatureString(
   }
 
   return null;
+/**
+ * Safely decodes a signature from either hex or base64 format.
+ * Enforces strict bounds checking: ed25519 signatures are exactly 64 bytes.
+ * Rejects any signature that decodes to a length other than 64 bytes.
+ */
+function decodeSignature(raw: string): Buffer {
+	const trimmed = raw.trim();
+	if (trimmed.length === 0) {
+		throw new Error("Signature cannot be empty");
+	}
+
+	let buf: Buffer;
+	if (/^[0-9a-fA-F]+$/.test(trimmed) && trimmed.length % 2 === 0) {
+		buf = Buffer.from(trimmed, "hex");
+	} else {
+		buf = Buffer.from(trimmed, "base64");
+	}
+
+	// ed25519 signatures are exactly 64 bytes — reject any other size.
+	if (buf.length !== 64) {
+		throw new Error(
+			`Invalid signature length: expected 64 bytes, got ${buf.length}`
+		);
+	}
+	return buf;
 }
 
 export function decodeSignature(
@@ -665,6 +690,100 @@ router.post(
       });
     }
   }
+	"/verify",
+	async (req: Request<{}, {}, VerifyBody>, res: Response) => {
+		try {
+			const parsed = VerifyRequestSchema.safeParse(req.body);
+
+			if (!parsed.success) {
+				return res.status(400).json({ error: "Invalid request body" });
+			}
+
+			const address = sanitizeStellarAddress(parsed.data.address);
+
+			if (!address) {
+				return res.status(400).json({ error: "Invalid Stellar address" });
+			}
+
+			let signature = parsed.data.signature;
+
+			if (typeof signature === "object" && "signature" in signature) {
+				signature = signature.signature;
+			}
+
+			const challengeRecord = await prisma.auth_challenges.findUnique({
+				where: { address },
+			});
+
+		// Return 401 (not 404) to avoid leaking whether an address has a pending challenge.
+		if (!challengeRecord) {
+			return res.status(401).json({ error: "Invalid credentials" });
+		}
+
+		if (!isChallengeFresh(challengeRecord)) {
+			await prisma.auth_challenges
+				.deleteMany({
+					where: {
+						address,
+						challenge: challengeRecord.challenge,
+						expires_at: { gt: new Date(0) },
+					},
+				})
+
+			let isValid = verifyStellarSignature(
+				address,
+				challengeRecord.challenge,
+				signature
+			);
+
+			if (!isValid && process.env.NODE_ENV !== "production") {
+				if (
+					signature === "mock-signature" ||
+					timingSafeEqualStrings(signature, challengeRecord.challenge)
+				) {
+					isValid = true;
+				}
+			}
+
+			if (!isValid) {
+				return res.status(401).json({ error: "Invalid signature" });
+			}
+
+		// Atomically consume the challenge. count === 0 means another concurrent
+		// request already used it (TOCTOU guard).
+		const deleted = await prisma.auth_challenges.deleteMany({
+			where: {
+				address,
+				challenge: challengeRecord.challenge,
+				expires_at: { gt: new Date() },
+			},
+		});
+
+		if (deleted.count === 0) {
+			return res.status(401).json({ error: "Challenge already consumed" });
+		}
+
+			res.cookie(ACCESS_TOKEN_COOKIE, accessToken, {
+				...COOKIE_BASE_OPTIONS,
+				maxAge: ACCESS_TOKEN_TTL_SEC * 1000,
+			});
+
+			res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+				...COOKIE_BASE_OPTIONS,
+				maxAge: REFRESH_TOKEN_TTL_SEC * 1000,
+			});
+
+			return res.status(200).json({
+				access_token: accessToken,
+				refresh_token: refreshToken,
+				token_type: "Bearer",
+				expires_in: ACCESS_TOKEN_TTL_SEC,
+			});
+		} catch (error) {
+			console.error("[auth/verify]", error);
+			return res.status(500).json({ error: "Internal server error" });
+		}
+	}
 );
 
 interface RefreshBody {

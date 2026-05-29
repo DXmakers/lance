@@ -39,7 +39,7 @@ pub struct EscrowJob {
     pub status: EscrowStatus,
     pub created_at: u64,
     pub expires_at: u64,
-    pub milestone_count: u32,
+    pub milestones: Vec<Milestone>,
 }
 
 #[contracttype]
@@ -60,12 +60,17 @@ pub struct FeeConfigUpdatedEvent {
 pub const MAX_FEE_BPS: u32 = 10_000;
 
 #[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct ContractConfig {
+    pub admin: Address,
+    pub agent_judge: Address,
+}
+
+#[contracttype]
 pub enum DataKey {
     Job(u64),
-    Admin,
-    AgentJudge,
+    Config,
     GuardFlag(u64),
-    Milestone(u64, u32),
     Treasury,
 }
 
@@ -85,35 +90,34 @@ pub struct EscrowContract;
 #[contractimpl]
 impl EscrowContract {
     pub fn initialize(env: Env, admin: Address, agent_judge: Address) {
-        if env.storage().instance().has(&DataKey::Admin) {
+        if env.storage().instance().has(&DataKey::Config) {
             panic!("already initialized");
         }
-        env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage()
-            .instance()
-            .set(&DataKey::AgentJudge, &agent_judge);
+        let config = ContractConfig { admin, agent_judge };
+        env.storage().instance().set(&DataKey::Config, &config);
     }
 
     /// Admin can update the Agent Judge address.
     pub fn set_agent_judge(env: Env, new_agent_judge: Address) {
-        let admin: Address = env
+        let mut config: ContractConfig = env
             .storage()
             .instance()
-            .get(&DataKey::Admin)
+            .get(&DataKey::Config)
             .expect("not initialized");
-        admin.require_auth();
+        config.admin.require_auth();
+        config.agent_judge = new_agent_judge;
         env.storage()
             .instance()
-            .set(&DataKey::AgentJudge, &new_agent_judge);
+            .set(&DataKey::Config, &config);
     }
 
     pub fn configure_treasury(env: Env, routing_address: Address, fee_bps: u32) {
-        let admin: Address = env
+        let config: ContractConfig = env
             .storage()
             .instance()
-            .get(&DataKey::Admin)
+            .get(&DataKey::Config)
             .expect("not initialized");
-        admin.require_auth();
+        config.admin.require_auth();
 
         assert!(fee_bps <= MAX_FEE_BPS, "FeeTooHigh");
 
@@ -177,7 +181,7 @@ impl EscrowContract {
             status: EscrowStatus::Setup,
             created_at: now,
             expires_at,
-            milestone_count: 0,
+            milestones: Vec::new(&env),
         };
         env.storage().persistent().set(&key, &job);
     }
@@ -194,10 +198,7 @@ impl EscrowContract {
             amount,
             status: MilestoneStatus::Pending,
         };
-        let milestone_key = DataKey::Milestone(job_id, job.milestone_count);
-        env.storage().persistent().set(&milestone_key, &milestone);
-
-        job.milestone_count = job.milestone_count.checked_add(1).expect("overflow");
+        job.milestones.push_back(milestone);
         env.storage().persistent().set(&key, &job);
     }
 
@@ -211,16 +212,10 @@ impl EscrowContract {
             "already funded or invalid state"
         );
         assert!(amount > 0, "amount must be > 0");
-        assert!(job.milestone_count > 0, "no milestones defined");
+        assert!(job.milestones.len() > 0, "no milestones defined");
 
         let mut total_milestones_amount = 0i128;
-        for i in 0..job.milestone_count {
-            let m_key = DataKey::Milestone(job_id, i);
-            let m: Milestone = env
-                .storage()
-                .persistent()
-                .get(&m_key)
-                .expect("milestone not found");
+        for m in job.milestones.iter() {
             total_milestones_amount = total_milestones_amount
                 .checked_add(m.amount)
                 .expect("overflow");
@@ -253,13 +248,8 @@ impl EscrowContract {
         assert!(caller == job.client, "only client can release");
 
         let mut found_idx = None;
-        for i in 0..job.milestone_count {
-            let m_key = DataKey::Milestone(job_id, i);
-            let m: Milestone = env
-                .storage()
-                .persistent()
-                .get(&m_key)
-                .expect("milestone not found");
+        for i in 0..job.milestones.len() {
+            let m = job.milestones.get(i).unwrap();
             if m.status == MilestoneStatus::Pending {
                 found_idx = Some(i);
                 break;
@@ -285,10 +275,9 @@ impl EscrowContract {
             "invalid state"
         );
         assert!(caller == job.client, "unauthorized");
-        assert!(milestone_index < job.milestone_count, "invalid");
+        assert!(milestone_index < job.milestones.len(), "invalid");
 
-        let m_key = DataKey::Milestone(job_id, milestone_index);
-        let milestone: Milestone = env.storage().persistent().get(&m_key).expect("invalid");
+        let milestone = job.milestones.get(milestone_index).expect("invalid");
         assert!(milestone.status == MilestoneStatus::Pending, "released");
 
         Self::set_guard(&env, job_id);
@@ -363,13 +352,7 @@ impl EscrowContract {
 
         // 7. Emit DisputeRaised event for backend / AI Judge to consume
         let mut released_count = 0u32;
-        for i in 0..job.milestone_count {
-            let m_key = DataKey::Milestone(job_id, i);
-            let m: Milestone = env
-                .storage()
-                .persistent()
-                .get(&m_key)
-                .expect("milestone not found");
+        for m in job.milestones.iter() {
             if m.status == MilestoneStatus::Released {
                 released_count = released_count.checked_add(1).expect("overflow");
             }
@@ -379,7 +362,7 @@ impl EscrowContract {
             job_id,
             initiator: caller,
             milestones_released: released_count,
-            milestones_total: job.milestone_count,
+            milestones_total: job.milestones.len(),
             raised_at: now,
         };
         env.events()
@@ -390,12 +373,12 @@ impl EscrowContract {
     /// `payee_amount`: Amount to pay to the freelancer (payee).
     /// `payer_amount`: Amount to return to the client (payer).
     pub fn resolve_dispute(env: Env, job_id: u64, payee_amount: i128, payer_amount: i128) {
-        let agent_judge: Address = env
+        let config: ContractConfig = env
             .storage()
             .instance()
-            .get(&DataKey::AgentJudge)
+            .get(&DataKey::Config)
             .expect("agent judge not set");
-        agent_judge.require_auth();
+        config.agent_judge.require_auth();
 
         assert!(payee_amount >= 0, "payee_amount must be >= 0");
         assert!(payer_amount >= 0, "payer_amount must be >= 0");
@@ -499,10 +482,12 @@ impl EscrowContract {
     }
 
     pub fn get_milestone(env: Env, job_id: u64, index: u32) -> Milestone {
-        env.storage()
+        let job: EscrowJob = env
+            .storage()
             .persistent()
-            .get(&DataKey::Milestone(job_id, index))
-            .expect("milestone not found")
+            .get(&DataKey::Job(job_id))
+            .expect("job not found");
+        job.milestones.get(index).expect("milestone not found")
     }
 
     /// Retrieve the status of all milestones for a given job.
@@ -513,13 +498,7 @@ impl EscrowContract {
             .get(&DataKey::Job(job_id))
             .expect("job not found");
         let mut statuses = Vec::new(&env);
-        for i in 0..job.milestone_count {
-            let m_key = DataKey::Milestone(job_id, i);
-            let m: Milestone = env
-                .storage()
-                .persistent()
-                .get(&m_key)
-                .expect("milestone not found");
+        for m in job.milestones.iter() {
             statuses.push_back(m.status);
         }
         statuses
@@ -549,11 +528,9 @@ impl EscrowContract {
         job: &mut EscrowJob,
         milestone_index: u32,
     ) {
-        let m_key = DataKey::Milestone(job_id, milestone_index);
-        let mut milestone: Milestone = env.storage().persistent().get(&m_key).expect("invalid");
-
+        let mut milestone = job.milestones.get(milestone_index).expect("invalid");
         milestone.status = MilestoneStatus::Released;
-        env.storage().persistent().set(&m_key, &milestone);
+        job.milestones.set(milestone_index, milestone.clone());
 
         job.released_amount = job
             .released_amount
