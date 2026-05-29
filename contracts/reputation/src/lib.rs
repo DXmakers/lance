@@ -1,57 +1,33 @@
 ﻿#![no_std]
 
-use soroban_sdk::{
-    contract, contractimpl, contracttype, Address, Bytes, Env, IntoVal, Symbol, Vec,
-};
+use soroban_sdk::{contract, contractimpl, contracttype, Address, Env};
 
-// Types matching Job Registry contract's public types for cross-contract decoding
 #[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub enum JobStatus {
-    Open,
-    InProgress,
-    DeliverableSubmitted,
-    Completed,
-    Disputed,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BadgeLevel {
+    None = 0,
+    Bronze = 1,
+    Silver = 2,
+    Gold = 3,
+    Platinum = 4,
 }
 
 #[contracttype]
-#[derive(Clone)]
-pub struct JobRecord {
-    pub client: Address,
-    pub freelancer: Option<Address>,
-    pub metadata_hash: Bytes,
-    pub budget_stroops: i128,
-    pub status: JobStatus,
+#[derive(Clone, Debug)]
+pub struct Profile {
+    pub owner: Address,
+    pub total_score: i128,
+    pub review_count: u32,
+    pub completed_jobs: u32,
+    pub badge: BadgeLevel,
 }
 
 #[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub enum Role {
-    Client,
-    Freelancer,
-}
-
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub struct ReputationScore {
-    pub address: Address,
-    pub role: Role,
-    /// Score in basis points (0–10000 = 0–100%)
-    pub score: i32,
-    pub total_jobs: u32,
-    /// Sum of raw rating points (1-5) to compute aggregates off-chain
-    pub total_points: i32,
-    /// Number of reviews counted
-    pub reviews: u32,
-}
-
-#[contracttype]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DataKey {
-    Score(Address, Role),
     Admin,
-    JobRegistry,
-    Reviewed(u64, Address),
+    AuthorizedContract,
+    Profile(Address),
 }
 
 #[contract]
@@ -59,205 +35,367 @@ pub struct ReputationContract;
 
 #[contractimpl]
 impl ReputationContract {
-    pub fn initialize(env: Env, admin: Address) {
-        if env.storage().instance().has(&DataKey::Admin) {
+    pub fn initialize(env: Env, admin: Address, authorized_contract: Address) {
+        if env.storage().persistent().has(&DataKey::Admin) {
             panic!("already initialized");
         }
-        env.storage().instance().set(&DataKey::Admin, &admin);
-    }
 
-    /// Set the JobRegistry contract address (admin only)
-    pub fn set_job_registry(env: Env, admin: Address, registry: Address) {
-        admin.require_auth();
+        env.storage().persistent().set(&DataKey::Admin, &admin);
         env.storage()
-            .instance()
-            .set(&DataKey::JobRegistry, &registry);
+            .persistent()
+            .set(&DataKey::AuthorizedContract, &authorized_contract);
     }
 
-    /// Submit a rating for a target address tied to a Job ID. Caller must be the client or freelancer
-    /// on the job, and the job must be Completed.
-    pub fn submit_rating(env: Env, caller: Address, job_id: u64, target: Address, score: u32) {
-        // caller must authorize
-        caller.require_auth();
-
-        // validate score in 1..=5
-        assert!((1u32..=5u32).contains(&score), "score out of range");
-
-        // ensure job registry is configured
-        let registry_addr: Address = env
+    pub fn submit_review(env: Env, caller: Address, reviewee: Address, score: u32) {
+        let authorized_contract: Address = env
             .storage()
-            .instance()
-            .get(&DataKey::JobRegistry)
-            .expect("job registry not set");
+            .persistent()
+            .get(&DataKey::AuthorizedContract)
+            .unwrap_or_else(|| panic!("unauthorized"));
 
-        // call JobRegistry.get_job(job_id) and decode into local JobRecord
-        let get_sym = Symbol::new(&env, "get_job");
-        let args = soroban_sdk::vec![&env, job_id.into_val(&env)];
-        let job: JobRecord = env.invoke_contract::<JobRecord>(&registry_addr, &get_sym, args);
+        if caller != authorized_contract {
+            panic!("unauthorized");
+        }
 
-        // verify job is completed (ratings only allowed after completion)
-        assert!(job.status == JobStatus::Completed, "job not completed");
+        if score < 1 || score > 5 {
+            panic!("invalid score");
+        }
 
-        // verify caller is participant
-        let caller_addr = caller.clone();
-        let is_client = caller_addr == job.client;
-        let is_freelancer = match job.freelancer.clone() {
-            Some(f) => caller_addr == f,
-            None => false,
-        };
-        assert!(is_client || is_freelancer, "unauthorized to rate");
+        let mut profile: Profile = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Profile(reviewee.clone()))
+            .unwrap_or_else(|| Profile {
+                owner: reviewee.clone(),
+                total_score: 0,
+                review_count: 0,
+                completed_jobs: 0,
+                badge: BadgeLevel::None,
+            });
 
-        // prevent double review
-        let reviewed_key = DataKey::Reviewed(job_id, caller.clone());
-        assert!(
-            !env.storage().persistent().has(&reviewed_key),
-            "already reviewed"
-        );
+        profile.total_score = profile
+            .total_score
+            .checked_add(score as i128)
+            .unwrap_or_else(|| panic!("overflow"));
+        profile.review_count = profile
+            .review_count
+            .checked_add(1)
+            .unwrap_or_else(|| panic!("overflow"));
 
-        // update reputation aggregates for target
-        let mut rep = Self::get_score(env.clone(), target.clone(), Role::Freelancer);
-        // we'll treat target role as Freelancer for simplicity; callers should ensure correct role
-        rep.total_points = rep.total_points.saturating_add(score as i32);
-        rep.reviews = rep.reviews.saturating_add(1);
-        rep.total_jobs = rep.total_jobs.saturating_add(1);
-
-        // compute new averaged score in basis points: avg = total_points / reviews, scaled
-        let avg = rep.total_points / (rep.reviews as i32);
-        let bps = avg.saturating_mul(2000); // 1->2000 ... 5->10000
-        rep.score = bps.clamp(0, 10_000);
+        Self::upgrade_badge(&env, &mut profile);
 
         env.storage()
             .persistent()
-            .set(&DataKey::Score(rep.address.clone(), rep.role.clone()), &rep);
-
-        env.storage().persistent().set(&reviewed_key, &true);
+            .set(&DataKey::Profile(reviewee), &profile);
     }
 
-    /// Update reputation after a completed job. `delta` in basis points.
-    /// Score is clamped to [0, 10000].
-    pub fn update_score(env: Env, address: Address, role: Role, delta: i32) {
-        let admin: Address = env
+    pub fn complete_job(env: Env, caller: Address, freelancer: Address) {
+        let authorized_contract: Address = env
             .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .expect("not initialized");
-        admin.require_auth();
+            .persistent()
+            .get(&DataKey::AuthorizedContract)
+            .unwrap_or_else(|| panic!("unauthorized"));
 
-        let mut reputation = Self::get_score(env.clone(), address, role.clone());
-        reputation.score = reputation.score.saturating_add(delta).clamp(0, 10_000);
-        reputation.total_jobs = reputation.total_jobs.saturating_add(1);
+        if caller != authorized_contract {
+            panic!("unauthorized");
+        }
 
-        env.storage().persistent().set(
-            &DataKey::Score(reputation.address.clone(), role),
-            &reputation,
-        );
-    }
-
-    /// Slash address for fraud / abandonment — reduces score by 20%.
-    pub fn slash(env: Env, address: Address, role: Role, _reason: Symbol) {
-        let admin: Address = env
+        let mut profile: Profile = env
             .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .expect("not initialized");
-        admin.require_auth();
+            .persistent()
+            .get(&DataKey::Profile(freelancer.clone()))
+            .unwrap_or_else(|| Profile {
+                owner: freelancer.clone(),
+                total_score: 0,
+                review_count: 0,
+                completed_jobs: 0,
+                badge: BadgeLevel::None,
+            });
 
-        let mut reputation = Self::get_score(env.clone(), address, role.clone());
-        reputation.score = reputation.score.saturating_sub(2000).clamp(0, 10_000);
+        profile.completed_jobs = profile
+            .completed_jobs
+            .checked_add(1)
+            .unwrap_or_else(|| panic!("overflow"));
 
-        env.storage().persistent().set(
-            &DataKey::Score(reputation.address.clone(), role),
-            &reputation,
-        );
-    }
+        Self::upgrade_badge(&env, &mut profile);
 
-    pub fn get_score(env: Env, address: Address, role: Role) -> ReputationScore {
         env.storage()
             .persistent()
-            .get(&DataKey::Score(address.clone(), role.clone()))
-            .unwrap_or_else(|| ReputationScore {
-                address,
-                role,
-                score: 5000,
-                total_jobs: 0,
-                total_points: 0,
-                reviews: 0,
-            })
+            .set(&DataKey::Profile(freelancer), &profile);
     }
 
-    /// Frontend-friendly aggregate metrics for public profile pages.
-    /// Returns: [score_bps, total_jobs, total_points, reviews]
-    pub fn get_public_metrics(env: Env, address: Address, role_name: Symbol) -> Vec<i128> {
-        let role = if role_name == Symbol::new(&env, "client") {
-            Role::Client
+    pub fn get_profile(env: Env, address: Address) -> Profile {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Profile(address))
+            .unwrap_or_else(|| panic!("profile not found"))
+    }
+
+    pub fn get_badge(env: Env, address: Address) -> BadgeLevel {
+        let profile: Profile = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Profile(address))
+            .unwrap_or_else(|| panic!("profile not found"));
+        profile.badge
+    }
+
+    pub fn get_average_rating(env: Env, address: Address) -> i128 {
+        let profile: Profile = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Profile(address))
+            .unwrap_or_else(|| panic!("profile not found"));
+
+        if profile.review_count == 0 {
+            panic!("no reviews");
+        }
+
+        let total_score = profile.total_score;
+        let review_count = profile.review_count as i128;
+
+        let average = total_score
+            .checked_mul(100)
+            .unwrap_or_else(|| panic!("overflow"))
+            .checked_div(review_count)
+            .unwrap_or_else(|| panic!("overflow"));
+
+        average
+    }
+
+    fn upgrade_badge(env: &Env, profile: &mut Profile) {
+        if profile.review_count == 0 {
+            return;
+        }
+
+        let total_score = profile.total_score;
+        let review_count = profile.review_count as i128;
+        let avg_rating = total_score
+            .checked_mul(100)
+            .unwrap_or_else(|| panic!("overflow"))
+            .checked_div(review_count)
+            .unwrap_or_else(|| panic!("overflow"));
+
+        let completed_jobs = profile.completed_jobs;
+
+        let new_badge = if completed_jobs >= 50 && avg_rating >= 400 {
+            BadgeLevel::Platinum
+        } else if completed_jobs >= 30 && avg_rating >= 400 {
+            BadgeLevel::Gold
+        } else if completed_jobs >= 15 && avg_rating >= 300 {
+            BadgeLevel::Silver
+        } else if completed_jobs >= 5 && avg_rating >= 300 {
+            BadgeLevel::Bronze
         } else {
-            Role::Freelancer
+            BadgeLevel::None
         };
-        let rep = Self::get_score(env.clone(), address, role);
 
-        let mut metrics = Vec::new(&env);
-        metrics.push_back(rep.score as i128);
-        metrics.push_back(rep.total_jobs as i128);
-        metrics.push_back(rep.total_points as i128);
-        metrics.push_back(rep.reviews as i128);
-        metrics
+        if (new_badge as u32) > (profile.badge as u32) {
+            profile.badge = new_badge;
+        }
     }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
-    use soroban_sdk::testutils::Address as _;
-    use soroban_sdk::{Address, Env};
+    use soroban_sdk::testutils::Address as TestAddress;
+    use soroban_sdk::Env;
 
-    #[test]
-    fn test_initial_score() {
+    fn setup() -> (Env, Address, Address) {
         let env = Env::default();
-        let address = Address::generate(&env);
-        let contract_id = env.register_contract(None, ReputationContract);
-        let client = ReputationContractClient::new(&env, &contract_id);
+        let admin = TestAddress::random(&env);
+        let authorized = TestAddress::random(&env);
 
-        let score = client.get_score(&address, &Role::Freelancer);
-        assert_eq!(score.score, 5000);
-        assert_eq!(score.total_jobs, 0);
+        ReputationContract::initialize(env.clone(), admin.clone(), authorized.clone());
+
+        (env, admin, authorized)
     }
 
     #[test]
-    fn test_update_score() {
-        let env = Env::default();
-        env.mock_all_auths();
+    fn test_happy_path_bronze() {
+        let (env, _admin, authorized) = setup();
+        let freelancer = TestAddress::random(&env);
 
-        let admin = Address::generate(&env);
-        let address = Address::generate(&env);
-        let contract_id = env.register_contract(None, ReputationContract);
-        let client = ReputationContractClient::new(&env, &contract_id);
+        for _ in 0..5 {
+            ReputationContract::submit_review(
+                env.clone(),
+                authorized.clone(),
+                freelancer.clone(),
+                4,
+            );
+        }
 
-        client.initialize(&admin);
-        client.update_score(&address, &Role::Freelancer, &500);
+        for _ in 0..5 {
+            ReputationContract::complete_job(
+                env.clone(),
+                authorized.clone(),
+                freelancer.clone(),
+            );
+        }
 
-        let score = client.get_score(&address, &Role::Freelancer);
-        assert_eq!(score.score, 5500);
-        assert_eq!(score.total_jobs, 1);
+        let profile = ReputationContract::get_profile(env, freelancer);
+        assert_eq!(profile.badge, BadgeLevel::Bronze);
     }
 
     #[test]
-    fn test_slash() {
+    fn test_happy_path_platinum() {
+        let (env, _admin, authorized) = setup();
+        let freelancer = TestAddress::random(&env);
+
+        for _ in 0..50 {
+            ReputationContract::complete_job(
+                env.clone(),
+                authorized.clone(),
+                freelancer.clone(),
+            );
+        }
+
+        for _ in 0..50 {
+            ReputationContract::submit_review(
+                env.clone(),
+                authorized.clone(),
+                freelancer.clone(),
+                5,
+            );
+        }
+
+        let profile = ReputationContract::get_profile(env, freelancer);
+        assert_eq!(profile.badge, BadgeLevel::Platinum);
+    }
+
+    #[test]
+    fn test_badge_does_not_downgrade() {
+        let (env, _admin, authorized) = setup();
+        let freelancer = TestAddress::random(&env);
+
+        for _ in 0..30 {
+            ReputationContract::complete_job(
+                env.clone(),
+                authorized.clone(),
+                freelancer.clone(),
+            );
+        }
+
+        for _ in 0..30 {
+            ReputationContract::submit_review(
+                env.clone(),
+                authorized.clone(),
+                freelancer.clone(),
+                5,
+            );
+        }
+
+        let profile = ReputationContract::get_profile(env.clone(), freelancer.clone());
+        assert_eq!(profile.badge, BadgeLevel::Gold);
+
+        for _ in 0..30 {
+            ReputationContract::submit_review(
+                env.clone(),
+                authorized.clone(),
+                freelancer.clone(),
+                1,
+            );
+        }
+
+        let profile = ReputationContract::get_profile(env, freelancer);
+        assert_eq!(profile.badge, BadgeLevel::Gold);
+    }
+
+    #[test]
+    #[should_panic(expected = "unauthorized")]
+    fn test_unauthorized_submit_review() {
+        let (env, _admin, _authorized) = setup();
+        let freelancer = TestAddress::random(&env);
+        let caller = TestAddress::random(&env);
+
+        ReputationContract::submit_review(env, caller, freelancer, 4);
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid score")]
+    fn test_invalid_score_too_high() {
+        let (env, _admin, authorized) = setup();
+        let freelancer = TestAddress::random(&env);
+
+        ReputationContract::submit_review(env, authorized, freelancer, 6);
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid score")]
+    fn test_invalid_score_zero() {
+        let (env, _admin, authorized) = setup();
+        let freelancer = TestAddress::random(&env);
+
+        ReputationContract::submit_review(env, authorized, freelancer, 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "already initialized")]
+    fn test_double_initialize() {
         let env = Env::default();
-        env.mock_all_auths();
+        let admin = TestAddress::random(&env);
+        let authorized = TestAddress::random(&env);
 
-        let admin = Address::generate(&env);
-        let address = Address::generate(&env);
-        let contract_id = env.register_contract(None, ReputationContract);
-        let client = ReputationContractClient::new(&env, &contract_id);
+        ReputationContract::initialize(env.clone(), admin.clone(), authorized.clone());
+        ReputationContract::initialize(env, admin, authorized);
+    }
 
-        client.initialize(&admin);
-        client.slash(
-            &address,
-            &Role::Client,
-            &soroban_sdk::Symbol::new(&env, "fraud"),
-        );
+    #[test]
+    fn test_get_average_rating() {
+        let (env, _admin, authorized) = setup();
+        let freelancer = TestAddress::random(&env);
 
-        let score = client.get_score(&address, &Role::Client);
-        assert_eq!(score.score, 3000); // 5000 - 2000
+        for _ in 0..4 {
+            ReputationContract::submit_review(
+                env.clone(),
+                authorized.clone(),
+                freelancer.clone(),
+                4,
+            );
+        }
+
+        let avg = ReputationContract::get_average_rating(env, freelancer);
+        assert_eq!(avg, 400);
+    }
+
+    #[test]
+    #[should_panic(expected = "profile not found")]
+    fn test_profile_not_found() {
+        let env = Env::default();
+        let admin = TestAddress::random(&env);
+        let authorized = TestAddress::random(&env);
+
+        ReputationContract::initialize(env.clone(), admin, authorized);
+
+        let nonexistent = TestAddress::random(&env);
+        ReputationContract::get_profile(env, nonexistent);
+    }
+
+    #[test]
+    fn test_silver_threshold() {
+        let (env, _admin, authorized) = setup();
+        let freelancer = TestAddress::random(&env);
+
+        for _ in 0..15 {
+            ReputationContract::complete_job(
+                env.clone(),
+                authorized.clone(),
+                freelancer.clone(),
+            );
+        }
+
+        for _ in 0..15 {
+            ReputationContract::submit_review(
+                env.clone(),
+                authorized.clone(),
+                freelancer.clone(),
+                3,
+            );
+        }
+
+        let profile = ReputationContract::get_profile(env, freelancer);
+        assert_eq!(profile.badge, BadgeLevel::Silver);
     }
 }
+
