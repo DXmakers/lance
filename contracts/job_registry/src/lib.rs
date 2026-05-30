@@ -395,6 +395,38 @@ impl JobRegistryContract {
         env.events().publish((symbol_short!("dispute"), job_id), ());
     }
 
+    /// Requirement [SC-REG-025]: Enforce Collateral Slashing Logic during Bid Default Status.
+    ///
+    /// Triggered by the job creator (client) when the assigned freelancer has failed to
+    /// deliver or respond within the job's expiration window.  This function:
+    ///
+    /// 1. **Validates authorization** — only the original job creator may call this.
+    /// 2. **Validates state** — the job must be in `Assigned` status (freelancer has been
+    ///    selected via `accept_bid` but has not submitted a deliverable).
+    /// 3. **Validates expiration** — the on-chain ledger timestamp must be past `expires_at`,
+    ///    confirming the freelancer has definitively defaulted.
+    /// 4. **Looks up the accepted bid** from the persistent `Bids(job_id)` map-like storage
+    ///    array to retrieve the collateral amount deposited with the bid.
+    /// 5. **Computes the slashed amount** using safe `checked_mul` / `checked_div` arithmetic
+    ///    (100% penalty expressed through 10_000 basis-point representation to preserve
+    ///    integer precision without floating-point operations, avoiding overflow panics).
+    /// 6. **Transitions state** cleanly to `Defaulted` — a terminal status that prevents
+    ///    any further state mutations on the job.
+    /// 7. **Emits an on-chain event** `("slash", job_id) → (freelancer, slashed_amount)` for
+    ///    off-chain consumers (indexers, AI judge, reputation engine).
+    ///
+    /// # Returns
+    /// The slashed collateral amount in stroops (`i128`).  The caller is responsible for
+    /// routing this amount through the escrow layer.
+    ///
+    /// # Errors
+    /// - `JobNotFound` — no persistent record exists for `job_id`.
+    /// - `Unauthorized` — caller is not the job creator.
+    /// - `InvalidStateTransition` — job is not in `Assigned` state.
+    /// - `JobNotExpired` — ledger timestamp is still before `expires_at`.
+    /// - `BidNotFound` — no bid record found for the assigned freelancer (should never
+    ///   happen in a well-formed state, but guarded for safety).
+    /// - `Overflow` — collateral × penalty_bps exceeds `i128::MAX`.
     pub fn enforce_default_slashing(env: Env, job_id: u64, client: Address) -> i128 {
         ensure_initialized(&env);
         client.require_auth();
@@ -406,27 +438,38 @@ impl JobRegistryContract {
             .get(&key)
             .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::JobNotFound));
 
-        // Strict ownership validation: only the job creator can enforce slashing
+        // [SC-REG-025]: Strict ownership validation — only the original job creator (client)
+        // is authorised to trigger the default slashing flow.  Third-party callers are
+        // explicitly rejected with `Unauthorized` (error code 9).
         if client != job.client {
             panic_with_error!(&env, JobRegistryError::Unauthorized);
         }
 
-        // Must be in Assigned state to default/slash
+        // [SC-REG-025]: The job must be in `Assigned` state, meaning a freelancer was
+        // selected but has not yet delivered.  Any other state (Open, Disputed, Defaulted,
+        // Completed, etc.) is an invalid transition and is rejected.
         if job.status != JobStatus::Assigned {
             panic_with_error!(&env, JobRegistryError::InvalidStateTransition);
         }
 
-        // Must be expired
+        // [SC-REG-025]: Expiration check — the ledger timestamp must exceed `expires_at`
+        // to confirm the freelancer is definitively in default.  Calling before expiry is
+        // blocked (error code 17 = JobNotExpired) to prevent premature slashing.
         let now = env.ledger().timestamp();
         if now < job.expires_at {
             panic_with_error!(&env, JobRegistryError::JobNotExpired);
         }
 
+        // Retrieve the assigned freelancer address stored in the `JobRecord`.
+        // Safety: `job.freelancer` will always be `Some` when status is `Assigned`,
+        // but we guard with `Unauthorized` to satisfy the borrow checker and prevent
+        // undefined behaviour if state is somehow corrupted.
         let freelancer = job.freelancer.clone().unwrap_or_else(|| {
             panic_with_error!(&env, JobRegistryError::Unauthorized)
         });
 
-        // Find the accepted freelancer's bid to get their collateral amount
+        // [SC-REG-025]: Retrieve the accepted bid from the Job ID → Bids map-like
+        // persistent storage array to obtain the collateral amount locked at bid time.
         let bids: Vec<BidRecord> = env
             .storage()
             .persistent()
@@ -444,18 +487,25 @@ impl JobRegistryContract {
         }
 
         if !found {
+            // Defensive guard: this should be unreachable in a healthy state machine,
+            // because `accept_bid` always verifies the bid exists before transitioning.
             panic_with_error!(&env, JobRegistryError::BidNotFound);
         }
 
-        // Checked math operations for penalty slashing (100% of collateral)
-        let penalty_bps: i128 = 10_000;
+        // [SC-REG-025]: Safe checked arithmetic for slashing calculation.
+        // We express 100% penalty as `collateral × 10_000 / 10_000` using basis-points
+        // arithmetic to keep future partial-slashing extensions simple while avoiding
+        // floating-point.  `checked_mul` / `checked_div` protect against `i128` overflow.
+        let penalty_bps: i128 = 10_000; // 100% = 10_000 bps
         let slashed_amount = collateral_stroops
             .checked_mul(penalty_bps)
             .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::Overflow))
             .checked_div(10_000)
             .unwrap_or_else(|| panic_with_error!(&env, JobRegistryError::Overflow));
 
-        // Clean state transition to Defaulted
+        // [SC-REG-025]: Clean state transition — `Defaulted` is a terminal status.
+        // After this point, no further state mutations (bid acceptance, deliverable
+        // submission, dispute) are permitted on this job.
         job.status = JobStatus::Defaulted;
         env.storage().persistent().set(&key, &job);
 
@@ -466,6 +516,7 @@ impl JobRegistryContract {
             freelancer,
             slashed_amount
         );
+        // Emit slashing event for off-chain indexers, AI judge, and reputation system.
         env.events()
             .publish((symbol_short!("slash"), job_id), (freelancer, slashed_amount));
 
@@ -951,5 +1002,88 @@ mod test {
         let proposal = Bytes::from_slice(&env, b"QmProposal");
         // Bid with negative collateral must panic
         cc.submit_bid(&1u64, &freelancer, &proposal, &-100i128);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────────
+    // SC-REG-025: Additional collateral slashing edge-case tests
+    // ──────────────────────────────────────────────────────────────────────────────
+
+    /// [SC-REG-025] A freelancer who bid zero collateral results in a slashed amount
+    /// of 0 (not a panic).  The job still transitions cleanly to `Defaulted`.
+    #[test]
+    fn test_enforce_default_slashing_zero_collateral_returns_zero() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmIPFSZero");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        // Freelancer bids with zero collateral (allowed)
+        let proposal = Bytes::from_slice(&env, b"QmProposalZero");
+        cc.submit_bid(&1u64, &freelancer, &proposal, &0i128);
+        cc.accept_bid(&1u64, &client, &freelancer);
+
+        // Advance past expiry
+        env.ledger().set_timestamp(expires_at + 1);
+
+        let slashed = cc.enforce_default_slashing(&1u64, &client);
+        // 0 collateral → 0 slash; no overflow, no panic
+        assert_eq!(slashed, 0i128);
+        // State must still be Defaulted
+        assert_eq!(cc.get_job(&1u64).status, JobStatus::Defaulted);
+    }
+
+    /// [SC-REG-025] Verifies the job transitions to the terminal `Defaulted` status
+    /// and cannot be slashed a second time (InvalidStateTransition on retry).
+    #[test]
+    #[should_panic]
+    fn test_enforce_default_slashing_double_slash_panics() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        let hash = Bytes::from_slice(&env, b"QmIPFSDouble");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        let proposal = Bytes::from_slice(&env, b"QmProposalDouble");
+        cc.submit_bid(&1u64, &freelancer, &proposal, &500i128);
+        cc.accept_bid(&1u64, &client, &freelancer);
+
+        env.ledger().set_timestamp(expires_at + 1);
+        cc.enforce_default_slashing(&1u64, &client);
+        // Second call must panic: job is now Defaulted, not Assigned
+        cc.enforce_default_slashing(&1u64, &client);
+    }
+
+    /// [SC-REG-025] When multiple freelancers bid, only the accepted one's collateral
+    /// is used for the slashing calculation.  Others are unaffected.
+    #[test]
+    fn test_enforce_default_slashing_multiple_bids_only_accepted_slashed() {
+        let (env, cc, admin, client, freelancer) = setup();
+        cc.initialize(&admin);
+
+        // Generate a second bidder
+        let bidder2 = Address::generate(&env);
+
+        let hash = Bytes::from_slice(&env, b"QmIPFSMulti");
+        let expires_at = future_expires_at(&env);
+        cc.post_job(&1u64, &client, &hash, &5000i128, &expires_at);
+
+        // Two bids with different collateral amounts
+        let p1 = Bytes::from_slice(&env, b"QmProposal1");
+        cc.submit_bid(&1u64, &freelancer, &p1, &1000i128); // accepted freelancer
+        let p2 = Bytes::from_slice(&env, b"QmProposal2");
+        cc.submit_bid(&1u64, &bidder2, &p2, &9999i128); // competing bidder
+
+        // Accept the first freelancer's bid
+        cc.accept_bid(&1u64, &client, &freelancer);
+
+        env.ledger().set_timestamp(expires_at + 1);
+
+        // Slashed amount must equal only the accepted bid's collateral (1000)
+        let slashed = cc.enforce_default_slashing(&1u64, &client);
+        assert_eq!(slashed, 1000i128);
+        assert_eq!(cc.get_job(&1u64).status, JobStatus::Defaulted);
     }
 }

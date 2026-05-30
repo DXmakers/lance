@@ -35,20 +35,52 @@ pub enum EscrowStatus {
 }
 
 impl EscrowStatus {
+    /// Requirement [SC-ESC-013]: Validate state machine transitions across multi-milestone gigs.
+    ///
+    /// Every state-mutating function in `EscrowContract` calls this guard before updating
+    /// persistent storage, ensuring the escrow lifecycle is a strict directed acyclic graph:
+    ///
+    /// ```text
+    ///   Setup ──► Funded ──► WorkInProgress ──► Completed
+    ///     │          │              │
+    ///     │          └──────────────┼──► Disputed ──► Resolved
+    ///     │                        │                    │
+    ///     └────────────────────────┴────────────────────┴──► Refunded
+    /// ```
+    ///
+    /// Returning `Err(InvalidStateTransition)` causes the calling function to surface
+    /// error code `#11` to the caller — equivalent to a 422 Unprocessable Entity at
+    /// the protocol layer.  This is distinct from `Unauthorized` (`#3`) which covers
+    /// authentication failures.
+    ///
+    /// The `WorkInProgress → WorkInProgress` self-transition is intentional: each
+    /// partial milestone release keeps the job in `WorkInProgress` until all funds
+    /// are released, at which point it transitions to `Completed`.
     pub fn validate_transition(&self, next: &EscrowStatus) -> Result<(), EscrowError> {
         match (self, next) {
+            // [SC-ESC-013]: Setup is the initial configuration phase; only Funded (deposit
+            // received) or Refunded (brief cancelled before funding) are valid exits.
             (EscrowStatus::Setup, EscrowStatus::Funded) => Ok(()),
             (EscrowStatus::Setup, EscrowStatus::Refunded) => Ok(()),
+            // [SC-ESC-013]: Funded allows work to start, dispute, partial refund, or
+            // immediate completion if a single-milestone job is released all at once.
             (EscrowStatus::Funded, EscrowStatus::WorkInProgress) => Ok(()),
             (EscrowStatus::Funded, EscrowStatus::Completed) => Ok(()),
             (EscrowStatus::Funded, EscrowStatus::Disputed) => Ok(()),
             (EscrowStatus::Funded, EscrowStatus::Refunded) => Ok(()),
+            // [SC-ESC-013]: WorkInProgress self-loop covers partial milestone releases.
+            // Transitions to Completed (all milestones released), Disputed (conflict raised),
+            // or Refunded (client cancels mid-gig) are valid exits.
             (EscrowStatus::WorkInProgress, EscrowStatus::WorkInProgress) => Ok(()),
             (EscrowStatus::WorkInProgress, EscrowStatus::Completed) => Ok(()),
             (EscrowStatus::WorkInProgress, EscrowStatus::Disputed) => Ok(()),
             (EscrowStatus::WorkInProgress, EscrowStatus::Refunded) => Ok(()),
+            // [SC-ESC-013]: A Disputed job can only be Resolved (judge adjudicates) or
+            // Refunded (dispute deadline expires via `expire_dispute`).  No other exits.
             (EscrowStatus::Disputed, EscrowStatus::Resolved) => Ok(()),
             (EscrowStatus::Disputed, EscrowStatus::Refunded) => Ok(()),
+            // [SC-ESC-013]: All other transitions are invalid.  Completed, Resolved, and
+            // Refunded are terminal — they have no valid outgoing edges.
             _ => Err(EscrowError::InvalidStateTransition),
         }
     }
@@ -160,8 +192,18 @@ pub enum EscrowError {
 /// Maximum platform fee, in basis points (100% = 10_000 bps).
 pub const MAX_FEE_BPS: u32 = 10_000;
 
-/// Maximum number of milestones allowed per escrow job.
-/// Prevents unbounded storage growth and keeps WASM execution within block limits.
+/// Requirement [SC-ESC-016]: Maximum number of milestones allowed per escrow job.
+///
+/// This hard cap serves two purposes:
+/// 1. **Storage efficiency** — each `Milestone` struct is written to Soroban persistent
+///    storage as part of the `EscrowJob` value.  Unbounded growth would bloat the
+///    ledger entry beyond the Soroban footprint limits and drive up rent fees.
+/// 2. **WASM execution safety** — iteration over milestones during `deposit`,
+///    `release_milestone`, and `amend_milestones` is O(n); capping at 12 guarantees
+///    these loops stay well inside the Soroban instruction-count block boundary.
+///
+/// Checked arithmetic (`checked_add`, `checked_mul`) is used throughout all
+/// milestone-amount summation paths to prevent silent integer overflow.
 pub const MAX_MILESTONES: u32 = 12;
 
 #[contracttype]
@@ -633,7 +675,30 @@ impl EscrowContract {
         Ok(())
     }
 
-    /// Add a milestone to the job (setup phase only).
+    /// Requirement [SC-ESC-016]: Add a milestone to the job during the Setup phase.
+    ///
+    /// Milestones partition the total escrow budget into discrete delivery tranches that
+    /// the client unlocks incrementally via `release_milestone` or `release_funds`.
+    ///
+    /// **Authorization**: only the job's client may add milestones (`env.require_auth`).
+    ///
+    /// **State guard**: only valid in `Setup` state.  Once `deposit` transitions the job
+    /// to `Funded`, the milestone structure is locked (modifications require `amend_milestones`
+    /// with dual-party authorization).
+    ///
+    /// **Partition count limit** ([SC-ESC-016]): adding a 13th milestone (or beyond) is
+    /// rejected with `MaxMilestonesExceeded` (error code `#21`).  This cap prevents
+    /// unbounded persistent-storage growth and keeps WASM instruction counts bounded.
+    ///
+    /// **Checked arithmetic**: all milestone amount accumulation in `deposit` uses
+    /// `checked_add` to guard against `i128` overflow when summing across all partitions.
+    ///
+    /// # Errors
+    /// - `JobNotFound` — no persistent record for `job_id`.
+    /// - `Unauthorized` — caller is not the job client.
+    /// - `InvalidState` — job is not in `Setup` state.
+    /// - `InvalidInput` — `amount` is zero or negative.
+    /// - `MaxMilestonesExceeded` — already at the `MAX_MILESTONES` (12) limit.
     pub fn add_milestone(env: Env, job_id: u64, amount: i128) -> Result<(), EscrowError> {
         let key = DataKey::Job(job_id);
         let mut job: EscrowJob = env
@@ -642,15 +707,22 @@ impl EscrowContract {
             .get(&key)
             .ok_or(EscrowError::JobNotFound)?;
         Self::bump_job_ttl(&env, &key);
+        // [SC-ESC-016]: Only the authenticated client may mutate the milestone set.
         job.client.require_auth();
+        // [SC-ESC-016]: Milestones are only configurable during Setup; once funded the
+        // partition set is immutable without explicit `amend_milestones` dual-auth.
         if job.status != EscrowStatus::Setup {
             return Err(EscrowError::InvalidState);
         }
+        // [SC-ESC-016]: Reject zero or negative amounts to prevent zero-value milestones
+        // that would misalign the deposit total vs. milestone sum check.
         if amount <= 0 {
             return Err(EscrowError::InvalidInput);
         }
 
-        // Enforce maximum milestone partition count
+        // [SC-ESC-016]: Enforce maximum milestone partition count.
+        // This is the primary invariant of this task — cap at MAX_MILESTONES (12) to
+        // bound ledger footprint and keep on-chain iteration within safe gas limits.
         if job.milestones.len() >= MAX_MILESTONES {
             return Err(EscrowError::MaxMilestonesExceeded);
         }
@@ -1206,10 +1278,36 @@ impl EscrowContract {
         Ok(())
     }
 
-    /// Recoups storage space by removing the job from persistent storage.
-    /// Can only be invoked by the client or freelancer, and only if the job
-    /// is in a terminal state (Completed, Refunded, or Resolved).
+    /// Requirement [SC-ESC-019]: Dynamic Storage Allocation Recouping (State De-allocation).
+    ///
+    /// Soroban persistent storage incurs ongoing rent fees proportional to the byte size
+    /// of each ledger entry.  Once an escrow job reaches a terminal state, all token
+    /// transfers are complete and the on-chain `EscrowJob` record serves no further
+    /// functional purpose.  This function allows either party to explicitly de-allocate
+    /// the storage entry, recouping the associated ledger rent budget.
+    ///
+    /// **De-allocation scope** ([SC-ESC-019]):
+    /// - Removes the `Job(job_id)` persistent entry (the primary `EscrowJob` struct).
+    /// - If a `MultisigConfig(job_id)` entry was written during setup, it is also removed
+    ///   in the same call to prevent orphaned storage keys.
+    ///
+    /// **Safety invariants**:
+    /// - Only the client or freelancer (authenticated via `env.require_auth`) may trigger
+    ///   cleanup — preventing griefing by third parties.
+    /// - The job must be in a terminal state: `Completed`, `Refunded`, or `Resolved`.
+    ///   Active jobs (`Setup`, `Funded`, `WorkInProgress`, `Disputed`) are rejected with
+    ///   `InvalidState` (error code `#6`).
+    /// - A `checked_sub` guard verifies `remaining == 0` before removal.  If funds are
+    ///   somehow still outstanding (which should be impossible in a terminal state), the
+    ///   call is rejected rather than silently discarding live funds.
+    ///
+    /// # Errors
+    /// - `JobNotFound` — no persistent record for `job_id`.
+    /// - `Unauthorized` — caller is neither client nor freelancer.
+    /// - `InvalidState` — job is not in a terminal state, or remaining balance > 0.
+    /// - `ArithmeticError` — underflow when computing `total_amount - released_amount`.
     pub fn cleanup_job(env: Env, job_id: u64, caller: Address) -> Result<(), EscrowError> {
+        // [SC-ESC-019]: Caller must authenticate before triggering de-allocation.
         caller.require_auth();
 
         let key = DataKey::Job(job_id);
@@ -1219,10 +1317,15 @@ impl EscrowContract {
             .get(&key)
             .ok_or(EscrowError::JobNotFound)?;
 
+        // [SC-ESC-019]: Only the escrow parties (client or freelancer) may trigger cleanup.
+        // Third-party callers receive `Unauthorized` (error code #3).
         if !(caller == job.client || caller == job.freelancer) {
             return Err(EscrowError::Unauthorized);
         }
 
+        // [SC-ESC-019]: Terminal state gate — only jobs that have fully concluded
+        // (Completed, Refunded, Resolved) may be de-allocated.  Active jobs are blocked
+        // to prevent accidental data loss while funds are still in escrow.
         if !(job.status == EscrowStatus::Completed
             || job.status == EscrowStatus::Refunded
             || job.status == EscrowStatus::Resolved)
@@ -1230,17 +1333,23 @@ impl EscrowContract {
             return Err(EscrowError::InvalidState);
         }
 
+        // [SC-ESC-019]: Defensive arithmetic check — `checked_sub` prevents underflow
+        // and guarantees the outstanding balance is truly zero before removal.
         let remaining = job
             .total_amount
             .checked_sub(job.released_amount)
             .ok_or(EscrowError::ArithmeticError)?;
         if remaining > 0 {
-            return Err(EscrowError::InvalidState); // Should not happen in terminal state
+            // This branch should be unreachable in a well-formed terminal state, but is
+            // kept as a hard safety guard against any future state-machine bugs.
+            return Err(EscrowError::InvalidState);
         }
 
-        // De-allocate
+        // [SC-ESC-019]: Primary de-allocation — remove the EscrowJob ledger entry.
         env.storage().persistent().remove(&key);
 
+        // [SC-ESC-019]: Secondary de-allocation — remove orphaned MultisigConfig if present.
+        // This ensures no dangling storage keys are left after job teardown.
         let ms_key = DataKey::MultisigConfig(job_id);
         if env.storage().persistent().has(&ms_key) {
             env.storage().persistent().remove(&ms_key);
@@ -3913,5 +4022,298 @@ mod test {
         // Random tries to cleanup
         let res = cc.try_cleanup_job(&1u64, &random);
         assert!(res.is_err());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────────
+    // SC-ESC-016: Additional milestone partition count edge-case tests
+    // ──────────────────────────────────────────────────────────────────────────────
+
+    /// [SC-ESC-016] Adding a milestone with a zero amount must be rejected with
+    /// `InvalidInput` (error code #4).  Zero-value milestones would corrupt the
+    /// deposit-vs-milestone-sum invariant enforced by `deposit`.
+    #[test]
+    #[should_panic(expected = "Error(Contract, #4)")]
+    fn test_add_milestone_zero_amount_panics() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let token_addr = setup_token(&env, &admin);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        // Zero amount must be rejected
+        cc.add_milestone(&1u64, &0i128);
+    }
+
+    /// [SC-ESC-016] Adding a milestone after the job is `Funded` must be rejected with
+    /// `InvalidState` (error code #6).  Once deposited, the partition set is locked.
+    #[test]
+    #[should_panic(expected = "Error(Contract, #6)")]
+    fn test_add_milestone_after_deposit_panics() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&1u64, &5000i128);
+        cc.deposit(&1u64, &5000i128);
+
+        // Adding a milestone after deposit must fail with InvalidState
+        cc.add_milestone(&1u64, &1000i128);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────────
+    // SC-ESC-013: Additional state machine integrity tests
+    // ──────────────────────────────────────────────────────────────────────────────
+
+    /// [SC-ESC-013] `deposit` must reject when no milestones have been added.
+    /// Enforces the invariant: funded amount must equal sum of milestone amounts.
+    #[test]
+    #[should_panic(expected = "Error(Contract, #4)")]
+    fn test_state_machine_deposit_with_no_milestones_panics() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        // No milestones added — deposit must fail with InvalidInput (#4)
+        cc.deposit(&1u64, &5000i128);
+    }
+
+    /// [SC-ESC-013] A Disputed job cannot be resolved twice.  The first `resolve_dispute`
+    /// transitions to `Resolved`; a second call must fail with `InvalidState` (#6).
+    #[test]
+    #[should_panic(expected = "Error(Contract, #6)")]
+    fn test_state_machine_resolve_dispute_twice_panics() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&1u64, &6000i128);
+        cc.deposit(&1u64, &6000i128);
+
+        cc.raise_dispute(&1u64, &client);
+        // First resolution succeeds
+        cc.resolve_dispute(&1u64, &6000i128, &0i128);
+        assert_eq!(cc.get_job(&1u64).status, EscrowStatus::Resolved);
+
+        // Second resolution must fail — Resolved → Resolved is not a valid transition
+        cc.resolve_dispute(&1u64, &0i128, &0i128);
+    }
+
+    /// [SC-ESC-013] Verifies that the job transitions from `Funded` directly to `Completed`
+    /// (skipping `WorkInProgress`) when a single-milestone job is fully released at once.
+    #[test]
+    fn test_state_machine_single_milestone_funded_to_completed() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+        let tc = token::Client::new(&env, &token_addr);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&1u64, &10_000i128);
+        cc.deposit(&1u64, &10_000i128);
+
+        // Single milestone: Funded → Completed in one release
+        let job = cc.get_job(&1u64);
+        assert_eq!(job.status, EscrowStatus::Funded);
+
+        cc.release_milestone(&1u64, &client);
+        let job = cc.get_job(&1u64);
+        // Funded → Completed (single-milestone fast path, no WIP intermediate)
+        assert_eq!(job.status, EscrowStatus::Completed);
+        assert_eq!(job.released_amount, 10_000);
+        assert_eq!(tc.balance(&freelancer), 10_000);
+        assert_eq!(tc.balance(&contract_id), 0);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────────
+    // SC-ESC-019: Additional storage de-allocation tests
+    // ──────────────────────────────────────────────────────────────────────────────
+
+    /// [SC-ESC-019] `cleanup_job` must succeed in the `Refunded` terminal state and
+    /// remove the persistent entry so that `get_job` returns `JobNotFound`.
+    #[test]
+    fn test_cleanup_job_after_refund_succeeds() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&1u64, &4000i128);
+        cc.deposit(&1u64, &4000i128);
+
+        // Expire lockup, then refund
+        let expiry = cc.get_expiry(&1u64);
+        env.ledger().with_mut(|li| li.timestamp = expiry + 1);
+        cc.refund(&1u64, &client);
+        assert_eq!(cc.get_job(&1u64).status, EscrowStatus::Refunded);
+
+        // Cleanup by the client — must succeed
+        cc.cleanup_job(&1u64, &client);
+
+        // Storage entry must now be absent
+        let result = cc.try_get_job(&1u64);
+        assert!(result.is_err());
+    }
+
+    /// [SC-ESC-019] `cleanup_job` must succeed in the `Resolved` terminal state and
+    /// free both the Job and any associated MultisigConfig ledger entries.
+    #[test]
+    fn test_cleanup_job_after_resolved_succeeds() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+        cc.add_milestone(&1u64, &8000i128);
+        cc.deposit(&1u64, &8000i128);
+
+        cc.raise_dispute(&1u64, &client);
+        // Resolve fully in favour of freelancer
+        cc.resolve_dispute(&1u64, &8000i128, &0i128);
+        assert_eq!(cc.get_job(&1u64).status, EscrowStatus::Resolved);
+
+        // Freelancer cleans up
+        cc.cleanup_job(&1u64, &freelancer);
+
+        // Storage entry must now be absent
+        let result = cc.try_get_job(&1u64);
+        assert!(result.is_err());
+    }
+
+    /// [SC-ESC-019] Attempting to `cleanup_job` on a non-existent job ID must return
+    /// `JobNotFound` (error code #5).
+    #[test]
+    #[should_panic(expected = "Error(Contract, #5)")]
+    fn test_cleanup_job_not_found_panics() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let caller = Address::generate(&env);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        // Job ID 999 was never created
+        cc.cleanup_job(&999u64, &caller);
+    }
+
+    /// [SC-ESC-019] `cleanup_job` also removes the associated `MultisigConfig` persistent
+    /// key when one was configured, leaving no orphaned ledger entries.
+    #[test]
+    fn test_cleanup_job_also_removes_multisig_config() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let agent_judge = Address::generate(&env);
+        let client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let signer1 = Address::generate(&env);
+        let signer2 = Address::generate(&env);
+        let token_addr = setup_token(&env, &admin);
+        mint(&env, &token_addr, &client);
+
+        let contract_id = env.register_contract(None, EscrowContract);
+        let cc = EscrowContractClient::new(&env, &contract_id);
+
+        cc.initialize(&admin, &agent_judge);
+        cc.create_job(&1u64, &client, &freelancer, &token_addr);
+
+        // Configure multisig during Setup
+        let signers = soroban_sdk::vec![&env, signer1.clone(), signer2.clone()];
+        cc.configure_multisig(&1u64, &signers, &2u32);
+
+        cc.add_milestone(&1u64, &5000i128);
+        cc.deposit(&1u64, &5000i128);
+        cc.release_milestone(&1u64, &client);
+        assert_eq!(cc.get_job(&1u64).status, EscrowStatus::Completed);
+
+        // MultisigConfig must be readable before cleanup
+        let config = cc.get_multisig_config(&1u64);
+        assert_eq!(config.required_signatures, 2);
+
+        // Cleanup removes both Job and MultisigConfig
+        cc.cleanup_job(&1u64, &client);
+
+        // Job is gone
+        let job_result = cc.try_get_job(&1u64);
+        assert!(job_result.is_err());
+
+        // MultisigConfig is also gone
+        let ms_result = cc.try_get_multisig_config(&1u64);
+        assert!(ms_result.is_err());
     }
 }
