@@ -60,7 +60,7 @@ router.get("/health", async (req: Request, res: Response) => {
     const uptime = stats.uptimeSeconds || 0;
 
     // Determine overall health status
-    const isPrimary Healthy = stats.primaryStatus === "healthy";
+    const isPrimaryHealthy = stats.primaryStatus === "healthy";
     const hasHealthyReplicas = (stats.replicaStatuses || []).some(
       (s: string) => s === "healthy"
     );
@@ -95,8 +95,8 @@ router.get("/health", async (req: Request, res: Response) => {
         connectionPoolUtilization:
           stats.totalConnections && stats.totalConnections > 0
             ? ((stats.totalConnections - (stats.idleConnections || 0)) /
-                stats.totalConnections) *
-              100
+              stats.totalConnections) *
+            100
             : 0,
         uptime: uptime,
         timestamp: Date.now(),
@@ -141,8 +141,7 @@ router.get("/stats", async (req: Request, res: Response) => {
       ``,
       `# HELP lance_pool_active_connections Active database pool connections`,
       `# TYPE lance_pool_active_connections gauge`,
-      `lance_pool_active_connections ${
-        (stats.totalConnections || 0) - (stats.idleConnections || 0)
+      `lance_pool_active_connections ${(stats.totalConnections || 0) - (stats.idleConnections || 0)
       }`,
       ``,
       `# HELP lance_pool_waiting_requests Requests waiting for connection`,
@@ -155,8 +154,7 @@ router.get("/stats", async (req: Request, res: Response) => {
       ``,
       `# HELP lance_pool_health_checks_total Total health checks performed`,
       `# TYPE lance_pool_health_checks_total counter`,
-      `lance_pool_health_checks_total ${
-        (stats.successfulHealthChecks || 0) + (stats.failedHealthChecks || 0)
+      `lance_pool_health_checks_total ${(stats.successfulHealthChecks || 0) + (stats.failedHealthChecks || 0)
       }`,
       ``,
       `# HELP lance_pool_health_check_failures_total Failed health checks`,
