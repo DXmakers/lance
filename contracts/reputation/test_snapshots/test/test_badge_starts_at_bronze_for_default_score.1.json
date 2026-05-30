@@ -1,9 +1,10 @@
 {
   "generators": {
-    "address": 2,
+    "address": 3,
     "nonce": 0
   },
   "auth": [
+    [],
     []
   ],
   "ledger": {
@@ -19,7 +20,7 @@
       [
         {
           "contract_data": {
-            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
             "key": "ledger_key_contract_instance",
             "durability": "persistent"
           }
@@ -30,7 +31,7 @@
             "data": {
               "contract_data": {
                 "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
                 "key": "ledger_key_contract_instance",
                 "durability": "persistent",
                 "val": {
@@ -38,14 +39,27 @@
                     "executable": {
                       "wasm": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
                     },
-                    "storage": null
+                    "storage": [
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "Admin"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                        }
+                      }
+                    ]
                   }
                 }
               }
             },
             "ext": "v0"
           },
-          4095
+          150000
         ]
       ],
       [
@@ -66,7 +80,7 @@
             },
             "ext": "v0"
           },
-          4095
+          150000
         ]
       ]
     ]
@@ -84,21 +98,14 @@
                 "symbol": "fn_call"
               },
               {
-                "bytes": "0000000000000000000000000000000000000000000000000000000000000002"
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
-                "symbol": "get_public_metrics"
+                "symbol": "initialize"
               }
             ],
             "data": {
-              "vec": [
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                },
-                {
-                  "symbol": "bogus"
-                }
-              ]
+              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
             }
           }
         }
@@ -108,84 +115,23 @@
     {
       "event": {
         "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000002",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
         "type_": "diagnostic",
         "body": {
           "v0": {
             "topics": [
               {
-                "symbol": "error"
+                "symbol": "fn_return"
               },
               {
-                "error": {
-                  "contract": 3
-                }
+                "symbol": "initialize"
               }
             ],
-            "data": {
-              "vec": [
-                {
-                  "string": "failing with contract error"
-                },
-                {
-                  "u32": 3
-                }
-              ]
-            }
+            "data": "void"
           }
         }
       },
-      "failed_call": true
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000002",
-        "type_": "diagnostic",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "error"
-              },
-              {
-                "error": {
-                  "contract": 3
-                }
-              }
-            ],
-            "data": {
-              "string": "escalating error to panic"
-            }
-          }
-        }
-      },
-      "failed_call": true
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000002",
-        "type_": "diagnostic",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "error"
-              },
-              {
-                "error": {
-                  "contract": 3
-                }
-              }
-            ],
-            "data": {
-              "string": "caught error from function"
-            }
-          }
-        }
-      },
-      "failed_call": true
+      "failed_call": false
     },
     {
       "event": {
@@ -196,29 +142,24 @@
           "v0": {
             "topics": [
               {
-                "symbol": "error"
+                "symbol": "fn_call"
               },
               {
-                "error": {
-                  "contract": 3
-                }
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
+              },
+              {
+                "symbol": "get_badge"
               }
             ],
             "data": {
               "vec": [
                 {
-                  "string": "contract call failed"
-                },
-                {
-                  "symbol": "get_public_metrics"
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
                   "vec": [
                     {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                    },
-                    {
-                      "symbol": "bogus"
+                      "symbol": "Freelancer"
                     }
                   ]
                 }
@@ -232,22 +173,24 @@
     {
       "event": {
         "ext": "v0",
-        "contract_id": null,
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
         "type_": "diagnostic",
         "body": {
           "v0": {
             "topics": [
               {
-                "symbol": "error"
+                "symbol": "fn_return"
               },
               {
-                "error": {
-                  "contract": 3
-                }
+                "symbol": "get_badge"
               }
             ],
             "data": {
-              "string": "escalating error to panic"
+              "vec": [
+                {
+                  "symbol": "Bronze"
+                }
+              ]
             }
           }
         }

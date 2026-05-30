@@ -1,6 +1,6 @@
 {
   "generators": {
-    "address": 7,
+    "address": 6,
     "nonce": 0
   },
   "auth": [
@@ -27,28 +27,6 @@
         }
       ]
     ],
-    [
-      [
-        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-        {
-          "function": {
-            "contract_fn": {
-              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
-              "function_name": "set_authorized_contract",
-              "args": [
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
-                }
-              ]
-            }
-          },
-          "sub_invocations": []
-        }
-      ]
-    ],
     [],
     [
       [
@@ -63,7 +41,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
-                  "u64": 1
+                  "u64": 60
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
@@ -79,6 +57,28 @@
       ]
     ],
     [],
+    [
+      [
+        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+        {
+          "function": {
+            "contract_fn": {
+              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
+              "function_name": "delete_profile",
+              "args": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                }
+              ]
+            }
+          },
+          "sub_invocations": []
+        }
+      ]
+    ],
     []
   ],
   "ledger": {
@@ -130,39 +130,6 @@
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
             "key": {
               "ledger_key_nonce": {
-                "nonce": 5541220902715666415
-              }
-            },
-            "durability": "temporary"
-          }
-        },
-        [
-          {
-            "last_modified_ledger_seq": 0,
-            "data": {
-              "contract_data": {
-                "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-                "key": {
-                  "ledger_key_nonce": {
-                    "nonce": 5541220902715666415
-                  }
-                },
-                "durability": "temporary",
-                "val": "void"
-              }
-            },
-            "ext": "v0"
-          },
-          6311999
-        ]
-      ],
-      [
-        {
-          "contract_data": {
-            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
-            "key": {
-              "ledger_key_nonce": {
                 "nonce": 1033654523790656264
               }
             },
@@ -175,7 +142,7 @@
             "data": {
               "contract_data": {
                 "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
                 "key": {
                   "ledger_key_nonce": {
                     "nonce": 1033654523790656264
@@ -193,18 +160,13 @@
       [
         {
           "contract_data": {
-            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
             "key": {
-              "vec": [
-                {
-                  "symbol": "Profile"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                }
-              ]
+              "ledger_key_nonce": {
+                "nonce": 5541220902715666415
+              }
             },
-            "durability": "persistent"
+            "durability": "temporary"
           }
         },
         [
@@ -213,251 +175,19 @@
             "data": {
               "contract_data": {
                 "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
                 "key": {
-                  "vec": [
-                    {
-                      "symbol": "Profile"
-                    },
-                    {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                    }
-                  ]
+                  "ledger_key_nonce": {
+                    "nonce": 5541220902715666415
+                  }
                 },
-                "durability": "persistent",
-                "val": {
-                  "map": [
-                    {
-                      "key": {
-                        "symbol": "address"
-                      },
-                      "val": {
-                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "badge_metadata"
-                      },
-                      "val": {
-                        "vec": []
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "client"
-                      },
-                      "val": {
-                        "map": [
-                          {
-                            "key": {
-                              "symbol": "badge_level"
-                            },
-                            "val": {
-                              "u32": 0
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "completed_jobs"
-                            },
-                            "val": {
-                              "u32": 0
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "dispute_failures"
-                            },
-                            "val": {
-                              "u32": 0
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "review"
-                            },
-                            "val": {
-                              "map": [
-                                {
-                                  "key": {
-                                    "symbol": "average_rating_bps"
-                                  },
-                                  "val": {
-                                    "i32": 5000
-                                  }
-                                },
-                                {
-                                  "key": {
-                                    "symbol": "reviews"
-                                  },
-                                  "val": {
-                                    "u32": 0
-                                  }
-                                },
-                                {
-                                  "key": {
-                                    "symbol": "total_points"
-                                  },
-                                  "val": {
-                                    "i128": {
-                                      "hi": 0,
-                                      "lo": 0
-                                    }
-                                  }
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "score"
-                            },
-                            "val": {
-                              "i32": 5000
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "client_badge"
-                      },
-                      "val": {
-                        "vec": [
-                          {
-                            "symbol": "Bronze"
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "freelancer"
-                      },
-                      "val": {
-                        "map": [
-                          {
-                            "key": {
-                              "symbol": "badge_level"
-                            },
-                            "val": {
-                              "u32": 0
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "completed_jobs"
-                            },
-                            "val": {
-                              "u32": 1
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "dispute_failures"
-                            },
-                            "val": {
-                              "u32": 0
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "review"
-                            },
-                            "val": {
-                              "map": [
-                                {
-                                  "key": {
-                                    "symbol": "average_rating_bps"
-                                  },
-                                  "val": {
-                                    "i32": 10000
-                                  }
-                                },
-                                {
-                                  "key": {
-                                    "symbol": "reviews"
-                                  },
-                                  "val": {
-                                    "u32": 1
-                                  }
-                                },
-                                {
-                                  "key": {
-                                    "symbol": "total_points"
-                                  },
-                                  "val": {
-                                    "i128": {
-                                      "hi": 0,
-                                      "lo": 5
-                                    }
-                                  }
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "score"
-                            },
-                            "val": {
-                              "i32": 8000
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "freelancer_badge"
-                      },
-                      "val": {
-                        "vec": [
-                          {
-                            "symbol": "Gold"
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "is_blacklisted"
-                      },
-                      "val": {
-                        "bool": false
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "last_activity"
-                      },
-                      "val": {
-                        "u64": 0
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "metadata_hash"
-                      },
-                      "val": "void"
-                    },
-                    {
-                      "key": {
-                        "symbol": "transfer_blocked"
-                      },
-                      "val": {
-                        "bool": true
-                      }
-                    }
-                  ]
-                }
+                "durability": "temporary",
+                "val": "void"
               }
             },
             "ext": "v0"
           },
-          150000
+          6311999
         ]
       ],
       [
@@ -470,7 +200,7 @@
                   "symbol": "Reviewed"
                 },
                 {
-                  "u64": 1
+                  "u64": 60
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -493,7 +223,7 @@
                       "symbol": "Reviewed"
                     },
                     {
-                      "u64": 1
+                      "u64": 60
                     },
                     {
                       "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -550,33 +280,6 @@
                         "key": {
                           "vec": [
                             {
-                              "symbol": "AuthorizedContract"
-                            },
-                            {
-                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
-                            }
-                          ]
-                        },
-                        "val": {
-                          "bool": true
-                        }
-                      },
-                      {
-                        "key": {
-                          "vec": [
-                            {
-                              "symbol": "AuthorizedUpdater"
-                            }
-                          ]
-                        },
-                        "val": {
-                          "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
-                        }
-                      },
-                      {
-                        "key": {
-                          "vec": [
-                            {
                               "symbol": "JobRegistry"
                             }
                           ]
@@ -605,7 +308,7 @@
                   "symbol": "Job"
                 },
                 {
-                  "u64": 1
+                  "u64": 60
                 }
               ]
             },
@@ -625,7 +328,7 @@
                       "symbol": "Job"
                     },
                     {
-                      "u64": 1
+                      "u64": 60
                     }
                   ]
                 },
@@ -683,7 +386,7 @@
                         "symbol": "collateral_token"
                       },
                       "val": {
-                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
                       }
                     },
                     {
@@ -746,38 +449,6 @@
               "contract_data": {
                 "ext": "v0",
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
-                "key": "ledger_key_contract_instance",
-                "durability": "persistent",
-                "val": {
-                  "contract_instance": {
-                    "executable": {
-                      "wasm": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-                    },
-                    "storage": null
-                  }
-                }
-              }
-            },
-            "ext": "v0"
-          },
-          4095
-        ]
-      ],
-      [
-        {
-          "contract_data": {
-            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
-            "key": "ledger_key_contract_instance",
-            "durability": "persistent"
-          }
-        },
-        [
-          {
-            "last_modified_ledger_seq": 0,
-            "data": {
-              "contract_data": {
-                "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
                 "key": "ledger_key_contract_instance",
                 "durability": "persistent",
                 "val": {
@@ -932,108 +603,6 @@
                 "symbol": "fn_call"
               },
               {
-                "bytes": "0000000000000000000000000000000000000000000000000000000000000004"
-              },
-              {
-                "symbol": "set_authorized_contract"
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "string": "reputation"
-              },
-              {
-                "string": "AuthorizedContractUpdated"
-              }
-            ],
-            "data": {
-              "map": [
-                {
-                  "key": {
-                    "symbol": "by_admin"
-                  },
-                  "val": {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "contract_address"
-                  },
-                  "val": {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "updated_at"
-                  },
-                  "val": {
-                    "u64": 0
-                  }
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
-        "type_": "diagnostic",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "fn_return"
-              },
-              {
-                "symbol": "set_authorized_contract"
-              }
-            ],
-            "data": "void"
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": null,
-        "type_": "diagnostic",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "fn_call"
-              },
-              {
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000005"
               },
               {
@@ -1043,7 +612,7 @@
             "data": {
               "vec": [
                 {
-                  "u64": 1
+                  "u64": 60
                 },
                 {
                   "map": [
@@ -1098,7 +667,7 @@
                         "symbol": "collateral_token"
                       },
                       "val": {
-                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
                       }
                     },
                     {
@@ -1191,7 +760,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
-                  "u64": 1
+                  "u64": 60
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
@@ -1225,7 +794,7 @@
               }
             ],
             "data": {
-              "u64": 1
+              "u64": 60
             }
           }
         }
@@ -1300,7 +869,7 @@
                     "symbol": "collateral_token"
                   },
                   "val": {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
                   }
                 },
                 {
@@ -1400,7 +969,7 @@
                     "symbol": "job_id"
                   },
                   "val": {
-                    "u64": 1
+                    "u64": 60
                   }
                 },
                 {
@@ -1514,158 +1083,14 @@
                 "symbol": "fn_call"
               },
               {
-                "bytes": "0000000000000000000000000000000000000000000000000000000000000006"
-              },
-              {
-                "symbol": "slash"
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                },
-                {
-                  "vec": [
-                    {
-                      "symbol": "Freelancer"
-                    }
-                  ]
-                },
-                {
-                  "symbol": "fraud"
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000006",
-        "type_": "diagnostic",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "fn_call"
-              },
-              {
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000004"
               },
               {
-                "symbol": "slash"
+                "symbol": "profile_exists"
               }
             ],
             "data": {
-              "vec": [
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                },
-                {
-                  "vec": [
-                    {
-                      "symbol": "Freelancer"
-                    }
-                  ]
-                },
-                {
-                  "symbol": "fraud"
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "string": "reputation"
-              },
-              {
-                "string": "ScoreAdjusted"
-              }
-            ],
-            "data": {
-              "map": [
-                {
-                  "key": {
-                    "symbol": "address"
-                  },
-                  "val": {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "adjusted_at"
-                  },
-                  "val": {
-                    "u64": 0
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "badge_level"
-                  },
-                  "val": {
-                    "u32": 0
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "delta"
-                  },
-                  "val": {
-                    "i32": -2000
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "new_score"
-                  },
-                  "val": {
-                    "i32": 8000
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "role"
-                  },
-                  "val": {
-                    "vec": [
-                      {
-                        "symbol": "Freelancer"
-                      }
-                    ]
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "total_jobs"
-                  },
-                  "val": {
-                    "u32": 1
-                  }
-                }
-              ]
+              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
             }
           }
         }
@@ -1684,31 +1109,12 @@
                 "symbol": "fn_return"
               },
               {
-                "symbol": "slash"
+                "symbol": "profile_exists"
               }
             ],
-            "data": "void"
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000006",
-        "type_": "diagnostic",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "fn_return"
-              },
-              {
-                "symbol": "slash"
-              }
-            ],
-            "data": "void"
+            "data": {
+              "bool": true
+            }
           }
         }
       },
@@ -1729,20 +1135,56 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000004"
               },
               {
-                "symbol": "get_score"
+                "symbol": "delete_profile"
               }
             ],
             "data": {
               "vec": [
                 {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 },
                 {
-                  "vec": [
-                    {
-                      "symbol": "Freelancer"
-                    }
-                  ]
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
+        "type_": "contract",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "string": "reputation"
+              },
+              {
+                "string": "ProfileDeleted"
+              }
+            ],
+            "data": {
+              "map": [
+                {
+                  "key": {
+                    "symbol": "address"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "deleted_at"
+                  },
+                  "val": {
+                    "u64": 0
+                  }
                 }
               ]
             }
@@ -1763,91 +1205,60 @@
                 "symbol": "fn_return"
               },
               {
-                "symbol": "get_score"
+                "symbol": "delete_profile"
               }
             ],
             "data": {
-              "map": [
-                {
-                  "key": {
-                    "symbol": "address"
-                  },
-                  "val": {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "average_rating_bps"
-                  },
-                  "val": {
-                    "i32": 10000
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "badge_level"
-                  },
-                  "val": {
-                    "u32": 0
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "blacklisted"
-                  },
-                  "val": {
-                    "bool": false
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "reviews"
-                  },
-                  "val": {
-                    "u32": 1
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "role"
-                  },
-                  "val": {
-                    "vec": [
-                      {
-                        "symbol": "Freelancer"
-                      }
-                    ]
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "score"
-                  },
-                  "val": {
-                    "i32": 8000
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "total_jobs"
-                  },
-                  "val": {
-                    "u32": 1
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "total_points"
-                  },
-                  "val": {
-                    "i128": {
-                      "hi": 0,
-                      "lo": 5
-                    }
-                  }
-                }
-              ]
+              "bool": true
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": null,
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_call"
+              },
+              {
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000004"
+              },
+              {
+                "symbol": "profile_exists"
+              }
+            ],
+            "data": {
+              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_return"
+              },
+              {
+                "symbol": "profile_exists"
+              }
+            ],
+            "data": {
+              "bool": false
             }
           }
         }

@@ -101,6 +101,7 @@ pub struct Profile {
     pub last_activity: u64,
     /// Per-tier badge metadata URIs set by the admin.
     pub badge_metadata: soroban_sdk::Vec<BadgeMetadataEntry>,
+    pub transfer_blocked: bool,
     pub client_badge: BadgeLevel,
     pub freelancer_badge: BadgeLevel,
 }
@@ -115,6 +116,7 @@ impl Profile {
             metadata_hash: None,
             last_activity: 0,
             badge_metadata: soroban_sdk::Vec::new(env),
+            transfer_blocked: true,
             client_badge: BadgeLevel::Bronze,
             freelancer_badge: BadgeLevel::Bronze,
         }

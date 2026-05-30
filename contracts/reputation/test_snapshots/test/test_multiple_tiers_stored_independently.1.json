@@ -12,20 +12,23 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
-              "function_name": "update_score",
+              "function_name": "set_badge_metadata",
               "args": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
                   "vec": [
                     {
-                      "symbol": "Freelancer"
+                      "symbol": "Bronze"
                     }
                   ]
                 },
                 {
-                  "i32": 1000
+                  "bytes": "697066733a2f2f42726f6e7a65"
                 }
               ]
             }
@@ -41,20 +44,23 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
-              "function_name": "update_score",
+              "function_name": "set_badge_metadata",
               "args": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
                   "vec": [
                     {
-                      "symbol": "Client"
+                      "symbol": "Gold"
                     }
                   ]
                 },
                 {
-                  "i32": 500
+                  "bytes": "697066733a2f2f476f6c64"
                 }
               ]
             }
@@ -63,6 +69,7 @@
         }
       ]
     ],
+    [],
     [],
     []
   ],
@@ -189,50 +196,253 @@
                     },
                     {
                       "key": {
-                        "symbol": "client_jobs"
+                        "symbol": "badge_metadata"
                       },
                       "val": {
-                        "u32": 1
+                        "vec": [
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "tier"
+                                },
+                                "val": {
+                                  "vec": [
+                                    {
+                                      "symbol": "Bronze"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "uri"
+                                },
+                                "val": {
+                                  "bytes": "697066733a2f2f42726f6e7a65"
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "tier"
+                                },
+                                "val": {
+                                  "vec": [
+                                    {
+                                      "symbol": "Gold"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "uri"
+                                },
+                                "val": {
+                                  "bytes": "697066733a2f2f476f6c64"
+                                }
+                              }
+                            ]
+                          }
+                        ]
                       }
                     },
                     {
                       "key": {
-                        "symbol": "client_points"
+                        "symbol": "client"
                       },
                       "val": {
-                        "i32": 0
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "badge_level"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "completed_jobs"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "dispute_failures"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "review"
+                            },
+                            "val": {
+                              "map": [
+                                {
+                                  "key": {
+                                    "symbol": "average_rating_bps"
+                                  },
+                                  "val": {
+                                    "i32": 5000
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "reviews"
+                                  },
+                                  "val": {
+                                    "u32": 0
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "total_points"
+                                  },
+                                  "val": {
+                                    "i128": {
+                                      "hi": 0,
+                                      "lo": 0
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "score"
+                            },
+                            "val": {
+                              "i32": 5000
+                            }
+                          }
+                        ]
                       }
                     },
                     {
                       "key": {
-                        "symbol": "client_score"
+                        "symbol": "client_badge"
                       },
                       "val": {
-                        "i32": 5500
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
+                          }
+                        ]
                       }
                     },
                     {
                       "key": {
-                        "symbol": "freelancer_jobs"
+                        "symbol": "freelancer"
                       },
                       "val": {
-                        "u32": 1
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "badge_level"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "completed_jobs"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "dispute_failures"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "review"
+                            },
+                            "val": {
+                              "map": [
+                                {
+                                  "key": {
+                                    "symbol": "average_rating_bps"
+                                  },
+                                  "val": {
+                                    "i32": 5000
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "reviews"
+                                  },
+                                  "val": {
+                                    "u32": 0
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "total_points"
+                                  },
+                                  "val": {
+                                    "i128": {
+                                      "hi": 0,
+                                      "lo": 0
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "score"
+                            },
+                            "val": {
+                              "i32": 5000
+                            }
+                          }
+                        ]
                       }
                     },
                     {
                       "key": {
-                        "symbol": "freelancer_points"
+                        "symbol": "freelancer_badge"
                       },
                       "val": {
-                        "i32": 0
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
+                          }
+                        ]
                       }
                     },
                     {
                       "key": {
-                        "symbol": "freelancer_score"
+                        "symbol": "is_blacklisted"
                       },
                       "val": {
-                        "i32": 6000
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "last_activity"
+                      },
+                      "val": {
+                        "u64": 0
                       }
                     },
                     {
@@ -240,6 +450,14 @@
                         "symbol": "metadata_hash"
                       },
                       "val": "void"
+                    },
+                    {
+                      "key": {
+                        "symbol": "transfer_blocked"
+                      },
+                      "val": {
+                        "bool": true
+                      }
                     }
                   ]
                 }
@@ -381,99 +599,26 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
-                "symbol": "update_score"
+                "symbol": "set_badge_metadata"
               }
             ],
             "data": {
               "vec": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
                   "vec": [
                     {
-                      "symbol": "Freelancer"
+                      "symbol": "Bronze"
                     }
                   ]
                 },
                 {
-                  "i32": 1000
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "string": "reputation"
-              },
-              {
-                "string": "ScoreAdjusted"
-              }
-            ],
-            "data": {
-              "map": [
-                {
-                  "key": {
-                    "symbol": "address"
-                  },
-                  "val": {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "adjusted_at"
-                  },
-                  "val": {
-                    "u64": 0
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "delta"
-                  },
-                  "val": {
-                    "i32": 1000
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "new_score"
-                  },
-                  "val": {
-                    "i32": 6000
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "role"
-                  },
-                  "val": {
-                    "vec": [
-                      {
-                        "symbol": "Freelancer"
-                      }
-                    ]
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "total_jobs"
-                  },
-                  "val": {
-                    "u32": 1
-                  }
+                  "bytes": "697066733a2f2f42726f6e7a65"
                 }
               ]
             }
@@ -494,7 +639,7 @@
                 "symbol": "fn_return"
               },
               {
-                "symbol": "update_score"
+                "symbol": "set_badge_metadata"
               }
             ],
             "data": "void"
@@ -518,99 +663,26 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
-                "symbol": "update_score"
+                "symbol": "set_badge_metadata"
               }
             ],
             "data": {
               "vec": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
                   "vec": [
                     {
-                      "symbol": "Client"
+                      "symbol": "Gold"
                     }
                   ]
                 },
                 {
-                  "i32": 500
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "string": "reputation"
-              },
-              {
-                "string": "ScoreAdjusted"
-              }
-            ],
-            "data": {
-              "map": [
-                {
-                  "key": {
-                    "symbol": "address"
-                  },
-                  "val": {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "adjusted_at"
-                  },
-                  "val": {
-                    "u64": 0
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "delta"
-                  },
-                  "val": {
-                    "i32": 500
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "new_score"
-                  },
-                  "val": {
-                    "i32": 5500
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "role"
-                  },
-                  "val": {
-                    "vec": [
-                      {
-                        "symbol": "Client"
-                      }
-                    ]
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "total_jobs"
-                  },
-                  "val": {
-                    "u32": 1
-                  }
+                  "bytes": "697066733a2f2f476f6c64"
                 }
               ]
             }
@@ -631,7 +703,7 @@
                 "symbol": "fn_return"
               },
               {
-                "symbol": "update_score"
+                "symbol": "set_badge_metadata"
               }
             ],
             "data": "void"
@@ -655,7 +727,7 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
-                "symbol": "get_score"
+                "symbol": "get_badge_metadata"
               }
             ],
             "data": {
@@ -666,7 +738,7 @@
                 {
                   "vec": [
                     {
-                      "symbol": "Freelancer"
+                      "symbol": "Bronze"
                     }
                   ]
                 }
@@ -689,64 +761,11 @@
                 "symbol": "fn_return"
               },
               {
-                "symbol": "get_score"
+                "symbol": "get_badge_metadata"
               }
             ],
             "data": {
-              "map": [
-                {
-                  "key": {
-                    "symbol": "address"
-                  },
-                  "val": {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "reviews"
-                  },
-                  "val": {
-                    "u32": 1
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "role"
-                  },
-                  "val": {
-                    "vec": [
-                      {
-                        "symbol": "Freelancer"
-                      }
-                    ]
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "score"
-                  },
-                  "val": {
-                    "i32": 6000
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "total_jobs"
-                  },
-                  "val": {
-                    "u32": 1
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "total_points"
-                  },
-                  "val": {
-                    "i32": 0
-                  }
-                }
-              ]
+              "bytes": "697066733a2f2f42726f6e7a65"
             }
           }
         }
@@ -768,7 +787,7 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
-                "symbol": "get_score"
+                "symbol": "get_badge_metadata"
               }
             ],
             "data": {
@@ -779,7 +798,7 @@
                 {
                   "vec": [
                     {
-                      "symbol": "Client"
+                      "symbol": "Gold"
                     }
                   ]
                 }
@@ -802,65 +821,70 @@
                 "symbol": "fn_return"
               },
               {
-                "symbol": "get_score"
+                "symbol": "get_badge_metadata"
               }
             ],
             "data": {
-              "map": [
+              "bytes": "697066733a2f2f476f6c64"
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": null,
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_call"
+              },
+              {
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
+              },
+              {
+                "symbol": "get_badge_metadata"
+              }
+            ],
+            "data": {
+              "vec": [
                 {
-                  "key": {
-                    "symbol": "address"
-                  },
-                  "val": {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                  }
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
-                  "key": {
-                    "symbol": "reviews"
-                  },
-                  "val": {
-                    "u32": 1
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "role"
-                  },
-                  "val": {
-                    "vec": [
-                      {
-                        "symbol": "Client"
-                      }
-                    ]
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "score"
-                  },
-                  "val": {
-                    "i32": 5500
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "total_jobs"
-                  },
-                  "val": {
-                    "u32": 1
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "total_points"
-                  },
-                  "val": {
-                    "i32": 0
-                  }
+                  "vec": [
+                    {
+                      "symbol": "Silver"
+                    }
+                  ]
                 }
               ]
             }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_return"
+              },
+              {
+                "symbol": "get_badge_metadata"
+              }
+            ],
+            "data": "void"
           }
         }
       },
