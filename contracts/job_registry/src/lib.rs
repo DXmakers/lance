@@ -60,6 +60,21 @@ pub struct JobAssignedIndexEvent {
     pub final_amount: i128,
 }
 
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BidPlacedIndexEvent {
+    pub job_id: u64,
+    pub bidder: Address,
+    pub amount: i128,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct JobStorageReclaimedEvent {
+    pub job_id: u64,
+    pub reclaimer: Address,
+}
+
 /* -----------------------------------------------------------------
     3. Smart Contract Implementation
 ----------------------------------------------------------------- */
