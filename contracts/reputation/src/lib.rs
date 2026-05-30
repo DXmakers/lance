@@ -1,4 +1,4 @@
-﻿#![no_std]
+#![no_std]
 
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, Address, Bytes, BytesN, Env, IntoVal,
@@ -1225,21 +1225,11 @@ mod test {
         let cid = env.register_contract(None, ReputationContract);
         let client = ReputationContractClient::new(&env, &cid);
         client.initialize(&admin);
-<<<<<<< main
-        client.set_authorized_contract(&admin, &admin);
-
-        // Raise score by 1000 → 5000+1000 = 6000 → Silver
-        client.update_score(&admin, &addr, &Role::Freelancer, &1000);
-        let badge = client.get_badge(&addr, &Role::Freelancer);
-        assert_eq!(badge, BadgeLevel::Silver);
-=======
-
         let uri = Bytes::from_slice(&env, b"ipfs://QmBronzeBadge");
         client.set_badge_metadata(&admin, &addr, &BadgeTier::Bronze, &uri);
 
         let result = client.get_badge_metadata(&addr, &BadgeTier::Bronze);
         assert_eq!(result, Some(uri));
->>>>>>> main
     }
 
     #[test]
@@ -1263,20 +1253,12 @@ mod test {
         let cid = env.register_contract(None, ReputationContract);
         let client = ReputationContractClient::new(&env, &cid);
         client.initialize(&admin);
-<<<<<<< main
-        client.set_authorized_contract(&admin, &admin);
-
-        client.update_score(&admin, &addr, &Role::Freelancer, &3000); // 5000+3000=8000
-        assert_eq!(client.get_badge(&addr, &Role::Freelancer), BadgeLevel::Gold);
-=======
-
         let uri_v1 = Bytes::from_slice(&env, b"ipfs://QmSilverV1");
         let uri_v2 = Bytes::from_slice(&env, b"ipfs://QmSilverV2");
         client.set_badge_metadata(&admin, &addr, &BadgeTier::Silver, &uri_v1);
         client.set_badge_metadata(&admin, &addr, &BadgeTier::Silver, &uri_v2);
 
         assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Silver), Some(uri_v2));
->>>>>>> main
     }
 
     #[test]
@@ -1288,18 +1270,6 @@ mod test {
         let cid = env.register_contract(None, ReputationContract);
         let client = ReputationContractClient::new(&env, &cid);
         client.initialize(&admin);
-<<<<<<< main
-        client.set_authorized_contract(&admin, &admin);
-
-        // Bring to Gold first, then slash twice to drop back to Bronze
-        client.update_score(&admin, &addr, &Role::Client, &3000); // 8000 → Gold
-        assert_eq!(client.get_badge(&addr, &Role::Client), BadgeLevel::Gold);
-        client.slash(&admin, &addr, &Role::Client, &soroban_sdk::Symbol::new(&env, "fraud")); // 6000 → Silver
-        assert_eq!(client.get_badge(&addr, &Role::Client), BadgeLevel::Silver);
-        client.slash(&admin, &addr, &Role::Client, &soroban_sdk::Symbol::new(&env, "fraud")); // 4000 → Bronze
-        assert_eq!(client.get_badge(&addr, &Role::Client), BadgeLevel::Bronze);
-=======
-
         let bronze_uri = Bytes::from_slice(&env, b"ipfs://Bronze");
         let gold_uri   = Bytes::from_slice(&env, b"ipfs://Gold");
         client.set_badge_metadata(&admin, &addr, &BadgeTier::Bronze, &bronze_uri);
@@ -1308,7 +1278,6 @@ mod test {
         assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Bronze), Some(bronze_uri));
         assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Gold),   Some(gold_uri));
         assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Silver), None);
->>>>>>> main
     }
 
     #[test]

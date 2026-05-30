@@ -784,7 +784,6 @@ let expires_at = now
         Self::bump_job_ttl(&env, &key);
         // [SC-ESC-016]: Only the authenticated client may mutate the milestone set.
         job.client.require_auth();
-<<<<<<< HEAD
         // [SC-ESC-016]: Milestones are only configurable during Setup; once funded the
         // partition set is immutable without explicit `amend_milestones` dual-auth.
         if job.status != EscrowStatus::Setup {
@@ -792,26 +791,14 @@ let expires_at = now
         }
         // [SC-ESC-016]: Reject zero or negative amounts to prevent zero-value milestones
         // that would misalign the deposit total vs. milestone sum check.
-        if amount <= 0 {
+        if amount <= 0 || amount > Self::MAX_MILESTONE_AMOUNT {
             return Err(EscrowError::InvalidInput);
         }
-=======
-        assert!(job.status == EscrowStatus::Setup, "not in setup phase");
-        assert!(amount > 0, "amount must be > 0");
-        assert!(
-            amount <= Self::MAX_MILESTONE_AMOUNT,
-            "milestone amount exceeds maximum"
-        );
-        let next_total = checked_i128_add(job.total_amount, amount).expect("job budget overflow");
-        assert!(
-            next_total <= Self::MAX_JOB_BUDGET,
-            "job budget exceeds maximum"
-        );
-        assert!(
-            job.milestones.len() < Self::MAX_MILESTONES_PER_JOB,
-            "too many milestones"
-        );
->>>>>>> 31bc7b0c8029802d36685e2d3d7901cc15377125
+        
+        let next_total = checked_i128_add(job.total_amount, amount)?;
+        if next_total > Self::MAX_JOB_BUDGET {
+            return Err(EscrowError::InvalidInput);
+        }
 
         // [SC-ESC-016]: Enforce maximum milestone partition count.
         // This is the primary invariant of this task — cap at MAX_MILESTONES (12) to
