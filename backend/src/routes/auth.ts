@@ -715,67 +715,62 @@ router.post(
 				where: { address },
 			});
 
-		// Return 401 (not 404) to avoid leaking whether an address has a pending challenge.
-		if (!challengeRecord) {
-			return res.status(401).json({ error: "Invalid credentials" });
-		}
+			// Return 401 (not 404) to avoid leaking whether an address has a pending challenge.
+			if (!challengeRecord) {
+				return res.status(401).json({ error: "Invalid credentials" });
+			}
 
-		if (!isChallengeFresh(challengeRecord)) {
-			await prisma.auth_challenges
-				.deleteMany({
-					where: {
-						address,
-						challenge: challengeRecord.challenge,
-						expires_at: { gt: new Date(0) },
-					},
-				})
+			if (!isChallengeFresh(challengeRecord)) {
+				return res.status(401).json({ error: "Challenge expired" });
+			}
 
-			let isValid = verifyStellarSignature(
+			const isValid = verifyStellarSignature(
 				address,
 				challengeRecord.challenge,
 				signature
 			);
 
-			if (!isValid && process.env.NODE_ENV !== "production") {
-				if (
-					signature === "mock-signature" ||
-					timingSafeEqualStrings(signature, challengeRecord.challenge)
-				) {
-					isValid = true;
-				}
-			}
-
 			if (!isValid) {
 				return res.status(401).json({ error: "Invalid signature" });
 			}
 
-		// Atomically consume the challenge. count === 0 means another concurrent
-		// request already used it (TOCTOU guard).
-		const deleted = await prisma.auth_challenges.deleteMany({
-			where: {
-				address,
-				challenge: challengeRecord.challenge,
-				expires_at: { gt: new Date() },
-			},
-		});
+			// Atomically consume the challenge. count === 0 means another concurrent
+			// request already used it (TOCTOU guard).
+			const deleted = await prisma.auth_challenges.deleteMany({
+				where: {
+					address,
+					challenge: challengeRecord.challenge,
+					expires_at: { gt: new Date() },
+				},
+			});
 
-		if (deleted.count === 0) {
-			return res.status(401).json({ error: "Challenge already consumed" });
-		}
+			if (deleted.count === 0) {
+				return res.status(401).json({ error: "Challenge already consumed" });
+			}
+
+			const accessJti = crypto.randomUUID();
+			const accessToken = issueAccessToken(address, accessJti);
+
+			const sessionToken = crypto.randomBytes(48).toString("base64url");
+			const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_SEC * 1000);
+
+			await prisma.sessions.create({
+				data: { token: sessionToken, address, expires_at: expiresAt },
+			});
 
 			res.cookie(ACCESS_TOKEN_COOKIE, accessToken, {
 				...COOKIE_BASE_OPTIONS,
 				maxAge: ACCESS_TOKEN_TTL_SEC * 1000,
 			});
 
-			res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
+			res.cookie(REFRESH_TOKEN_COOKIE, sessionToken, {
 				...COOKIE_BASE_OPTIONS,
 				maxAge: REFRESH_TOKEN_TTL_SEC * 1000,
 			});
 
 			return res.status(200).json({
 				access_token: accessToken,
-				refresh_token: refreshToken,
+				refresh_token: sessionToken,
 				token_type: "Bearer",
 				expires_in: ACCESS_TOKEN_TTL_SEC,
 			});
