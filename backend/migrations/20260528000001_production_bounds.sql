@@ -33,4 +33,3 @@ CREATE INDEX IF NOT EXISTS appeals_status_created_idx
 
 CREATE INDEX IF NOT EXISTS arbiter_votes_appeal_created_idx
     ON arbiter_votes (appeal_id, created_at ASC, id ASC);
-
