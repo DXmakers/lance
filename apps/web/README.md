@@ -16,6 +16,10 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Connecting a Stellar wallet
+
+See the end-user guide at [`docs/user-guide/stellar-wallets.md`](../../docs/user-guide/stellar-wallets.md) for supported wallets (Freighter, Albedo, xBull, …), the signing flow, Testnet vs. Mainnet configuration, and troubleshooting.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

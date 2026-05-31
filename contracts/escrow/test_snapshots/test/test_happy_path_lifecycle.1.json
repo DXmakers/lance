@@ -713,92 +713,10 @@
                     },
                     {
                       "key": {
-                        "symbol": "milestones"
+                        "symbol": "milestone_count"
                       },
                       "val": {
-                        "vec": [
-                          {
-                            "map": [
-                              {
-                                "key": {
-                                  "symbol": "amount"
-                                },
-                                "val": {
-                                  "i128": {
-                                    "hi": 0,
-                                    "lo": 3000
-                                  }
-                                }
-                              },
-                              {
-                                "key": {
-                                  "symbol": "status"
-                                },
-                                "val": {
-                                  "vec": [
-                                    {
-                                      "symbol": "Released"
-                                    }
-                                  ]
-                                }
-                              }
-                            ]
-                          },
-                          {
-                            "map": [
-                              {
-                                "key": {
-                                  "symbol": "amount"
-                                },
-                                "val": {
-                                  "i128": {
-                                    "hi": 0,
-                                    "lo": 3000
-                                  }
-                                }
-                              },
-                              {
-                                "key": {
-                                  "symbol": "status"
-                                },
-                                "val": {
-                                  "vec": [
-                                    {
-                                      "symbol": "Released"
-                                    }
-                                  ]
-                                }
-                              }
-                            ]
-                          },
-                          {
-                            "map": [
-                              {
-                                "key": {
-                                  "symbol": "amount"
-                                },
-                                "val": {
-                                  "i128": {
-                                    "hi": 0,
-                                    "lo": 3000
-                                  }
-                                }
-                              },
-                              {
-                                "key": {
-                                  "symbol": "status"
-                                },
-                                "val": {
-                                  "vec": [
-                                    {
-                                      "symbol": "Released"
-                                    }
-                                  ]
-                                }
-                              }
-                            ]
-                          }
-                        ]
+                        "u32": 3
                       }
                     },
                     {
@@ -849,7 +767,232 @@
             },
             "ext": "v0"
           },
-          150000
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
+            "key": {
+              "vec": [
+                {
+                  "symbol": "Milestone"
+                },
+                {
+                  "u64": 1
+                },
+                {
+                  "u32": 0
+                }
+              ]
+            },
+            "durability": "persistent"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
+                "key": {
+                  "vec": [
+                    {
+                      "symbol": "Milestone"
+                    },
+                    {
+                      "u64": 1
+                    },
+                    {
+                      "u32": 0
+                    }
+                  ]
+                },
+                "durability": "persistent",
+                "val": {
+                  "map": [
+                    {
+                      "key": {
+                        "symbol": "amount"
+                      },
+                      "val": {
+                        "i128": {
+                          "hi": 0,
+                          "lo": 3000
+                        }
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "status"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Released"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "ext": "v0"
+          },
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
+            "key": {
+              "vec": [
+                {
+                  "symbol": "Milestone"
+                },
+                {
+                  "u64": 1
+                },
+                {
+                  "u32": 1
+                }
+              ]
+            },
+            "durability": "persistent"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
+                "key": {
+                  "vec": [
+                    {
+                      "symbol": "Milestone"
+                    },
+                    {
+                      "u64": 1
+                    },
+                    {
+                      "u32": 1
+                    }
+                  ]
+                },
+                "durability": "persistent",
+                "val": {
+                  "map": [
+                    {
+                      "key": {
+                        "symbol": "amount"
+                      },
+                      "val": {
+                        "i128": {
+                          "hi": 0,
+                          "lo": 3000
+                        }
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "status"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Released"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "ext": "v0"
+          },
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
+            "key": {
+              "vec": [
+                {
+                  "symbol": "Milestone"
+                },
+                {
+                  "u64": 1
+                },
+                {
+                  "u32": 2
+                }
+              ]
+            },
+            "durability": "persistent"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
+                "key": {
+                  "vec": [
+                    {
+                      "symbol": "Milestone"
+                    },
+                    {
+                      "u64": 1
+                    },
+                    {
+                      "u32": 2
+                    }
+                  ]
+                },
+                "durability": "persistent",
+                "val": {
+                  "map": [
+                    {
+                      "key": {
+                        "symbol": "amount"
+                      },
+                      "val": {
+                        "i128": {
+                          "hi": 0,
+                          "lo": 3000
+                        }
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "status"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Released"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "ext": "v0"
+          },
+          4095
         ]
       ],
       [
@@ -906,7 +1049,7 @@
             },
             "ext": "v0"
           },
-          150000
+          4095
         ]
       ],
       [
@@ -1258,7 +1401,7 @@
             },
             "ext": "v0"
           },
-          150000
+          4095
         ]
       ]
     ]
@@ -1498,39 +1641,6 @@
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000006",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "string": "escrow"
-              },
-              {
-                "string": "Initialized"
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                },
-                {
-                  "u64": 0
                 }
               ]
             }
@@ -1923,57 +2033,6 @@
       "event": {
         "ext": "v0",
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000006",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "string": "escrow"
-              },
-              {
-                "string": "Deposit"
-              }
-            ],
-            "data": {
-              "map": [
-                {
-                  "key": {
-                    "symbol": "amount"
-                  },
-                  "val": {
-                    "i128": {
-                      "hi": 0,
-                      "lo": 9000
-                    }
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "deposited_at"
-                  },
-                  "val": {
-                    "u64": 0
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "job_id"
-                  },
-                  "val": {
-                    "u64": 1
-                  }
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000006",
         "type_": "diagnostic",
         "body": {
           "v0": {
@@ -2172,45 +2231,6 @@
       "event": {
         "ext": "v0",
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000006",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "string": "escrow"
-              },
-              {
-                "string": "ReleaseMilestone"
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "u64": 1
-                },
-                {
-                  "u32": 0
-                },
-                {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 3000
-                  }
-                },
-                {
-                  "u64": 0
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000006",
         "type_": "diagnostic",
         "body": {
           "v0": {
@@ -2400,45 +2420,6 @@
               }
             ],
             "data": "void"
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000006",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "string": "escrow"
-              },
-              {
-                "string": "ReleaseMilestone"
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "u64": 1
-                },
-                {
-                  "u32": 1
-                },
-                {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 3000
-                  }
-                },
-                {
-                  "u64": 0
-                }
-              ]
-            }
           }
         }
       },
@@ -2646,45 +2627,6 @@
       "event": {
         "ext": "v0",
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000006",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "string": "escrow"
-              },
-              {
-                "string": "ReleaseMilestone"
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "u64": 1
-                },
-                {
-                  "u32": 2
-                },
-                {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 3000
-                  }
-                },
-                {
-                  "u64": 0
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000006",
         "type_": "diagnostic",
         "body": {
           "v0": {
@@ -2779,92 +2721,10 @@
                 },
                 {
                   "key": {
-                    "symbol": "milestones"
+                    "symbol": "milestone_count"
                   },
                   "val": {
-                    "vec": [
-                      {
-                        "map": [
-                          {
-                            "key": {
-                              "symbol": "amount"
-                            },
-                            "val": {
-                              "i128": {
-                                "hi": 0,
-                                "lo": 3000
-                              }
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "status"
-                            },
-                            "val": {
-                              "vec": [
-                                {
-                                  "symbol": "Released"
-                                }
-                              ]
-                            }
-                          }
-                        ]
-                      },
-                      {
-                        "map": [
-                          {
-                            "key": {
-                              "symbol": "amount"
-                            },
-                            "val": {
-                              "i128": {
-                                "hi": 0,
-                                "lo": 3000
-                              }
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "status"
-                            },
-                            "val": {
-                              "vec": [
-                                {
-                                  "symbol": "Released"
-                                }
-                              ]
-                            }
-                          }
-                        ]
-                      },
-                      {
-                        "map": [
-                          {
-                            "key": {
-                              "symbol": "amount"
-                            },
-                            "val": {
-                              "i128": {
-                                "hi": 0,
-                                "lo": 3000
-                              }
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "status"
-                            },
-                            "val": {
-                              "vec": [
-                                {
-                                  "symbol": "Released"
-                                }
-                              ]
-                            }
-                          }
-                        ]
-                      }
-                    ]
+                    "u32": 3
                   }
                 },
                 {

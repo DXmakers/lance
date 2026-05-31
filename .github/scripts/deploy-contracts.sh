@@ -8,8 +8,14 @@ NETWORK="testnet"
 RPC_URL="https://soroban-testnet.stellar.org"
 FRIENDLY_NAME="deployer"
 
-echo "🛠️  Building optimized WASM binaries..."
-cargo build --target wasm32-unknown-unknown --release -p escrow -p reputation -p job_registry
+# Automatically set testnet passphrase if not provided
+if [ -z "$STELLAR_NETWORK_PASSPHRASE" ]; then
+    export STELLAR_NETWORK_PASSPHRASE="Test SDF Network ; September 2015"
+fi
+
+
+echo "🛠️  Building optimized WASM binaries using Stellar CLI..."
+stellar contract build
 
 # Create scripts directory if not exists (redundant for CI but good for local)
 mkdir -p ./.github/scripts
@@ -17,9 +23,11 @@ mkdir -p ./.github/scripts
 # Function to deploy a contract and capture its address
 deploy_contract() {
     local contract_name=$1
-    local wasm_path="./target/wasm32-unknown-unknown/release/${contract_name}.wasm"
+    local wasm_path="./target/wasm32v1-none/release/${contract_name}.wasm"
+
     
-    echo "🚀 Deploying ${contract_name} to ${NETWORK}..."
+    echo "🚀 Deploying ${contract_name} to ${NETWORK}..." >&2
+
     
     # In a real CI, STELLAR_ACCOUNT_SECRET would be provided
     # stellar contract deploy \

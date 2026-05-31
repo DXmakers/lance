@@ -1,0 +1,338 @@
+warning: unused variable: `job_id`
+   --> contracts/escrow/src/lib.rs:375:35
+    |
+375 | ...yout_with_fee(env: &Env, job_id: u64, job: &EscrowJob, amount: i128)...
+    |                             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_job_id`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: variable does not need to be mutable
+    --> contracts/escrow/src/lib.rs:1178:13
+     |
+1178 |         let mut job: EscrowJob = env
+     |             ----^^^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `escrow` (lib) generated 2 warnings (run `cargo fix --lib -p escrow` to apply 1 suggestion)
+warning: `escrow` (lib test) generated 2 warnings (2 duplicates)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.81s
+     Running unittests src/lib.rs (/home/kaycee/Desktop/OS/lance/target/debug/deps/escrow-28de2df4515832fa)
+
+running 60 tests
+test test::test_cancel_brief_in_setup_marks_refunded_without_transfer ... ok
+test test::test_deposit_event_emitted ... ok
+test test::test_add_milestone_over_max_panics - should panic ... ok
+test test::test_add_milestone_over_max_budget_panics - should panic ... ok
+test test::test_deposit_invalid_state_not_setup - should panic ... ok
+test test::test_deposit_no_milestones_panics - should panic ... ok
+test test::test_deposit_negative_panics - should panic ... ok
+test test::test_add_milestone_limit_panics - should panic ... ok
+test test::test_deposit_success_transitions_to_funded ... ok
+test test::test_deposit_with_wrong_total_panics - should panic ... ok
+test test::test_deposit_zero_panics - should panic ... ok
+test test::test_deposit_reentrancy_guard_panics - should panic ... ok
+test test::test_dispute_deadline_set_on_raise ... ok
+test test::test_double_create_job_panics - should panic ... ok
+test test::test_deposit_with_wrong_total_panics_2 - should panic ... FAILED
+test test::test_double_init - should panic ... ok
+test test::test_dispute_event_emission ... ok
+test test::test_double_release_milestone_is_blocked - should panic ... ok
+test test::test_expire_dispute_refunds_client_after_deadline ... ok
+test test::test_dispute_50_50_split ... ok
+test test::test_get_job_not_found_panics - should panic ... ok
+test test::test_instance_config_getters ... ok
+test test::test_get_multisig_config ... ok
+test test::test_open_dispute_on_completed_panics - should panic ... ok
+test test::test_open_dispute_by_rando_panics - should panic ... ok
+test test::test_exhaustive_release_funds_path ... ok
+test test::test_raise_dispute_by_freelancer_locks_funds ... ok
+test test::test_happy_path_lifecycle ... ok
+test test::test_raise_dispute_blocks_release_funds ... ok
+test test::test_raise_dispute_by_client_locks_funds ... ok
+test test::test_reentrant_refund_panics - should panic ... FAILED
+test test::test_raise_dispute_by_third_party_panics - should panic ... ok
+test test::test_raise_dispute_on_completed_job_panics - should panic ... ok
+test test::test_refund ... FAILED
+test test::test_reentrant_release_funds_panics - should panic ... ok
+test test::test_refund_reentrant_lock_panics - should panic ... FAILED
+test test::test_release_funds_invalid_index_panics_2 - should panic ... FAILED
+test test::test_reentrant_release_milestone_panics - should panic ... ok
+test test::test_refund_by_non_client_panics - should panic ... ok
+test test::test_release_funds_reentrant_lock_panics - should panic ... ok
+test test::test_release_funds_invalid_index_panics - should panic ... ok
+test test::test_release_funds_twice_panics - should panic ... ok
+test test::test_release_milestone_no_pending_milestones - should panic ... ok
+test test::test_release_milestone_reentrancy_guard_panics - should panic ... ok
+test test::test_release_milestone_overflow_panics - should panic ... ok
+test test::test_release_milestone_reentrant_lock_panics - should panic ... FAILED
+test test::test_release_milestone_unauthorized_freelancer - should panic ... ok
+test test::test_resolve_after_deadline_fails - should panic ... ok
+test test::test_released_amount_matches_transferred_on_sequential_release ... ok
+test test::test_release_milestone_sequential_success ... ok
+test test::test_resolve_before_deadline_succeeds ... ok
+test test::test_set_agent_judge_updates_packed_config ... ok
+test test::test_resolve_dispute_full_payout_to_freelancer ... ok
+test test::test_token_decimals_stored_on_deposit ... ok
+test test::test_resolve_dispute_panics - should panic ... FAILED
+test test::test_resolve_dispute_full_refund_to_client ... ok
+test test::test_version ... ok
+test test::test_unauthorized_release - should panic ... ok
+test test::test_unauthorized_release_funds_by_freelancer_panics - should panic ... ok
+test test::test_variable_milestone_amounts ... ok
+
+failures:
+
+---- test::test_deposit_with_wrong_total_panics_2 stdout ----
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["Escrow initialized with admin: {} and agent_judge: {}", CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["create_job: id {} client {} freelancer {}", 1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 1000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 2000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 3000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["deposit: job {} amount {}", 1, 6000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["release_funds: job {} amount {}", 1, 3000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["release_funds: job {} amount {}", 1, 1000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["release_funds: job {} amount {}", 1, 2000]
+Writing test snapshot file for test "test::test_deposit_with_wrong_total_panics_2" to "test_snapshots/test/test_deposit_with_wrong_total_panics_2.1.json".
+note: test did not panic as expected at contracts/escrow/src/lib.rs:2628:8
+---- test::test_reentrant_refund_panics stdout ----
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["Escrow initialized with admin: {} and agent_judge: {}", CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["create_job: id {} client {} freelancer {}", 1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 5000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["deposit: job {} amount {}", 1, 5000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["refund: job {} amount {}", 1, 5000]
+Writing test snapshot file for test "test::test_reentrant_refund_panics" to "test_snapshots/test/test_reentrant_refund_panics.1.json".
+note: test did not panic as expected at contracts/escrow/src/lib.rs:3445:8
+---- test::test_refund stdout ----
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["Escrow initialized with admin: {} and agent_judge: {}", CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["create_job: id {} client {} freelancer {}", 1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 2500]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 2500]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["deposit: job {} amount {}", 1, 5000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["refund: job {} amount {}", 1, 5000]
+
+thread 'test::test_refund' panicked at contracts/escrow/src/lib.rs:2110:9:
+assertion `left == right` failed
+  left: Funded
+ right: Refunded
+Writing test snapshot file for test "test::test_refund" to "test_snapshots/test/test_refund.1.json".
+
+---- test::test_refund_reentrant_lock_panics stdout ----
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["Escrow initialized with admin: {} and agent_judge: {}", CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["create_job: id {} client {} freelancer {}", 1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 10000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["deposit: job {} amount {}", 1, 10000]
+
+thread 'test::test_refund_reentrant_lock_panics' panicked at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-env-host-21.2.1/src/host.rs:768:9:
+HostError: Error(Contract, #23)
+
+Event log (newest first):
+   0: [Diagnostic Event] topics:[error, Error(Contract, #23)], data:"escalating error to panic"
+   1: [Diagnostic Event] topics:[error, Error(Contract, #23)], data:["contract call failed", refund, [1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M]]
+   2: [Failed Diagnostic Event (not emitted)] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[error, Error(Contract, #23)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
+   3: [Failed Diagnostic Event (not emitted)] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, refund], data:Error(Contract, #23)
+   4: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), refund], data:[1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M]
+   5: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, deposit], data:Void
+   6: [Contract Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:["escrow", "Deposit"], data:{amount: 10000, deposited_at: 0, job_id: 1}
+   7: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["deposit: job {} amount {}", 1, 10000]
+   8: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, transfer], data:Void
+   9: [Contract Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[transfer, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, "aaa:GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAL7NV"], data:10000
+   10: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_call, Bytes(d63a954726751a876d37290072af1ee723d7d761eec3bf4191849d2116acdc73), transfer], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, 10000]
+   11: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, decimals], data:7
+   12: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_call, Bytes(d63a954726751a876d37290072af1ee723d7d761eec3bf4191849d2116acdc73), decimals], data:Void
+   13: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), deposit], data:[1, 10000]
+   14: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, add_milestone], data:Void
+   15: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 10000]
+   16: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), add_milestone], data:[1, 10000]
+   17: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, create_job], data:Void
+   18: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["create_job: id {} client {} freelancer {}", 1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4]
+   19: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), create_job], data:[1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4, CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG]
+   20: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, initialize], data:Void
+   21: [Contract Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:["escrow", "Initialized"], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4, 0]
+   22: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["Escrow initialized with admin: {} and agent_judge: {}", CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]
+   23: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), initialize], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]
+   24: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, mint], data:Void
+   25: ... 7 events elided ...
+
+Backtrace (newest first):
+   0: <soroban_env_host::host::Host as soroban_env_common::env::EnvBase>::escalate_error_to_panic
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-env-host-21.2.1/src/host.rs:767:31
+   1: soroban_sdk::env::internal::reject_err::{{closure}}
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:52:27
+   2: core::result::Result<T,E>::map_err
+             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/core/src/result.rs:914:27
+   3: soroban_sdk::env::internal::reject_err
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:52:11
+   4: <soroban_sdk::env::Env as soroban_env_common::env::Env>::call
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:1667:13
+   5: soroban_sdk::env::Env::invoke_contract
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:379:18
+   6: escrow::EscrowContractClient::refund
+             at src/lib.rs:335:1
+   7: escrow::test::test_refund_reentrant_lock_panics
+             at src/lib.rs:2621:12
+   8: escrow::test::test_refund_reentrant_lock_panics::{{closure}}
+             at src/lib.rs:2600:43
+   9: core::ops::function::FnOnce::call_once
+             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/core/src/ops/function.rs:250:5
+
+
+Writing test snapshot file for test "test::test_refund_reentrant_lock_panics" to "test_snapshots/test/test_refund_reentrant_lock_panics.1.json".
+note: panic did not contain expected string
+      panic message: "HostError: Error(Contract, #23)\n\nEvent log (newest first):\n   0: [Diagnostic Event] topics:[error, Error(Contract, #23)], data:\"escalating error to panic\"\n   1: [Diagnostic Event] topics:[error, Error(Contract, #23)], data:[\"contract call failed\", refund, [1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M]]\n   2: [Failed Diagnostic Event (not emitted)] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[error, Error(Contract, #23)], data:\"escalating Ok(ScErrorType::Contract) frame-exit to Err\"\n   3: [Failed Diagnostic Event (not emitted)] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, refund], data:Error(Contract, #23)\n   4: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), refund], data:[1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M]\n   5: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, deposit], data:Void\n   6: [Contract Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[\"escrow\", \"Deposit\"], data:{amount: 10000, deposited_at: 0, job_id: 1}\n   7: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:[\"deposit: job {} amount {}\", 1, 10000]\n   8: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, transfer], data:Void\n   9: [Contract Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[transfer, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, \"aaa:GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAL7NV\"], data:10000\n   10: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_call, Bytes(d63a954726751a876d37290072af1ee723d7d761eec3bf4191849d2116acdc73), transfer], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, 10000]\n   11: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, decimals], data:7\n   12: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_call, Bytes(d63a954726751a876d37290072af1ee723d7d761eec3bf4191849d2116acdc73), decimals], data:Void\n   13: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), deposit], data:[1, 10000]\n   14: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, add_milestone], data:Void\n   15: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:[\"add_milestone: job {} amount {}\", 1, 10000]\n   16: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), add_milestone], data:[1, 10000]\n   17: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, create_job], data:Void\n   18: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:[\"create_job: id {} client {} freelancer {}\", 1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4]\n   19: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), create_job], data:[1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4, CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG]\n   20: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, initialize], data:Void\n   21: [Contract Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[\"escrow\", \"Initialized\"], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4, 0]\n   22: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:[\"Escrow initialized with admin: {} and agent_judge: {}\", CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]\n   23: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), initialize], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]\n   24: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, mint], data:Void\n   25: ... 7 events elided ...\n\nBacktrace (newest first):\n   0: <soroban_env_host::host::Host as soroban_env_common::env::EnvBase>::escalate_error_to_panic\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-env-host-21.2.1/src/host.rs:767:31\n   1: soroban_sdk::env::internal::reject_err::{{closure}}\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:52:27\n   2: core::result::Result<T,E>::map_err\n             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/core/src/result.rs:914:27\n   3: soroban_sdk::env::internal::reject_err\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:52:11\n   4: <soroban_sdk::env::Env as soroban_env_common::env::Env>::call\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:1667:13\n   5: soroban_sdk::env::Env::invoke_contract\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:379:18\n   6: escrow::EscrowContractClient::refund\n             at src/lib.rs:335:1\n   7: escrow::test::test_refund_reentrant_lock_panics\n             at src/lib.rs:2621:12\n   8: escrow::test::test_refund_reentrant_lock_panics::{{closure}}\n             at src/lib.rs:2600:43\n   9: core::ops::function::FnOnce::call_once\n             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/core/src/ops/function.rs:250:5\n\n"
+ expected substring: "Error(Contract, #11)"
+---- test::test_release_funds_invalid_index_panics_2 stdout ----
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["Escrow initialized with admin: {} and agent_judge: {}", CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["create_job: id {} client {} freelancer {}", 1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 5000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["deposit: job {} amount {}", 1, 5000]
+
+thread 'test::test_release_funds_invalid_index_panics_2' panicked at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-env-host-21.2.1/src/host.rs:768:9:
+HostError: Error(Contract, #6)
+
+Event log (newest first):
+   0: [Diagnostic Event] topics:[error, Error(Contract, #6)], data:"escalating error to panic"
+   1: [Diagnostic Event] topics:[error, Error(Contract, #6)], data:["contract call failed", resolve_dispute, [1, 2500, 2500]]
+   2: [Failed Diagnostic Event (not emitted)] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[error, Error(Contract, #6)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
+   3: [Failed Diagnostic Event (not emitted)] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, resolve_dispute], data:Error(Contract, #6)
+   4: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), resolve_dispute], data:[1, 2500, 2500]
+   5: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, deposit], data:Void
+   6: [Contract Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:["escrow", "Deposit"], data:{amount: 5000, deposited_at: 0, job_id: 1}
+   7: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["deposit: job {} amount {}", 1, 5000]
+   8: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, transfer], data:Void
+   9: [Contract Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[transfer, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, "aaa:GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAL7NV"], data:5000
+   10: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_call, Bytes(d63a954726751a876d37290072af1ee723d7d761eec3bf4191849d2116acdc73), transfer], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, 5000]
+   11: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, decimals], data:7
+   12: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_call, Bytes(d63a954726751a876d37290072af1ee723d7d761eec3bf4191849d2116acdc73), decimals], data:Void
+   13: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), deposit], data:[1, 5000]
+   14: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, add_milestone], data:Void
+   15: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 5000]
+   16: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), add_milestone], data:[1, 5000]
+   17: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, create_job], data:Void
+   18: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["create_job: id {} client {} freelancer {}", 1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4]
+   19: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), create_job], data:[1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4, CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG]
+   20: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, initialize], data:Void
+   21: [Contract Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:["escrow", "Initialized"], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4, 0]
+   22: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["Escrow initialized with admin: {} and agent_judge: {}", CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]
+   23: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), initialize], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]
+   24: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, mint], data:Void
+   25: ... 7 events elided ...
+
+Backtrace (newest first):
+   0: <soroban_env_host::host::Host as soroban_env_common::env::EnvBase>::escalate_error_to_panic
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-env-host-21.2.1/src/host.rs:767:31
+   1: soroban_sdk::env::internal::reject_err::{{closure}}
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:52:27
+   2: core::result::Result<T,E>::map_err
+             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/core/src/result.rs:914:27
+   3: soroban_sdk::env::internal::reject_err
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:52:11
+   4: <soroban_sdk::env::Env as soroban_env_common::env::Env>::call
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:1667:13
+   5: soroban_sdk::env::Env::invoke_contract
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:379:18
+   6: escrow::EscrowContractClient::resolve_dispute
+             at src/lib.rs:335:1
+   7: escrow::test::test_release_funds_invalid_index_panics_2
+             at src/lib.rs:3118:12
+   8: escrow::test::test_release_funds_invalid_index_panics_2::{{closure}}
+             at src/lib.rs:3097:51
+   9: core::ops::function::FnOnce::call_once
+             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/core/src/ops/function.rs:250:5
+
+
+Writing test snapshot file for test "test::test_release_funds_invalid_index_panics_2" to "test_snapshots/test/test_release_funds_invalid_index_panics_2.1.json".
+note: panic did not contain expected string
+      panic message: "HostError: Error(Contract, #6)\n\nEvent log (newest first):\n   0: [Diagnostic Event] topics:[error, Error(Contract, #6)], data:\"escalating error to panic\"\n   1: [Diagnostic Event] topics:[error, Error(Contract, #6)], data:[\"contract call failed\", resolve_dispute, [1, 2500, 2500]]\n   2: [Failed Diagnostic Event (not emitted)] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[error, Error(Contract, #6)], data:\"escalating Ok(ScErrorType::Contract) frame-exit to Err\"\n   3: [Failed Diagnostic Event (not emitted)] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, resolve_dispute], data:Error(Contract, #6)\n   4: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), resolve_dispute], data:[1, 2500, 2500]\n   5: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, deposit], data:Void\n   6: [Contract Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[\"escrow\", \"Deposit\"], data:{amount: 5000, deposited_at: 0, job_id: 1}\n   7: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:[\"deposit: job {} amount {}\", 1, 5000]\n   8: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, transfer], data:Void\n   9: [Contract Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[transfer, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, \"aaa:GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAL7NV\"], data:5000\n   10: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_call, Bytes(d63a954726751a876d37290072af1ee723d7d761eec3bf4191849d2116acdc73), transfer], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, 5000]\n   11: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, decimals], data:7\n   12: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_call, Bytes(d63a954726751a876d37290072af1ee723d7d761eec3bf4191849d2116acdc73), decimals], data:Void\n   13: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), deposit], data:[1, 5000]\n   14: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, add_milestone], data:Void\n   15: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:[\"add_milestone: job {} amount {}\", 1, 5000]\n   16: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), add_milestone], data:[1, 5000]\n   17: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, create_job], data:Void\n   18: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:[\"create_job: id {} client {} freelancer {}\", 1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4]\n   19: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), create_job], data:[1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4, CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG]\n   20: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, initialize], data:Void\n   21: [Contract Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[\"escrow\", \"Initialized\"], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4, 0]\n   22: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:[\"Escrow initialized with admin: {} and agent_judge: {}\", CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]\n   23: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), initialize], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]\n   24: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, mint], data:Void\n   25: ... 7 events elided ...\n\nBacktrace (newest first):\n   0: <soroban_env_host::host::Host as soroban_env_common::env::EnvBase>::escalate_error_to_panic\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-env-host-21.2.1/src/host.rs:767:31\n   1: soroban_sdk::env::internal::reject_err::{{closure}}\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:52:27\n   2: core::result::Result<T,E>::map_err\n             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/core/src/result.rs:914:27\n   3: soroban_sdk::env::internal::reject_err\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:52:11\n   4: <soroban_sdk::env::Env as soroban_env_common::env::Env>::call\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:1667:13\n   5: soroban_sdk::env::Env::invoke_contract\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:379:18\n   6: escrow::EscrowContractClient::resolve_dispute\n             at src/lib.rs:335:1\n   7: escrow::test::test_release_funds_invalid_index_panics_2\n             at src/lib.rs:3118:12\n   8: escrow::test::test_release_funds_invalid_index_panics_2::{{closure}}\n             at src/lib.rs:3097:51\n   9: core::ops::function::FnOnce::call_once\n             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/core/src/ops/function.rs:250:5\n\n"
+ expected substring: "invalid milestone index"
+---- test::test_release_milestone_reentrant_lock_panics stdout ----
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["Escrow initialized with admin: {} and agent_judge: {}", CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["create_job: id {} client {} freelancer {}", 1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 10000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["deposit: job {} amount {}", 1, 10000]
+
+thread 'test::test_release_milestone_reentrant_lock_panics' panicked at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-env-host-21.2.1/src/host.rs:768:9:
+HostError: Error(Contract, #23)
+
+Event log (newest first):
+   0: [Diagnostic Event] topics:[error, Error(Contract, #23)], data:"escalating error to panic"
+   1: [Diagnostic Event] topics:[error, Error(Contract, #23)], data:["contract call failed", release_milestone, [1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M]]
+   2: [Failed Diagnostic Event (not emitted)] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[error, Error(Contract, #23)], data:"escalating Ok(ScErrorType::Contract) frame-exit to Err"
+   3: [Failed Diagnostic Event (not emitted)] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, release_milestone], data:Error(Contract, #23)
+   4: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), release_milestone], data:[1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M]
+   5: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, deposit], data:Void
+   6: [Contract Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:["escrow", "Deposit"], data:{amount: 10000, deposited_at: 0, job_id: 1}
+   7: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["deposit: job {} amount {}", 1, 10000]
+   8: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, transfer], data:Void
+   9: [Contract Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[transfer, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, "aaa:GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAL7NV"], data:10000
+   10: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_call, Bytes(d63a954726751a876d37290072af1ee723d7d761eec3bf4191849d2116acdc73), transfer], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, 10000]
+   11: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, decimals], data:7
+   12: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_call, Bytes(d63a954726751a876d37290072af1ee723d7d761eec3bf4191849d2116acdc73), decimals], data:Void
+   13: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), deposit], data:[1, 10000]
+   14: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, add_milestone], data:Void
+   15: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 10000]
+   16: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), add_milestone], data:[1, 10000]
+   17: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, create_job], data:Void
+   18: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["create_job: id {} client {} freelancer {}", 1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4]
+   19: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), create_job], data:[1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4, CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG]
+   20: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, initialize], data:Void
+   21: [Contract Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:["escrow", "Initialized"], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4, 0]
+   22: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["Escrow initialized with admin: {} and agent_judge: {}", CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]
+   23: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), initialize], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]
+   24: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, mint], data:Void
+   25: ... 7 events elided ...
+
+Backtrace (newest first):
+   0: <soroban_env_host::host::Host as soroban_env_common::env::EnvBase>::escalate_error_to_panic
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-env-host-21.2.1/src/host.rs:767:31
+   1: soroban_sdk::env::internal::reject_err::{{closure}}
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:52:27
+   2: core::result::Result<T,E>::map_err
+             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/core/src/result.rs:914:27
+   3: soroban_sdk::env::internal::reject_err
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:52:11
+   4: <soroban_sdk::env::Env as soroban_env_common::env::Env>::call
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:1667:13
+   5: soroban_sdk::env::Env::invoke_contract
+             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:379:18
+   6: escrow::EscrowContractClient::release_milestone
+             at src/lib.rs:335:1
+   7: escrow::test::test_release_milestone_reentrant_lock_panics
+             at src/lib.rs:2958:12
+   8: escrow::test::test_release_milestone_reentrant_lock_panics::{{closure}}
+             at src/lib.rs:2937:54
+   9: core::ops::function::FnOnce::call_once
+             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/core/src/ops/function.rs:250:5
+
+
+Writing test snapshot file for test "test::test_release_milestone_reentrant_lock_panics" to "test_snapshots/test/test_release_milestone_reentrant_lock_panics.1.json".
+note: panic did not contain expected string
+      panic message: "HostError: Error(Contract, #23)\n\nEvent log (newest first):\n   0: [Diagnostic Event] topics:[error, Error(Contract, #23)], data:\"escalating error to panic\"\n   1: [Diagnostic Event] topics:[error, Error(Contract, #23)], data:[\"contract call failed\", release_milestone, [1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M]]\n   2: [Failed Diagnostic Event (not emitted)] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[error, Error(Contract, #23)], data:\"escalating Ok(ScErrorType::Contract) frame-exit to Err\"\n   3: [Failed Diagnostic Event (not emitted)] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, release_milestone], data:Error(Contract, #23)\n   4: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), release_milestone], data:[1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M]\n   5: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, deposit], data:Void\n   6: [Contract Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[\"escrow\", \"Deposit\"], data:{amount: 10000, deposited_at: 0, job_id: 1}\n   7: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:[\"deposit: job {} amount {}\", 1, 10000]\n   8: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, transfer], data:Void\n   9: [Contract Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[transfer, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, \"aaa:GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAL7NV\"], data:10000\n   10: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_call, Bytes(d63a954726751a876d37290072af1ee723d7d761eec3bf4191849d2116acdc73), transfer], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, 10000]\n   11: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, decimals], data:7\n   12: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_call, Bytes(d63a954726751a876d37290072af1ee723d7d761eec3bf4191849d2116acdc73), decimals], data:Void\n   13: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), deposit], data:[1, 10000]\n   14: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, add_milestone], data:Void\n   15: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:[\"add_milestone: job {} amount {}\", 1, 10000]\n   16: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), add_milestone], data:[1, 10000]\n   17: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, create_job], data:Void\n   18: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:[\"create_job: id {} client {} freelancer {}\", 1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4]\n   19: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), create_job], data:[1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4, CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG]\n   20: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[fn_return, initialize], data:Void\n   21: [Contract Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[\"escrow\", \"Initialized\"], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4, 0]\n   22: [Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:[\"Escrow initialized with admin: {} and agent_judge: {}\", CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]\n   23: [Diagnostic Event] topics:[fn_call, Bytes(0000000000000000000000000000000000000000000000000000000000000006), initialize], data:[CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]\n   24: [Diagnostic Event] contract:CDLDVFKHEZ2RVB3NG4UQA4VPD3TSHV6XMHXMHP2BSGCJ2IIWVTOHGDSG, topics:[fn_return, mint], data:Void\n   25: ... 7 events elided ...\n\nBacktrace (newest first):\n   0: <soroban_env_host::host::Host as soroban_env_common::env::EnvBase>::escalate_error_to_panic\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-env-host-21.2.1/src/host.rs:767:31\n   1: soroban_sdk::env::internal::reject_err::{{closure}}\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:52:27\n   2: core::result::Result<T,E>::map_err\n             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/core/src/result.rs:914:27\n   3: soroban_sdk::env::internal::reject_err\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:52:11\n   4: <soroban_sdk::env::Env as soroban_env_common::env::Env>::call\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:1667:13\n   5: soroban_sdk::env::Env::invoke_contract\n             at /home/kaycee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/soroban-sdk-21.7.7/src/env.rs:379:18\n   6: escrow::EscrowContractClient::release_milestone\n             at src/lib.rs:335:1\n   7: escrow::test::test_release_milestone_reentrant_lock_panics\n             at src/lib.rs:2958:12\n   8: escrow::test::test_release_milestone_reentrant_lock_panics::{{closure}}\n             at src/lib.rs:2937:54\n   9: core::ops::function::FnOnce::call_once\n             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/core/src/ops/function.rs:250:5\n\n"
+ expected substring: "Error(Contract, #11)"
+---- test::test_resolve_dispute_panics stdout ----
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["Escrow initialized with admin: {} and agent_judge: {}", CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["create_job: id {} client {} freelancer {}", 1, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M, CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 3000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 3000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["add_milestone: job {} amount {}", 1, 4000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["deposit: job {} amount {}", 1, 10000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["release_milestone: job {} amount {}", 1, 3000]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["raise_dispute: job {}", 1]
+[Diagnostic Event] contract:CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4, topics:[log], data:["resolve_dispute: job {} payee {} payer {}", 1, 4900, 2100]
+Writing test snapshot file for test "test::test_resolve_dispute_panics" to "test_snapshots/test/test_resolve_dispute_panics.1.json".
+note: test did not panic as expected at contracts/escrow/src/lib.rs:2963:8
+
+failures:
+    test::test_deposit_with_wrong_total_panics_2
+    test::test_reentrant_refund_panics
+    test::test_refund
+    test::test_refund_reentrant_lock_panics
+    test::test_release_funds_invalid_index_panics_2
+    test::test_release_milestone_reentrant_lock_panics
+    test::test_resolve_dispute_panics
+
+test result: FAILED. 53 passed; 7 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.50s
+
+error: test failed, to rerun pass `--lib`

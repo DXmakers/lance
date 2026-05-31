@@ -76,7 +76,7 @@ const DASHBOARD_LINKS: Record<string, NavItemProps[]> = {
     { href: "/", icon: <LayoutDashboard className="h-4 w-4" />, label: "Overview" },
     { href: "/jobs", icon: <SearchIcon className="h-4 w-4" />, label: "Find Work", badge: "24" },
     { href: "/jobs/1", icon: <FileText className="h-4 w-4" />, label: "Active Contracts" },
-    { href: "/jobs/1/fund", icon: <TrendingUp className="h-4 w-4" />, label: "Milestones" },
+    { href: "/milestones", icon: <TrendingUp className="h-4 w-4" />, label: "Milestones" },
     { href: "/disputes/1", icon: <MessageSquare className="h-4 w-4" />, label: "Disputes" },
     { href: "/profile/GD...CLIENT", icon: <Settings className="h-4 w-4" />, label: "Profile Settings" },
   ],

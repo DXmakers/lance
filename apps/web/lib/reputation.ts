@@ -28,6 +28,7 @@ export interface ReputationMetrics {
   reviews: number;
   starRating: number;
   averageStars: number;
+  badgeLevel?: number;
 }
 
 export interface ReputationViewMetrics {
@@ -42,6 +43,7 @@ interface ContractReputationScore {
   total_jobs: number | string | bigint;
   total_points: number | string | bigint;
   reviews: number | string | bigint;
+  badge_level?: number | string | bigint;
 }
 
 interface ContractReputationView {
@@ -66,6 +68,7 @@ function fallbackMetrics(): ReputationMetrics {
     reviews: 0,
     starRating: toStarRating(scoreBps),
     averageStars: 2.5,
+    badgeLevel: 0,
   };
 }
 
@@ -82,6 +85,7 @@ function metricsFromScore(score: ContractReputationScore): ReputationMetrics {
   const totalPoints = normalizeNumber(score.total_points);
   const reviews = normalizeNumber(score.reviews);
   const averageStars = reviews > 0 ? totalPoints / reviews : toStarRating(scoreBps);
+  const badgeLevel = normalizeNumber(score.badge_level);
 
   return {
     scoreBps,
@@ -90,6 +94,7 @@ function metricsFromScore(score: ContractReputationScore): ReputationMetrics {
     reviews,
     starRating: toStarRating(scoreBps),
     averageStars,
+    badgeLevel,
   };
 }
 

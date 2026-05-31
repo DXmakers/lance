@@ -148,10 +148,10 @@
                     },
                     {
                       "key": {
-                        "symbol": "milestones"
+                        "symbol": "milestone_count"
                       },
                       "val": {
-                        "vec": []
+                        "u32": 0
                       }
                     },
                     {
@@ -202,7 +202,7 @@
             },
             "ext": "v0"
           },
-          150000
+          4095
         ]
       ],
       [
@@ -375,7 +375,7 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'job already exists' from contract function 'Symbol(obj#45)'"
+                  "string": "caught panic 'job already exists' from contract function 'Symbol(obj#39)'"
                 },
                 {
                   "u64": 1

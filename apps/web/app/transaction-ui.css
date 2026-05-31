@@ -1,0 +1,367 @@
+/**
+ * Transaction UI Utilities
+ * 
+ * Specialized CSS classes for blockchain transaction interfaces
+ * Optimized for technical data display with monospace typography
+ */
+
+/* ─── Monospace Technical Sections ──────────────────────────────────────── */
+
+.tx-hash {
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  word-break: break-all;
+  color: rgb(30 41 59); /* slate-800 */
+}
+
+.tx-xdr {
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+  font-size: 0.6875rem; /* 11px */
+  line-height: 1.6;
+  letter-spacing: -0.02em;
+  word-break: break-all;
+  white-space: pre-wrap;
+  color: rgb(203 213 225); /* slate-300 */
+}
+
+.tx-metric {
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: rgb(15 23 42); /* slate-900 */
+}
+
+.tx-error-code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: rgb(127 29 29); /* red-900 */
+}
+
+/* ─── Pulsing Ring Animation ────────────────────────────────────────────── */
+
+@keyframes tx-pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.tx-pulse-ring {
+  animation: tx-pulse-ring 2s ease-in-out infinite;
+}
+
+/* ─── Breathing Effect ──────────────────────────────────────────────────── */
+
+@keyframes tx-breathe {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+}
+
+.tx-breathe {
+  animation: tx-breathe 3s ease-in-out infinite;
+}
+
+/* ─── Progress Bar Shimmer ──────────────────────────────────────────────── */
+
+@keyframes tx-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.tx-progress-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(251 191 36) 0%,
+    rgb(252 211 77) 50%,
+    rgb(251 191 36) 100%
+  );
+  background-size: 200% 100%;
+  animation: tx-shimmer 2s linear infinite;
+}
+
+/* ─── Status Badge Variants ─────────────────────────────────────────────── */
+
+.tx-badge-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: rgb(209 250 229); /* emerald-100 */
+  color: rgb(6 78 59); /* emerald-900 */
+  border: 1px solid rgb(167 243 208); /* emerald-200 */
+}
+
+.tx-badge-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: rgb(254 243 199); /* amber-100 */
+  color: rgb(120 53 15); /* amber-900 */
+  border: 1px solid rgb(253 230 138); /* amber-200 */
+}
+
+.tx-badge-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: rgb(254 226 226); /* red-100 */
+  color: rgb(127 29 29); /* red-900 */
+  border: 1px solid rgb(254 202 202); /* red-200 */
+}
+
+/* ─── Technical Panel ───────────────────────────────────────────────────── */
+
+.tx-technical-panel {
+  border-radius: 0.75rem;
+  border: 1px solid rgb(15 23 42); /* slate-950 */
+  background-color: rgb(15 23 42); /* slate-900 */
+  padding: 1.25rem;
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.3),
+    0 4px 6px -2px rgba(0, 0, 0, 0.2);
+}
+
+.tx-technical-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgb(51 65 85); /* slate-700 */
+}
+
+.tx-technical-panel-title {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(148 163 184); /* slate-400 */
+}
+
+.tx-technical-panel-content {
+  max-height: 12rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(71 85 105) rgb(30 41 59); /* slate-600 slate-800 */
+}
+
+.tx-technical-panel-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tx-technical-panel-content::-webkit-scrollbar-track {
+  background: rgb(30 41 59); /* slate-800 */
+  border-radius: 4px;
+}
+
+.tx-technical-panel-content::-webkit-scrollbar-thumb {
+  background: rgb(71 85 105); /* slate-600 */
+  border-radius: 4px;
+}
+
+.tx-technical-panel-content::-webkit-scrollbar-thumb:hover {
+  background: rgb(100 116 139); /* slate-500 */
+}
+
+/* ─── Copy Button States ────────────────────────────────────────────────── */
+
+.tx-copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  background-color: transparent;
+  border: none;
+}
+
+.tx-copy-button:hover {
+  background-color: rgb(241 245 249); /* slate-100 */
+}
+
+.tx-copy-button:active {
+  transform: scale(0.95);
+}
+
+.tx-copy-button-success {
+  color: rgb(22 163 74); /* green-600 */
+}
+
+.tx-copy-button-default {
+  color: rgb(100 116 139); /* slate-500 */
+}
+
+/* ─── Explorer Link ─────────────────────────────────────────────────────── */
+
+.tx-explorer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(59 130 246); /* blue-500 */
+  background-color: rgb(239 246 255); /* blue-50 */
+  border: 1px solid rgb(191 219 254); /* blue-200 */
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.tx-explorer-link:hover {
+  background-color: rgb(219 234 254); /* blue-100 */
+  border-color: rgb(147 197 253); /* blue-300 */
+  color: rgb(37 99 235); /* blue-600 */
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);
+}
+
+.tx-explorer-link:active {
+  transform: translateY(0);
+}
+
+/* ─── Simulation Metrics Grid ───────────────────────────────────────────── */
+
+.tx-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.tx-metric-card {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background-color: rgb(255 255 255);
+  border: 1px solid rgb(226 232 240); /* slate-200 */
+  transition: all 0.2s ease;
+}
+
+.tx-metric-card:hover {
+  border-color: rgb(203 213 225); /* slate-300 */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.tx-metric-label {
+  display: block;
+  font-size: 0.75rem;
+  color: rgb(100 116 139); /* slate-500 */
+  margin-bottom: 0.25rem;
+}
+
+.tx-metric-value {
+  display: block;
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(15 23 42); /* slate-900 */
+}
+
+/* ─── Responsive Adjustments ────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .tx-hash {
+    font-size: 0.625rem;
+  }
+
+  .tx-xdr {
+    font-size: 0.625rem;
+  }
+
+  .tx-metric {
+    font-size: 0.75rem;
+  }
+
+  .tx-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Dark Mode Support ─────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .tx-hash {
+    color: rgb(226 232 240); /* slate-200 */
+  }
+
+  .tx-metric {
+    color: rgb(248 250 252); /* slate-50 */
+  }
+
+  .tx-metric-card {
+    background-color: rgb(30 41 59); /* slate-800 */
+    border-color: rgb(51 65 85); /* slate-700 */
+  }
+
+  .tx-metric-card:hover {
+    border-color: rgb(71 85 105); /* slate-600 */
+  }
+
+  .tx-metric-label {
+    color: rgb(148 163 184); /* slate-400 */
+  }
+
+  .tx-metric-value {
+    color: rgb(241 245 249); /* slate-100 */
+  }
+
+  .tx-copy-button:hover {
+    background-color: rgb(51 65 85); /* slate-700 */
+  }
+}
+
+/* ─── Print Styles ──────────────────────────────────────────────────────── */
+
+@media print {
+  .tx-copy-button,
+  .tx-explorer-link {
+    display: none;
+  }
+
+  .tx-technical-panel {
+    border: 1px solid #000;
+    background-color: #fff;
+    color: #000;
+  }
+
+  .tx-xdr {
+    color: #000;
+  }
+}

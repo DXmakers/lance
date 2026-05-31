@@ -1,16 +1,30 @@
-import { jwtMemory } from "@/lib/store/use-auth-store";
-
 const API =
   process.env.NEXT_PUBLIC_API_URL ??
   (process.env.NEXT_PUBLIC_E2E === "true" ? "" : "http://localhost:3001");
+import { useAuthStore } from "./store/use-auth-store";
+import type { ReputationMetrics } from "./reputation";
+
+// Helper to get CSRF token from cookies
+function getCsrfToken(): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; lance-csrf-token=`);
+  if (parts.length === 2) {
+    return parts.pop()?.split(";").shift();
+  }
+  return undefined;
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = jwtMemory.get();
+  // Skip CSRF for GET/HEAD/OPTIONS
+  const isSafeMethod = ["GET", "HEAD", "OPTIONS"].includes(init?.method || "GET");
+  const csrfToken = !isSafeMethod ? getCsrfToken() : undefined;
 
   const res = await fetch(`${API}/api${path}`, {
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
       ...(init?.headers ?? {}),
     },
     ...init,
@@ -34,17 +48,40 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   auth: {
+    getCsrf: () =>
+      request<{ csrfToken: string }>(`/v1/auth/csrf`, {
+        method: "GET",
+      }),
     getChallenge: (address: string) =>
-      request<{ token: string }>(`/v1/auth/challenge`, {
+      request<AuthChallengeResponse>(`/v1/auth/challenge`, {
         method: "POST",
         body: JSON.stringify({ address }),
       }),
+    verify: (address: string, signature: string) =>
+      request<AuthVerifyResponse>(`/v1/auth/verify`, {
+        method: "POST",
+        body: JSON.stringify({ address, signature }),
+      }),
   },
   jobs: {
-    list: () => request<Job[]>("/v1/jobs"),
+    list: async (params?: { query?: string; tag?: string; sort?: string; status?: string }) => {
+      const qs = new URLSearchParams();
+      if (params?.query) qs.set("query", params.query);
+      if (params?.tag) qs.set("tag", params.tag);
+      if (params?.sort) qs.set("sort", params.sort);
+      if (params?.status) qs.set("status", params.status);
+      const path = `/v1/jobs${qs.toString() ? `?${qs.toString()}` : ""}`;
+      const response = await request<Job[] | JobsListResponse>(path);
+      return Array.isArray(response) ? response : response.items;
+    },
     get: (id: string) => request<Job>(`/v1/jobs/${id}`),
     create: (body: CreateJobBody) =>
       request<Job>("/v1/jobs", { method: "POST", body: JSON.stringify(body) }),
+    storeMetadata: (jobId: string, body: JobMetadata) =>
+      request<MetadataUploadResponse>(`/v1/jobs/${jobId}/metadata`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     markFunded: (id: string, body: MarkFundedBody) =>
       request<Job>(`/v1/jobs/${id}/fund`, {
         method: "POST",
@@ -55,6 +92,8 @@ export const api = {
       request<Milestone>(`/v1/jobs/${id}/milestones/${milestoneId}/release`, {
         method: "POST",
       }),
+    milestoneEvents: (id: string, milestoneId: string) =>
+      request<MilestoneEvent[]>(`/v1/jobs/${id}/milestones/${milestoneId}/events`),
     deliverables: {
       list: (jobId: string) => request<Deliverable[]>(`/v1/jobs/${jobId}/deliverables`),
       submit: (jobId: string, body: SubmitDeliverableBody) =>
@@ -71,6 +110,17 @@ export const api = {
           body: JSON.stringify(body),
         }),
     },
+    save: (jobId: string, walletAddress: string, body: { note?: string }) =>
+      request<SavedJob>(`/v1/jobs/${jobId}/save`, {
+        method: "POST",
+        headers: { "x-wallet-address": walletAddress },
+        body: JSON.stringify(body),
+      }),
+    unsave: (jobId: string, walletAddress: string) =>
+      request<void>(`/v1/jobs/${jobId}/save`, {
+        method: "DELETE",
+        headers: { "x-wallet-address": walletAddress },
+      }),
   },
   bids: {
     list: (jobId: string) => request<Bid[]>(`/v1/jobs/${jobId}/bids`),
@@ -116,14 +166,50 @@ export const api = {
   users: {
     getProfile: (address: string) =>
       request<PublicProfile>(`/v1/users/${address}/profile`),
-    updateProfile: (address: string, walletAddress: string, body: UpdateProfileBody) =>
+    updateProfile: (address: string, body: UpdateProfileBody) =>
       request<PublicProfile>(`/v1/users/${address}/profile`, {
         method: "PUT",
-        headers: {
-          "x-wallet-address": walletAddress,
-        },
         body: JSON.stringify(body),
       }),
+    savedJobs: (address: string) =>
+      request<SavedJob[]>(`/v1/users/${address}/saved-jobs`),
+  },
+};
+
+export const apiAdmin = {
+  indexer: {
+    restart: () =>
+      request<{ ok: boolean; message: string }>("/v1/admin/indexer/restart", {
+        method: "POST",
+      }),
+    rescan: (fromLedger?: number) =>
+      request<{ ok: boolean; rescan_from_ledger: number }>("/v1/admin/indexer/rescan", {
+        method: "POST",
+        body: JSON.stringify({ from_ledger: fromLedger }),
+      }),
+  },
+};
+
+export const apiActivity = {
+  list: ({
+    jobId,
+    userAddress,
+    limit,
+    offset,
+  }: {
+    jobId?: string;
+    userAddress?: string;
+    limit?: number;
+    offset?: number;
+  } = {}) => {
+    const params = new URLSearchParams();
+    if (jobId) params.set("job_id", jobId);
+    if (userAddress) params.set("user_address", userAddress);
+    if (limit !== undefined) params.set("limit", String(limit));
+    if (offset !== undefined) params.set("offset", String(offset));
+
+    const query = params.toString();
+    return request<ActivityLog[]>(`/v1/activity/logs${query ? `?${query}` : ""}`);
   },
 };
 
@@ -138,8 +224,18 @@ export interface Job {
   status: string;
   metadata_hash?: string;
   on_chain_job_id?: number;
+  estimated_completion_date?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface JobsListResponse {
+  items: Job[];
+  next_cursor: {
+    created_at: string;
+    id: string;
+  } | null;
+  limit: number;
 }
 
 export interface CreateJobBody {
@@ -148,6 +244,38 @@ export interface CreateJobBody {
   budget_usdc: number;
   milestones: number;
   client_address: string;
+  memo?: string;
+  estimated_completion_date?: string;
+}
+
+export interface JobMetadata {
+  job_id: string;
+  title: string;
+  description: string;
+  budget_usdc: number;
+  milestones: number;
+  client_address: string;
+  tags: string[];
+  skills_required: string[];
+  estimated_duration_days?: number | null;
+}
+
+export interface AuthChallengeResponse {
+  challenge: string;
+  expires_at: string;
+}
+
+export interface AuthVerifyResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
+export interface MetadataUploadResponse {
+  cid: string;
+  metadata_hash: string;
+  job_id: string;
 }
 
 export interface MarkFundedBody {
@@ -161,6 +289,7 @@ export interface Bid {
   proposal: string;
   status: string;
   created_at: string;
+  freelancerReputation?: ReputationMetrics;
 }
 
 export interface CreateBidBody {
@@ -178,9 +307,28 @@ export interface Milestone {
   index: number;
   title: string;
   amount_usdc: number;
+  /** "pending" | "released" */
   status: string;
   tx_hash?: string;
   released_at?: string;
+  /** Optional human-readable description of what this milestone covers. */
+  description?: string;
+  /** Optional ISO-8601 target completion date. */
+  due_date?: string;
+  /** ISO-8601 timestamp when the milestone was completed (released or dispute-resolved). */
+  completed_at?: string;
+}
+
+export interface MilestoneEvent {
+  id: string;
+  milestone_id: string;
+  job_id: string;
+  /** "created" | "deliverable_submitted" | "released" | "disputed" */
+  event_type: string;
+  actor_address?: string;
+  tx_hash?: string;
+  note?: string;
+  created_at: string;
 }
 
 export interface Deliverable {
@@ -273,3 +421,22 @@ export interface UpdateProfileBody {
   bio: string;
   portfolio_links: string[];
 }
+
+export interface SavedJob {
+  id: string;
+  job_id: string;
+  user_address: string;
+  note?: string;
+  created_at: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  user_address?: string;
+  job_id?: string;
+  event_type: string;
+  level: string;
+  details: unknown;
+  created_at: string;
+}
+
