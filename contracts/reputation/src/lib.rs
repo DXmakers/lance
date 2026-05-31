@@ -96,6 +96,8 @@ pub enum DataKey {
     Reviewed(u64, Address),
     AuthorizedContract(Address),
     ValidatorStake(Address, Address, Role),
+    /// Transient reentrancy guard flag - prevents recursive callback exploits
+    ReentrancyGuard,
 }
 
 #[contracterror]
@@ -111,6 +113,8 @@ pub enum ReputationError {
     Blacklisted = 8,
     ProfileNotFound = 9,
     TransferBlocked = 10,
+    /// Reentrancy attempt detected - transient mutex lock is already held
+    ReentrancyGuard = 11,
 }
 
 #[contracttype]
@@ -299,6 +303,50 @@ impl ReputationContract {
             .unwrap_or(false);
         if !is_authorized {
             soroban_sdk::panic_with_error!(env, ReputationError::Unauthorized);
+        }
+    }
+
+    /// Acquire the transient reentrancy guard mutex lock.
+    ///
+    /// This function implements a robust mutex locking guard to mitigate recursive
+    /// callback exploits. It uses temporary storage to track whether a sensitive
+    /// operation is in progress. If the lock is already held, the function panics
+    /// with ReentrancyGuard error, preventing reentrant calls.
+    ///
+    /// The lock is automatically released when the transaction completes since
+    /// temporary storage is cleared between invocations. This provides a safe,
+    /// automatic cleanup mechanism without requiring manual release logic.
+    ///
+    /// # Safety Guarantees
+    /// - Prevents recursive callback attacks by blocking reentrant calls
+    /// - Uses temporary storage which is automatically cleared after transaction
+    /// - State updates must complete before external operations (checked by caller)
+    ///
+    /// # Panics
+    /// - If the reentrancy guard is already held (ReentrancyGuard error)
+    fn acquire_reentrancy_guard(env: &Env) {
+        if env.storage().temporary().has(&DataKey::ReentrancyGuard) {
+            soroban_sdk::panic_with_error!(env, ReputationError::ReentrancyGuard);
+        }
+        env.storage()
+            .temporary()
+            .set(&DataKey::ReentrancyGuard, &true);
+    }
+
+    /// Release the transient reentrancy guard mutex lock.
+    ///
+    /// This function removes the reentrancy guard flag from temporary storage,
+    /// allowing subsequent operations to acquire the lock. In normal execution,
+    /// this is not strictly necessary since temporary storage is automatically
+    /// cleared between transactions. However, it provides explicit cleanup for
+    /// clarity and defensive programming.
+    ///
+    /// # Safety Guarantees
+    /// - Only removes the guard flag if it exists
+    /// - Safe to call multiple times (idempotent)
+    fn release_reentrancy_guard(env: &Env) {
+        if env.storage().temporary().has(&DataKey::ReentrancyGuard) {
+            env.storage().temporary().remove(&DataKey::ReentrancyGuard);
         }
     }
 
@@ -509,6 +557,30 @@ impl ReputationContract {
 
     /// Submit a rating for a target address tied to a Job ID. Caller must be the client or freelancer
     /// on the job, and the job must be Completed.
+    ///
+    /// This function implements the checks-effects-interactions pattern to prevent
+    /// reentrancy attacks. All internal state is updated before any external operations.
+    /// The transient reentrancy guard is acquired at the start to block recursive callbacks.
+    ///
+    /// # Safety Guarantees
+    /// - Acquires reentrancy guard before any state modifications
+    /// - All internal state updates complete before event emission
+    /// - Caller authorization is strictly validated
+    /// - Only job participants (client/freelancer) can submit ratings
+    /// - Blacklisted addresses cannot receive ratings
+    /// - Duplicate reviews are rejected
+    ///
+    /// # State Transition Order
+    /// 1. Caller authorization and input validation
+    /// 2. External job registry call (before reentrancy guard)
+    /// 3. Job participant validation
+    /// 4. Reentrancy guard acquisition
+    /// 5. Profile load and validation
+    /// 6. Score calculation and badge refresh
+    /// 7. Profile storage write
+    /// 8. Review flag storage write
+    /// 9. Event emission
+    /// 10. TTL bump
     pub fn submit_rating(env: Env, caller: Address, job_id: u64, target: Address, score: u32) {
         caller.require_auth();
         if !(1u32..=5u32).contains(&score) {
@@ -546,6 +618,9 @@ impl ReputationContract {
             soroban_sdk::panic_with_error!(&env, ReputationError::AlreadyReviewed);
         }
 
+        // Acquire reentrancy guard before state modifications
+        Self::acquire_reentrancy_guard(&env);
+
         let mut profile = storage::read_profile_or_default(&env, &target);
         if profile.is_blacklisted {
             soroban_sdk::panic_with_error!(&env, ReputationError::Blacklisted);
@@ -580,6 +655,7 @@ impl ReputationContract {
                 soroban_sdk::panic_with_error!(&env, ReputationError::NotJobParticipant);
             };
 
+        // State update complete - write to storage before any external operations
         storage::write_profile(&env, &target, &profile);
         env.storage().persistent().set(&reviewed_key, &true);
         env.storage().persistent().extend_ttl(
@@ -587,6 +663,8 @@ impl ReputationContract {
             Self::PERSISTENT_TTL_THRESHOLD,
             Self::PERSISTENT_TTL_EXTEND_TO,
         );
+
+        // Event emission happens after all state is committed
         env.events().publish(
             ("reputation", "ReputationUpdated"),
             ReputationUpdatedEvent {
@@ -606,12 +684,33 @@ impl ReputationContract {
             },
         );
         Self::bump_instance_ttl(&env);
+        Self::release_reentrancy_guard(&env);
     }
 
     /// Update reputation after a completed job. `delta` in basis points.
     /// Score is clamped to [0, 10000]. Only callable by admin or authorized contract address.
+    ///
+    /// This function implements the checks-effects-interactions pattern to prevent
+    /// reentrancy attacks. All internal state is updated before any external operations.
+    /// The transient reentrancy guard is acquired at the start to block recursive callbacks.
+    ///
+    /// # Safety Guarantees
+    /// - Acquires reentrancy guard before any state modifications
+    /// - All internal state updates complete before event emission
+    /// - Authorized contract address is strictly validated
+    /// - Blacklisted addresses cannot have their scores updated
+    ///
+    /// # State Transition Order
+    /// 1. Authorization check
+    /// 2. Reentrancy guard acquisition
+    /// 3. Profile load and validation
+    /// 4. Score calculation and badge refresh
+    /// 5. Profile storage write
+    /// 6. Event emission
+    /// 7. TTL bump
     pub fn update_score(env: Env, caller_contract: Address, address: Address, role: Role, delta: i32) {
         Self::require_authorized_contract(&env, &caller_contract);
+        Self::acquire_reentrancy_guard(&env);
 
         let mut profile = storage::read_profile_or_default(&env, &address);
         if profile.is_blacklisted {
@@ -628,7 +727,11 @@ impl ReputationContract {
         let new_score = Self::role_metrics(&profile, &role).score;
         let total_jobs = Self::role_metrics(&profile, &role).completed_jobs;
         let badge_level = Self::role_metrics(&profile, &role).badge_level;
+        
+        // State update complete - write to storage before any external operations
         storage::write_profile(&env, &address, &profile);
+        
+        // Event emission happens after all state is committed
         env.events().publish(
             ("reputation", "ScoreAdjusted"),
             ScoreAdjustedEvent {
@@ -642,6 +745,7 @@ impl ReputationContract {
             },
         );
         Self::bump_instance_ttl(&env);
+        Self::release_reentrancy_guard(&env);
     }
 
     /// Peer-to-peer validator staking adjustment (SC-REP-044).
@@ -656,6 +760,23 @@ impl ReputationContract {
     /// Auth: the call must originate from the authorized contract AND carry the
     /// validator's own authorization, so arbitrary public keys cannot stake on
     /// another validator's behalf.
+    ///
+    /// # Safety Guarantees
+    /// - Acquires reentrancy guard before any state modifications
+    /// - All internal state updates complete before event emission
+    /// - Authorized contract address is strictly validated
+    /// - Validator authorization is required to prevent unauthorized staking
+    /// - Blacklisted addresses cannot have their scores adjusted
+    ///
+    /// # State Transition Order
+    /// 1. Authorization checks (contract + validator)
+    /// 2. Reentrancy guard acquisition
+    /// 3. Profile load and validation
+    /// 4. Score calculation with stake weighting
+    /// 5. Profile storage write
+    /// 6. Validator stake record update
+    /// 7. Event emission
+    /// 8. TTL bump
     pub fn submit_validator_adjustment(
         env: Env,
         caller_contract: Address,
@@ -670,6 +791,7 @@ impl ReputationContract {
         if stake_amount <= 0 {
             soroban_sdk::panic_with_error!(&env, ReputationError::InvalidInput);
         }
+        Self::acquire_reentrancy_guard(&env);
 
         let mut profile = storage::read_profile_or_default(&env, &target);
         if profile.is_blacklisted {
@@ -687,8 +809,11 @@ impl ReputationContract {
         );
         profile.refresh_badges();
         let new_score = Self::role_metrics(&profile, &role).score;
+        
+        // State update complete - write profile to storage
         storage::write_profile(&env, &target, &profile);
 
+        // Update validator stake record
         let key = DataKey::ValidatorStake(validator.clone(), target.clone(), role.clone());
         let mut stake = env
             .storage()
@@ -717,6 +842,7 @@ impl ReputationContract {
             Self::PERSISTENT_TTL_EXTEND_TO,
         );
 
+        // Event emission happens after all state is committed
         env.events().publish(
             ("reputation", "ValidatorAdjustment"),
             ValidatorAdjustmentEvent {
@@ -731,6 +857,7 @@ impl ReputationContract {
             },
         );
         Self::bump_instance_ttl(&env);
+        Self::release_reentrancy_guard(&env);
 
         effective_delta
     }
@@ -767,8 +894,28 @@ impl ReputationContract {
     }
 
     /// Slash address for fraud / abandonment — reduces score by 20%. Only callable by admin or authorized contract.
+    ///
+    /// This function implements the checks-effects-interactions pattern to prevent
+    /// reentrancy attacks. All internal state is updated before any external operations.
+    /// The transient reentrancy guard is acquired at the start to block recursive callbacks.
+    ///
+    /// # Safety Guarantees
+    /// - Acquires reentrancy guard before any state modifications
+    /// - All internal state updates complete before event emission
+    /// - Authorized contract address is strictly validated
+    /// - Blacklisted addresses cannot be slashed (already penalized)
+    ///
+    /// # State Transition Order
+    /// 1. Authorization check
+    /// 2. Reentrancy guard acquisition
+    /// 3. Profile load and validation
+    /// 4. Score decay calculation and badge refresh
+    /// 5. Profile storage write
+    /// 6. Event emission
+    /// 7. TTL bump
     pub fn slash(env: Env, caller_contract: Address, address: Address, role: Role, _reason: Symbol) {
         Self::require_authorized_contract(&env, &caller_contract);
+        Self::acquire_reentrancy_guard(&env);
 
         let mut profile = storage::read_profile_or_default(&env, &address);
         if profile.is_blacklisted {
@@ -781,7 +928,11 @@ impl ReputationContract {
         let new_score = Self::role_metrics(&profile, &role).score;
         let total_jobs = Self::role_metrics(&profile, &role).completed_jobs;
         let badge_level = Self::role_metrics(&profile, &role).badge_level;
+        
+        // State update complete - write to storage before any external operations
         storage::write_profile(&env, &address, &profile);
+        
+        // Event emission happens after all state is committed
         env.events().publish(
             ("reputation", "ScoreAdjusted"),
             ScoreAdjustedEvent {
@@ -795,10 +946,34 @@ impl ReputationContract {
             },
         );
         Self::bump_instance_ttl(&env);
+        Self::release_reentrancy_guard(&env);
     }
 
+    /// Blacklist an address for severe violations. Applies decay to both roles and sets badge to 0.
+    /// Only callable by admin or authorized contract.
+    ///
+    /// This function implements the checks-effects-interactions pattern to prevent
+    /// reentrancy attacks. All internal state is updated before any external operations.
+    /// The transient reentrancy guard is acquired at the start to block recursive callbacks.
+    ///
+    /// # Safety Guarantees
+    /// - Acquires reentrancy guard before any state modifications
+    /// - All internal state updates complete before event emission
+    /// - Authorized contract address is strictly validated
+    /// - Idempotent - safe to call multiple times on same address
+    ///
+    /// # State Transition Order
+    /// 1. Authorization check
+    /// 2. Reentrancy guard acquisition
+    /// 3. Profile load
+    /// 4. Blacklist flag and decay application
+    /// 5. Badge refresh to level 0
+    /// 6. Profile storage write
+    /// 7. Event emission
+    /// 8. TTL bump
     pub fn blacklist_profile(env: Env, caller_contract: Address, address: Address, _reason: Symbol) {
         Self::require_authorized_contract(&env, &caller_contract);
+        Self::acquire_reentrancy_guard(&env);
 
         let mut profile = storage::read_profile_or_default(&env, &address);
         if !profile.is_blacklisted {
@@ -816,7 +991,11 @@ impl ReputationContract {
 
         let client_score = profile.client.score;
         let freelancer_score = profile.freelancer.score;
+        
+        // State update complete - write to storage before any external operations
         storage::write_profile(&env, &address, &profile);
+        
+        // Event emission happens after all state is committed
         env.events().publish(
             ("reputation", "BlacklistUpdated"),
             BlacklistUpdatedEvent {
@@ -828,6 +1007,7 @@ impl ReputationContract {
             },
         );
         Self::bump_instance_ttl(&env);
+        Self::release_reentrancy_guard(&env);
     }
 
     pub fn is_blacklisted(env: Env, address: Address) -> bool {
@@ -1992,5 +2172,88 @@ mod test {
         assert_eq!(stake.staked_amount, 0);
         assert_eq!(stake.total_adjustment_bps, 0);
         assert_eq!(stake.adjustment_count, 0);
+    }
+
+    // ── SC-REP-045: Reentrancy Guard Tests ───────────────────────────
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #11)")]
+    fn test_reentrancy_guard_prevents_recursive_callbacks() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let target = Address::generate(&env);
+        let reputation_id = env.register_contract(None, ReputationContract);
+        let adjuster_id = env.register_contract(None, AuthorizedAdjuster);
+        let client = ReputationContractClient::new(&env, &reputation_id);
+        let adjuster = AuthorizedAdjusterClient::new(&env, &adjuster_id);
+
+        client.initialize(&admin);
+        client.set_authorized_contract(&admin, &adjuster_id);
+
+        // Manually set the reentrancy guard to simulate a reentrant call
+        env.storage()
+            .temporary()
+            .set(&DataKey::ReentrancyGuard, &true);
+
+        // Attempt to call update_score with guard already set should panic with ReentrancyGuard error (#11)
+        adjuster.award(&reputation_id, &target, &Role::Freelancer, &1_500);
+    }
+
+    #[test]
+    fn test_reentrancy_guard_allows_normal_operations() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let target = Address::generate(&env);
+        let reputation_id = env.register_contract(None, ReputationContract);
+        let adjuster_id = env.register_contract(None, AuthorizedAdjuster);
+        let client = ReputationContractClient::new(&env, &reputation_id);
+        let adjuster = AuthorizedAdjusterClient::new(&env, &adjuster_id);
+
+        client.initialize(&admin);
+        client.set_authorized_contract(&admin, &adjuster_id);
+
+        // Normal operation should succeed without reentrancy guard set
+        adjuster.award(&reputation_id, &target, &Role::Freelancer, &1_500);
+
+        let score = client.get_score(&target, &Role::Freelancer);
+        assert_eq!(score.score, 6_500);
+        assert_eq!(score.total_jobs, 1);
+    }
+
+    #[test]
+    fn test_state_updates_complete_before_external_operations() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let target = Address::generate(&env);
+        let reputation_id = env.register_contract(None, ReputationContract);
+        let adjuster_id = env.register_contract(None, AuthorizedAdjuster);
+        let client = ReputationContractClient::new(&env, &reputation_id);
+        let adjuster = AuthorizedAdjusterClient::new(&env, &adjuster_id);
+
+        client.initialize(&admin);
+        client.set_authorized_contract(&admin, &adjuster_id);
+
+        // Call update_score which should:
+        // 1. Acquire reentrancy guard
+        // 2. Update internal state
+        // 3. Write to storage
+        // 4. Emit event
+        // 5. Release guard
+        adjuster.award(&reputation_id, &target, &Role::Freelancer, &1_500);
+
+        // Verify state was updated correctly
+        let score = client.get_score(&target, &Role::Freelancer);
+        assert_eq!(score.score, 6_500);
+        assert_eq!(score.total_jobs, 1);
+        assert_eq!(score.badge_level, 0);
+
+        // Verify reentrancy guard is not set after operation completes
+        assert!(!env.storage().temporary().has(&DataKey::ReentrancyGuard));
     }
 }
