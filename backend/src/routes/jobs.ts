@@ -1,19 +1,33 @@
 import { Router, Request, Response } from "express";
-import { prisma } from "../config/db";
+import { pool, prisma } from "../config/db";
 import { z } from "zod";
 import bidsRoutes from "./bids";
 import milestonesRoutes from "./milestones";
 import deliverablesRoutes from "./deliverables";
 import jobDisputesRoutes from "./job-disputes";
+import { logger } from "../utils/tracing";
+import { buildJobSearchQuery, executeReadOnlyJobSearch } from "../utils/jobSearchPlan";
 
 const router = Router();
+
+function positiveTimeoutMs(name: string, fallback: number): number {
+  const parsed = Number.parseInt(process.env[name] || String(fallback), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 // Validation schemas
 const getJobsQuerySchema = z.object({
   query: z.string().optional(),
   status: z.string().optional(),
   tag: z.string().optional(),
-  sort: z.string().optional(),
+  sort: z.enum(["created_at", "budget"]).default("created_at"),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor_created_at: z.coerce.date().optional(),
+  cursor_id: z.string().uuid().optional(),
+  min_budget: z.coerce.number().int().nonnegative().optional(),
+  max_budget: z.coerce.number().int().nonnegative().optional(),
+  skills: z.string().optional(),
+  deadline_before: z.coerce.date().optional(),
 });
 
 const createJobSchema = z.object({
@@ -22,54 +36,97 @@ const createJobSchema = z.object({
   budget_usdc: z.number().int().positive("budget must be greater than zero"),
   milestones: z.number().int().min(1, "milestones must be at least 1"),
   client_address: z.string().min(1),
+  skills: z.array(z.string()).optional().default([]),
+  deadline_at: z.coerce.date().optional(),
 });
 
 const markFundedSchema = z.object({
   client_address: z.string().min(1),
 });
 
+function serializeJob(row: any) {
+  return {
+    ...row,
+    budget_usdc: Number(row.budget_usdc),
+    on_chain_job_id: row.on_chain_job_id ? Number(row.on_chain_job_id) : null,
+  };
+}
+
 // GET /api/v1/jobs
 router.get("/", async (req: Request, res: Response) => {
+  const startedAt = Date.now();
   try {
     const query = getJobsQuerySchema.parse(req.query);
 
-    let whereClause: any = {};
-
-    if (query.query || (query.tag && query.tag !== "all")) {
-      const searchTerm = query.query || query.tag;
-      whereClause.OR = [
-        { title: { contains: searchTerm, mode: "insensitive" } },
-        { description: { contains: searchTerm, mode: "insensitive" } },
-      ];
+    if ((query.cursor_created_at && !query.cursor_id) || (!query.cursor_created_at && query.cursor_id)) {
+      return res.status(400).json({
+        error: "cursor_created_at and cursor_id must be provided together",
+      });
     }
 
-    if (query.status) {
-      whereClause.status = query.status;
+    if (
+      query.min_budget !== undefined &&
+      query.max_budget !== undefined &&
+      query.min_budget > query.max_budget
+    ) {
+      return res.status(400).json({ error: "min_budget cannot be greater than max_budget" });
     }
 
-    let orderByClause: any = { created_at: "desc" };
-    if (query.sort === "budget") {
-      orderByClause = { budget_usdc: "desc" };
+    const builtQuery = buildJobSearchQuery(query);
+    const client = await pool.connect();
+
+    try {
+      // Read-only transaction settings are local to this request and protect
+      // the pool from expensive ad-hoc filters under concurrency.
+      await client.query("BEGIN READ ONLY ISOLATION LEVEL READ COMMITTED");
+      await client.query(`SET LOCAL statement_timeout = ${positiveTimeoutMs("JOB_SEARCH_STATEMENT_TIMEOUT_MS", 1500)}`);
+      const result = await executeReadOnlyJobSearch(client, builtQuery);
+      await client.query("COMMIT");
+
+      const rows = result.rows;
+      const hasNext = rows.length > query.limit;
+      const items = (hasNext ? rows.slice(0, query.limit) : rows).map(serializeJob);
+      const cursorSource = hasNext ? items[items.length - 1] : null;
+
+      logger.info("Paginated jobs queried", {
+        returned: items.length,
+        hasNext,
+        status: query.status || "any",
+        sort: query.sort,
+        planKey: builtQuery.planKey,
+        poolTotal: pool.totalCount,
+        poolIdle: pool.idleCount,
+        poolWaiting: pool.waitingCount,
+        durationMs: Date.now() - startedAt,
+      });
+
+      return res.status(200).json({
+        items,
+        next_cursor: cursorSource
+          ? {
+              created_at: cursorSource.created_at,
+              id: cursorSource.id,
+            }
+          : null,
+        limit: query.limit,
+      });
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
     }
-
-    const jobs = await prisma.jobs.findMany({
-      where: whereClause,
-      orderBy: orderByClause,
-    });
-
-    // Convert BigInt to Number/String for JSON serialization
-    const serializedJobs = jobs.map((job) => ({
-      ...job,
-      budget_usdc: Number(job.budget_usdc),
-      on_chain_job_id: job.on_chain_job_id ? Number(job.on_chain_job_id) : null,
-    }));
-
-    res.json(serializedJobs);
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.issues });
     }
-    console.error("GET /jobs error:", error);
+    logger.error("GET /jobs error", {
+      error: error.message || String(error),
+      durationMs: Date.now() - startedAt,
+      poolTotal: pool.totalCount,
+      poolIdle: pool.idleCount,
+      poolWaiting: pool.waitingCount,
+    });
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -79,7 +136,7 @@ router.post("/", async (req: Request, res: Response) => {
   try {
     const data = createJobSchema.parse(req.body);
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       const job = await tx.jobs.create({
         data: {
           title: data.title,
@@ -88,6 +145,8 @@ router.post("/", async (req: Request, res: Response) => {
           milestones: data.milestones,
           client_address: data.client_address,
           status: "open",
+          skills: data.skills,
+          deadline_at: data.deadline_at,
         },
       });
 

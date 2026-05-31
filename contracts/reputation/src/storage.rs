@@ -1,4 +1,4 @@
-use crate::profile::Profile;
+﻿use crate::profile::Profile;
 use soroban_sdk::{Address, Env};
 
 const PERSISTENT_TTL_THRESHOLD: u32 = 50_000;
@@ -23,7 +23,7 @@ pub fn read_profile(env: &Env, address: &Address) -> Option<Profile> {
 }
 
 pub fn read_profile_or_default(env: &Env, address: &Address) -> Profile {
-    read_profile(env, address).unwrap_or_else(|| Profile::new(address.clone()))
+    read_profile(env, address).unwrap_or_else(|| Profile::new(env, address.clone()))
 }
 
 pub fn write_profile(env: &Env, address: &Address, profile: &Profile) {
@@ -32,4 +32,19 @@ pub fn write_profile(env: &Env, address: &Address, profile: &Profile) {
     env.storage()
         .persistent()
         .extend_ttl(&key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO);
+}
+
+pub fn profile_exists(env: &Env, address: &Address) -> bool {
+    let key = StorageKey::Profile(address.clone());
+    env.storage().persistent().has(&key)
+}
+
+pub fn delete_profile(env: &Env, address: &Address) -> bool {
+    let key = StorageKey::Profile(address.clone());
+    if env.storage().persistent().has(&key) {
+        env.storage().persistent().remove(&key);
+        true
+    } else {
+        false
+    }
 }

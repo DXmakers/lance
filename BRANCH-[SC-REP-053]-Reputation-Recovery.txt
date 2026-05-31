@@ -1,0 +1,10 @@
+Branch: [SC-REP-053] Reputation System Robustness Auditing - Step 53
+
+Summary of changes:
+- Added `last_activity` to `Profile` to track inactivity.
+- Updated reputation update paths to set `last_activity` on changes (reviews, manual deltas, slashes, blacklist, metadata updates).
+- Implemented `recover_score` API to recover scores after inactivity using safe fixed-point math.
+- Added `compute_recovery_towards_default` helper.
+- Added unit tests `test_recover_after_inactivity` and `test_recover_requires_authorized_contract`.
+
+Note: Please create a git branch with this exact title and commit these changes locally.

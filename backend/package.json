@@ -7,7 +7,11 @@
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+{
+  "scripts": {
+    "test": "node --require ts-node/register --test tests/**/*.test.ts"
+  }
+}
   },
   "keywords": [],
   "author": "",
@@ -19,17 +23,24 @@
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^15.1.0",
     "bullmq": "^5.77.3",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
+    "csurf": "^1.11.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "pg": "^8.21.0",
+    "prom-client": "^15.1.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/compression": "^1.8.1",
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
+    "@types/csurf": "^1.11.5",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.1.0",

@@ -10,6 +10,7 @@ const bids_1 = __importDefault(require("./bids"));
 const milestones_1 = __importDefault(require("./milestones"));
 const deliverables_1 = __importDefault(require("./deliverables"));
 const job_disputes_1 = __importDefault(require("./job-disputes"));
+const tracing_1 = require("../utils/tracing");
 const router = (0, express_1.Router)();
 // Validation schemas
 const getJobsQuerySchema = zod_1.z.object({
@@ -17,6 +18,13 @@ const getJobsQuerySchema = zod_1.z.object({
     status: zod_1.z.string().optional(),
     tag: zod_1.z.string().optional(),
     sort: zod_1.z.string().optional(),
+    limit: zod_1.z.coerce.number().int().min(1).max(100).default(25),
+    cursor_created_at: zod_1.z.coerce.date().optional(),
+    cursor_id: zod_1.z.string().uuid().optional(),
+    min_budget: zod_1.z.coerce.number().int().nonnegative().optional(),
+    max_budget: zod_1.z.coerce.number().int().nonnegative().optional(),
+    skills: zod_1.z.string().optional(),
+    deadline_before: zod_1.z.coerce.date().optional(),
 });
 const createJobSchema = zod_1.z.object({
     title: zod_1.z.string().min(1, "title is required"),
@@ -24,40 +32,100 @@ const createJobSchema = zod_1.z.object({
     budget_usdc: zod_1.z.number().int().positive("budget must be greater than zero"),
     milestones: zod_1.z.number().int().min(1, "milestones must be at least 1"),
     client_address: zod_1.z.string().min(1),
+    skills: zod_1.z.array(zod_1.z.string()).optional().default([]),
+    deadline_at: zod_1.z.coerce.date().optional(),
 });
 const markFundedSchema = zod_1.z.object({
     client_address: zod_1.z.string().min(1),
 });
+function serializeJob(row) {
+    return {
+        ...row,
+        budget_usdc: Number(row.budget_usdc),
+        on_chain_job_id: row.on_chain_job_id ? Number(row.on_chain_job_id) : null,
+    };
+}
 // GET /api/v1/jobs
 router.get("/", async (req, res) => {
     try {
         const query = getJobsQuerySchema.parse(req.query);
-        let whereClause = {};
+        if ((query.cursor_created_at && !query.cursor_id) || (!query.cursor_created_at && query.cursor_id)) {
+            return res.status(400).json({
+                error: "cursor_created_at and cursor_id must be provided together",
+            });
+        }
+        if (query.min_budget !== undefined &&
+            query.max_budget !== undefined &&
+            query.min_budget > query.max_budget) {
+            return res.status(400).json({ error: "min_budget cannot be greater than max_budget" });
+        }
+        const conditions = [];
+        const params = [];
+        const addParam = (value) => {
+            params.push(value);
+            return `$${params.length}`;
+        };
         if (query.query || (query.tag && query.tag !== "all")) {
             const searchTerm = query.query || query.tag;
-            whereClause.OR = [
-                { title: { contains: searchTerm, mode: "insensitive" } },
-                { description: { contains: searchTerm, mode: "insensitive" } },
-            ];
+            const placeholder = addParam(`%${searchTerm}%`);
+            conditions.push(`(title ILIKE ${placeholder} OR description ILIKE ${placeholder})`);
         }
         if (query.status) {
-            whereClause.status = query.status;
+            conditions.push(`status = ${addParam(query.status)}`);
         }
-        let orderByClause = { created_at: "desc" };
-        if (query.sort === "budget") {
-            orderByClause = { budget_usdc: "desc" };
+        if (query.min_budget !== undefined) {
+            conditions.push(`budget_usdc >= ${addParam(query.min_budget)}`);
         }
-        const jobs = await db_1.prisma.jobs.findMany({
-            where: whereClause,
-            orderBy: orderByClause,
+        if (query.max_budget !== undefined) {
+            conditions.push(`budget_usdc <= ${addParam(query.max_budget)}`);
+        }
+        if (query.skills) {
+            const skills = query.skills
+                .split(",")
+                .map((skill) => skill.trim())
+                .filter(Boolean);
+            if (skills.length > 0) {
+                conditions.push(`skills && ${addParam(skills)}::text[]`);
+            }
+        }
+        if (query.deadline_before) {
+            conditions.push(`deadline_at <= ${addParam(query.deadline_before)}`);
+        }
+        if (query.cursor_created_at && query.cursor_id) {
+            conditions.push(`(created_at, id) < (${addParam(query.cursor_created_at)}, ${addParam(query.cursor_id)}::uuid)`);
+        }
+        const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+        const orderSql = query.sort === "budget"
+            ? "ORDER BY budget_usdc DESC, created_at DESC, id DESC"
+            : "ORDER BY created_at DESC, id DESC";
+        const limitPlaceholder = addParam(query.limit + 1);
+        const result = await db_1.pool.query(`SELECT id, title, description, budget_usdc, milestones, client_address,
+              freelancer_address, status, metadata_hash, on_chain_job_id, skills, deadline_at,
+              created_at, updated_at
+       FROM jobs
+       ${whereSql}
+       ${orderSql}
+       LIMIT ${limitPlaceholder}`, params);
+        const rows = result.rows;
+        const hasNext = rows.length > query.limit;
+        const items = (hasNext ? rows.slice(0, query.limit) : rows).map(serializeJob);
+        const cursorSource = hasNext ? items[items.length - 1] : null;
+        tracing_1.logger.info("Paginated jobs queried", {
+            returned: items.length,
+            hasNext,
+            status: query.status || "any",
+            sort: query.sort || "created_at",
         });
-        // Convert BigInt to Number/String for JSON serialization
-        const serializedJobs = jobs.map((job) => ({
-            ...job,
-            budget_usdc: Number(job.budget_usdc),
-            on_chain_job_id: job.on_chain_job_id ? Number(job.on_chain_job_id) : null,
-        }));
-        res.json(serializedJobs);
+        res.json({
+            items,
+            next_cursor: cursorSource
+                ? {
+                    created_at: cursorSource.created_at,
+                    id: cursorSource.id,
+                }
+                : null,
+            limit: query.limit,
+        });
     }
     catch (error) {
         if (error instanceof zod_1.z.ZodError) {
@@ -80,6 +148,8 @@ router.post("/", async (req, res) => {
                     milestones: data.milestones,
                     client_address: data.client_address,
                     status: "open",
+                    skills: data.skills,
+                    deadline_at: data.deadline_at,
                 },
             });
             const perMilestone = Math.floor(data.budget_usdc / data.milestones);

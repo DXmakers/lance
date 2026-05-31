@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { pool, getPoolHealthStats } from "../config/db";
+import { effectiveRpm, intakeBucketCount } from "../middleware/intakeRateLimit";
 import { logger } from "../utils/tracing";
 
 const router = Router();
@@ -114,6 +115,10 @@ router.get("/stats", async (req: Request, res: Response) => {
       uptimeSeconds: stats.uptimeSeconds,
       healthChecksPassed: stats.healthChecksPassed,
       healthChecksFailed: stats.healthChecksFailed,
+      intakeRateLimit: {
+        effectiveRpm: effectiveRpm(),
+        trackedClients: intakeBucketCount(),
+      },
     });
   } catch (error: any) {
     logger.error("Pool stats endpoint error", { error: error.message });
