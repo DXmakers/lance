@@ -35,6 +35,10 @@ pub enum JobRegistryError {
     JobExpired = 16,
     JobNotExpired = 17,
     InvalidCollateral = 18,
+    CollateralAlreadyReleased = 19,
+    CollateralNotFound = 20,
+    BidIndexOutOfBounds = 21,
+    BidWindowClosed = 22,
 }
  
 #[contracttype]
@@ -74,6 +78,7 @@ pub struct BidRecord {
     pub freelancer: Address,
     pub proposal_hash: Bytes,
     pub collateral_stroops: i128,
+    pub collateral_released: bool,
 }
  
 #[contracttype]
@@ -85,6 +90,7 @@ pub enum DataKey {
     Bid(u64, u32),
     BidIndex(u64, Address),
     Deliverable(u64),
+    Bids(u64),
 }
  
 #[contract]
@@ -300,6 +306,7 @@ impl JobRegistryContract {
             freelancer: freelancer.clone(),
             proposal_hash,
             collateral_stroops,
+            collateral_released: false,
         });
 
         env.storage().persistent().set(&bids_key, &bids);
@@ -852,6 +859,14 @@ fn validate_hash(env: &Env, hash: &Bytes) {
     validate_ipfs_cid(env, hash);
 }
 
+fn is_valid_base58_char(c: u8) -> bool {
+    matches!(c, b'1'..=b'9' | b'A'..=b'H' | b'J'..=b'N' | b'P'..=b'Z' | b'a'..=b'k' | b'm'..=b'z')
+}
+
+fn is_valid_base32_char(c: u8) -> bool {
+    matches!(c, b'A'..=b'Z' | b'2'..=b'7' | b'=')
+}
+
 fn validate_ipfs_cid(env: &Env, hash: &Bytes) {
     let len = hash.len();
     if len == 46 {
@@ -941,88 +956,6 @@ fn post_job_with_id(
     env.storage()
         .persistent()
         .set(&DataKey::BidCount(job_id), &0u32);
-}
-
-fn release_collateral(env: &Env, job_id: u64, freelancer: Address, _slash: bool) {
-    let _job: JobRecord = env
-        .storage()
-        .persistent()
-        .get(&DataKey::Job(job_id))
-        .unwrap_or_else(|| panic_with_error!(env, JobRegistryError::JobNotFound));
-
-    let bids_key = DataKey::Bids(job_id);
-    let bids: Vec<BidRecord> = env
-        .storage()
-        .persistent()
-        .get(&bids_key)
-        .unwrap_or_else(|| panic_with_error!(env, JobRegistryError::CollateralNotFound));
-
-    let mut updated_bids: Vec<BidRecord> = Vec::new(env);
-    let mut found = false;
-
-    for bid in bids.iter() {
-        if bid.freelancer == freelancer {
-            found = true;
-            if bid.collateral_released {
-                panic_with_error!(env, JobRegistryError::CollateralAlreadyReleased);
-            }
-            let mut updated = bid.clone();
-            updated.collateral_released = true;
-            updated_bids.push_back(updated);
-        } else {
-            updated_bids.push_back(bid.clone());
-        }
-    }
-
-    if !found {
-        panic_with_error!(env, JobRegistryError::CollateralNotFound);
-    }
-
-    env.storage().persistent().set(&bids_key, &updated_bids);
-}
-
-fn release_collateral(env: &Env, job_id: u64, freelancer: Address, slash: bool) {
-    let bids_key = DataKey::Bids(job_id);
-    let mut bids: Vec<BidRecord> = env
-        .storage()
-        .persistent()
-        .get(&bids_key)
-        .unwrap_or_else(|| panic_with_error!(env, JobRegistryError::BidNotFound));
-
-    let mut updated = false;
-    for i in 0..bids.len() {
-        let mut bid = bids.get(i).unwrap();
-        if bid.freelancer == freelancer {
-            if bid.collateral_released {
-                panic_with_error!(
-                    env,
-                    JobRegistryError::CollateralAlreadyReleased
-                );
-            }
-            bid.collateral_released = true;
-            bids.set(i, bid);
-            updated = true;
-            break;
-        }
-    }
-
-    if !updated {
-        panic_with_error!(env, JobRegistryError::BidNotFound);
-    }
-
-    env.storage().persistent().set(&bids_key, &bids);
-
-    if slash {
-        env.events().publish(
-            (symbol_short!("slash"), job_id),
-            freelancer,
-        );
-    } else {
-        env.events().publish(
-            (symbol_short!("release"), job_id),
-            freelancer,
-        );
-    }
 }
 
 fn release_collateral(env: &Env, job_id: u64, freelancer: Address, slash: bool) {
