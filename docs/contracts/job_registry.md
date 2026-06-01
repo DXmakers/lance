@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `JobRegistry` contract manages job postings, bid submissions, bid acceptance, deliverable submission, and dispute status updates for the Lance protocol.
+The `JobRegistry` contract manages job postings, bid submissions, bid cancellation, collateral refund accounting, bid acceptance, deliverable submission, and dispute status updates for the Lance protocol.
 
 ## `post_job` and `post_job_auto`
 
@@ -33,6 +33,52 @@ These functions use `JobRegistryError` to return structured error information:
 
 These functions perform strict validation on inputs to prevent issues like overflow and oversized metadata. All CID inputs are bounded, ensuring minimal on-chain footprint and deterministic behavior.
 
+## `submit_bid` and `submit_bid_with_collateral`
+
+### Purpose
+
+These functions let freelancers submit compact CID-backed proposals. `submit_bid` keeps the legacy zero-collateral path, while `submit_bid_with_collateral` records a non-negative collateral amount for later refund if the bidder cancels before assignment.
+
+### Behavior
+
+- Authenticates the caller with `freelancer.require_auth()`.
+- Verifies the job exists and is still `Open`.
+- Validates that the proposal CID is non-empty and within the CID size bound.
+- Rejects duplicate bids through `BidIndex(job_id, freelancer)`.
+- Stores the bid in `Bid(job_id, index)` and increments `BidCount(job_id)` with checked math.
+- Records collateral in the bid row without storing heavy proposal text on-chain.
+
+### Errors
+
+- `JobNotFound` (7): job does not exist.
+- `JobNotOpen` (8): job is not open for bid submission.
+- `BidAlreadySubmitted` (10): freelancer already has an active bid for this job.
+- `InvalidCollateral` (16): collateral is negative.
+
+## `cancel_bid`, `claim_refund`, and `get_refund_balance`
+
+### Purpose
+
+`cancel_bid` lets a freelancer withdraw an open bid and credit its collateral to a refundable balance. `claim_refund` clears and returns the accumulated balance, while `get_refund_balance` exposes the current amount for wallets and indexers.
+
+### Behavior
+
+- Only the bidding freelancer can cancel or claim their own refund.
+- Cancellation is allowed only while the job is `Open`.
+- The bid row is removed with a swap-remove operation so `BidCount(job_id)` remains a tight upper bound.
+- If the removed bid is not the last row, the last bid is moved into the cancelled index and its `BidIndex` is updated.
+- Collateral is added to `Refund(freelancer)` with checked math.
+- Losing bid collateral is also credited during `accept_bid`.
+- `claim_refund` removes the refund storage entry after returning the amount.
+
+### Errors
+
+- `JobNotFound` (7): job does not exist.
+- `JobNotOpen` (8): bid cancellation is no longer allowed.
+- `BidNotFound` (11): the freelancer has no active bid for the job.
+- `Overflow` (14): refund balance addition overflowed.
+- `NoRefund` (17): the freelancer has no refundable balance to claim.
+
 ## `accept_bid`
 
 ### Purpose
@@ -45,6 +91,8 @@ These functions perform strict validation on inputs to prevent issues like overf
 - Verifies the job exists and is currently in the `Open` state.
 - Confirms the caller is the job's client.
 - Validates that the selected freelancer previously submitted a bid for the job.
+- Credits collateral from non-selected bids to each losing freelancer's refund balance.
+- Compacts bid storage down to the accepted bid.
 - Updates the job status to `Assigned` and records the accepted freelancer.
 - Emits a `BidAccepted` event for on-chain auditing.
 

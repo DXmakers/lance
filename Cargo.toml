@@ -28,11 +28,24 @@ tower-http         = { version = "0.5", features = ["cors", "trace"] }
 futures            = "0.3"
 
 [profile.release]
-opt-level         = "z"
-overflow-checks   = true
-debug             = 0
-strip             = "symbols"
-debug-assertions  = false
-panic             = "abort"
-codegen-units     = 1
-lto               = true
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
+
+[profile.contract-release]
+inherits = "release"
+# Soroban deployment artifacts should prioritize small WASM output and deterministic
+# checked arithmetic over host-side debug metadata.
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true

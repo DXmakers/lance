@@ -54,13 +54,13 @@ export function useWallet() {
       const signature = await kit.signMessage(challenge);
 
       // 4. Verify signature on backend
-      const { token } = await api.auth.verify(address, signature);
+      const { access_token } = await api.auth.verify(address, signature);
 
-      // 5. Update store
+      // 5. Update store (token is now in cookie, but keep in store for compatibility)
       login(
         {
           address,
-          token,
+          token: access_token,
           name: address.slice(0, 4) + "..." + address.slice(-4),
           email: "",
         },
