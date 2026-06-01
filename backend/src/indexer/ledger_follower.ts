@@ -19,6 +19,8 @@ export interface LedgerFollowerConfig {
   retryDelayMs?: number;
   maxRetries?: number;
   ledgerGapWarningThreshold?: number;
+  maxBlockLimit?: number;
+  highEventDensityThreshold?: number;
 }
 
 export interface IndexerStatus {
@@ -26,6 +28,8 @@ export interface IndexerStatus {
   lastProcessedLedger: number;
   lastPollAt: string | null;
   consecutiveErrors: number;
+  currentBatchSize: number;
+  isThrottled: boolean;
 }
 
 const INDEXER_STATE_ID = 1;
@@ -34,6 +38,8 @@ const DEFAULT_MAX_POLL_INTERVAL_MS = 60_000;
 const DEFAULT_RETRY_DELAY_MS = 1_000;
 const DEFAULT_MAX_RETRIES = 5;
 const DEFAULT_GAP_THRESHOLD = 10;
+const DEFAULT_MAX_BLOCK_LIMIT = 100;
+const DEFAULT_HIGH_EVENT_DENSITY_THRESHOLD = 5.0;
 
 async function fetchWithRetry(
   url: string,
@@ -91,6 +97,8 @@ export class LedgerFollower {
   private lastPollAt: string | null = null;
   private consecutiveErrors = 0;
   private currentPollIntervalMs: number;
+  private currentBatchSize: number;
+  private isThrottled = false;
 
   constructor(
     private readonly pool: Pool,
@@ -105,9 +113,12 @@ export class LedgerFollower {
       retryDelayMs: config.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS,
       maxRetries: config.maxRetries ?? DEFAULT_MAX_RETRIES,
       ledgerGapWarningThreshold: config.ledgerGapWarningThreshold ?? DEFAULT_GAP_THRESHOLD,
+      maxBlockLimit: config.maxBlockLimit ?? DEFAULT_MAX_BLOCK_LIMIT,
+      highEventDensityThreshold: config.highEventDensityThreshold ?? DEFAULT_HIGH_EVENT_DENSITY_THRESHOLD,
     };
 
     this.currentPollIntervalMs = this.config.pollIntervalMs;
+    this.currentBatchSize = this.config.maxBlockLimit;
     this.guard = new IdempotencyGuard(pool);
     this.topicFilter = buildTopicFilter(config.contractIds, this.config.allowedTopicHashes);
   }
@@ -118,6 +129,8 @@ export class LedgerFollower {
       lastProcessedLedger: this.lastProcessedLedger,
       lastPollAt: this.lastPollAt,
       consecutiveErrors: this.consecutiveErrors,
+      currentBatchSize: this.currentBatchSize,
+      isThrottled: this.isThrottled,
     };
   }
 
@@ -137,9 +150,9 @@ export class LedgerFollower {
   private async loop(): Promise<void> {
     while (this.running) {
       try {
-        const newEvents = await this.pollOnce();
+        const { processed, hasMore } = await this.pollOnce();
 
-        if (newEvents === 0) {
+        if (processed === 0 && !hasMore) {
           this.currentPollIntervalMs = Math.min(
             this.currentPollIntervalMs * 1.5,
             this.config.maxPollIntervalMs,
@@ -149,6 +162,13 @@ export class LedgerFollower {
         }
 
         this.consecutiveErrors = 0;
+        this.lastPollAt = new Date().toISOString();
+
+        if (hasMore) {
+          // Catching up: proceed to next batch immediately with a minor delay to prevent event loop exhaustion
+          await sleep(50);
+          continue;
+        }
       } catch (err) {
         this.consecutiveErrors++;
         const backoff = Math.min(
@@ -164,16 +184,15 @@ export class LedgerFollower {
         continue;
       }
 
-      this.lastPollAt = new Date().toISOString();
       await sleep(this.currentPollIntervalMs);
     }
   }
 
-  private async pollOnce(): Promise<number> {
+  private async pollOnce(): Promise<{ processed: number; hasMore: boolean }> {
     const latestLedger = await this.fetchLatestLedgerSequence();
 
     if (latestLedger <= this.lastProcessedLedger) {
-      return 0;
+      return { processed: 0, hasMore: false };
     }
 
     const gap = latestLedger - this.lastProcessedLedger;
@@ -186,7 +205,8 @@ export class LedgerFollower {
       });
     }
 
-    const events = await this.fetchEvents(this.lastProcessedLedger + 1, latestLedger);
+    const targetLedger = Math.min(latestLedger, this.lastProcessedLedger + this.currentBatchSize);
+    const events = await this.fetchEvents(this.lastProcessedLedger + 1, targetLedger);
     const relevant = events.filter(this.topicFilter);
     let processed = 0;
 
@@ -202,18 +222,43 @@ export class LedgerFollower {
       processed++;
     }
 
-    await this.saveLastProcessedLedger(latestLedger);
-    this.lastProcessedLedger = latestLedger;
+    await this.saveLastProcessedLedger(targetLedger);
+    const prevProcessedLedger = this.lastProcessedLedger;
+    this.lastProcessedLedger = targetLedger;
+
+    // Calculate event density in this batch
+    const batchRange = targetLedger - prevProcessedLedger;
+    const density = events.length / Math.max(1, batchRange);
+
+    if (density > this.config.highEventDensityThreshold) {
+      this.isThrottled = true;
+      // Multiplicative decrease
+      this.currentBatchSize = Math.max(10, Math.floor(this.currentBatchSize * 0.5));
+      logger.warn("High event density detected. Applying backpressure and throttling batch size", {
+        density,
+        threshold: this.config.highEventDensityThreshold,
+        newBatchSize: this.currentBatchSize,
+        eventsCount: events.length,
+      });
+      // Apply backpressure throttle delay
+      await sleep(500);
+    } else {
+      this.isThrottled = false;
+      // Additive increase
+      this.currentBatchSize = Math.min(this.config.maxBlockLimit, this.currentBatchSize + 10);
+    }
 
     logger.info("Poll cycle complete", {
-      fromLedger: this.lastProcessedLedger - (latestLedger - this.lastProcessedLedger),
-      toLedger: latestLedger,
+      fromLedger: prevProcessedLedger + 1,
+      toLedger: targetLedger,
       totalEvents: events.length,
       relevantEvents: relevant.length,
       newlyProcessed: processed,
+      currentBatchSize: this.currentBatchSize,
+      isThrottled: this.isThrottled,
     });
 
-    return processed;
+    return { processed, hasMore: targetLedger < latestLedger };
   }
 
   private async fetchLatestLedgerSequence(): Promise<number> {
