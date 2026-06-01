@@ -137,12 +137,20 @@
                               "symbol": "badge_level"
                             },
                             "val": {
-                              "u32": 1
+                              "u32": 0
                             }
                           },
                           {
                             "key": {
                               "symbol": "completed_jobs"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "dispute_failures"
                             },
                             "val": {
                               "u32": 0
@@ -197,6 +205,18 @@
                     },
                     {
                       "key": {
+                        "symbol": "client_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "freelancer"
                       },
                       "val": {
@@ -206,7 +226,7 @@
                               "symbol": "badge_level"
                             },
                             "val": {
-                              "u32": 2
+                              "u32": 0
                             }
                           },
                           {
@@ -215,6 +235,14 @@
                             },
                             "val": {
                               "u32": 1
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "dispute_failures"
+                            },
+                            "val": {
+                              "u32": 0
                             }
                           },
                           {
@@ -266,10 +294,30 @@
                     },
                     {
                       "key": {
+                        "symbol": "freelancer_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Silver"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "is_blacklisted"
                       },
                       "val": {
                         "bool": false
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "last_activity"
+                      },
+                      "val": {
+                        "u64": 0
                       }
                     },
                     {
@@ -328,6 +376,21 @@
                         },
                         "val": {
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "AuthorizedContract"
+                            },
+                            {
+                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "bool": true
                         }
                       },
                       {
@@ -681,7 +744,7 @@
                     "symbol": "badge_level"
                   },
                   "val": {
-                    "u32": 2
+                    "u32": 0
                   }
                 },
                 {
@@ -844,7 +907,7 @@
                     "symbol": "badge_level"
                   },
                   "val": {
-                    "u32": 2
+                    "u32": 0
                   }
                 },
                 {
