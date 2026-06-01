@@ -604,7 +604,7 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000004"
               },
               {
-                "symbol": "cancel_expired_job"
+                "symbol": "submit_bid"
               }
             ],
             "data": {
@@ -613,7 +613,19 @@
                   "u64": 1
                 },
                 {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                },
+                {
+                  "bytes": "516d50726f706f73616c"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 0
+                  }
+                },
+                {
+                  "symbol": "USDC"
                 }
               ]
             }
@@ -635,7 +647,7 @@
               },
               {
                 "error": {
-                  "contract": 17
+                  "contract": 18
                 }
               }
             ],
@@ -645,7 +657,7 @@
                   "string": "failing with contract error"
                 },
                 {
-                  "u32": 17
+                  "u32": 18
                 }
               ]
             }
@@ -667,7 +679,7 @@
               },
               {
                 "error": {
-                  "contract": 17
+                  "contract": 18
                 }
               }
             ],
@@ -692,7 +704,7 @@
               },
               {
                 "error": {
-                  "contract": 17
+                  "contract": 18
                 }
               }
             ],
@@ -717,7 +729,7 @@
               },
               {
                 "error": {
-                  "contract": 17
+                  "contract": 18
                 }
               }
             ],
@@ -727,7 +739,7 @@
                   "string": "contract call failed"
                 },
                 {
-                  "symbol": "cancel_expired_job"
+                  "symbol": "submit_bid"
                 },
                 {
                   "vec": [
@@ -735,7 +747,19 @@
                       "u64": 1
                     },
                     {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                    },
+                    {
+                      "bytes": "516d50726f706f73616c"
+                    },
+                    {
+                      "i128": {
+                        "hi": 0,
+                        "lo": 0
+                      }
+                    },
+                    {
+                      "symbol": "USDC"
                     }
                   ]
                 }
@@ -759,7 +783,7 @@
               },
               {
                 "error": {
-                  "contract": 17
+                  "contract": 18
                 }
               }
             ],

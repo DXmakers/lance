@@ -188,7 +188,34 @@
               }
             ],
             "data": {
-              "string": "initialized"
+              "vec": [
+                {
+                  "string": "JobRegistry initialized with admin: {}"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
+        "type_": "contract",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "init"
+              }
+            ],
+            "data": {
+              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
             }
           }
         }
@@ -248,11 +275,8 @@
                 {
                   "i128": {
                     "hi": 0,
-                    "lo": 100000
+                    "lo": 5000
                   }
-                },
-                {
-                  "u64": 30
                 },
                 {
                   "u64": 60
@@ -385,11 +409,8 @@
                     {
                       "i128": {
                         "hi": 0,
-                        "lo": 100000
+                        "lo": 5000
                       }
-                    },
-                    {
-                      "u64": 30
                     },
                     {
                       "u64": 60
