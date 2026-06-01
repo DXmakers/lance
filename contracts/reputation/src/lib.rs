@@ -30,6 +30,13 @@ pub enum AuthorizedCaller {
     DisputeResolution,
 }
 
+#[contracttype]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Role {
+    Client,
+    Freelancer,
+}
+
 #[contracterror]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ReputationError {
@@ -80,6 +87,16 @@ pub struct DisputeVerdictProcessedEvent {
     pub processed_at: u64,
 }
 
+#[contracttype]
+#[derive(Clone)]
+pub struct ScoreRecoveredEvent {
+    pub address: Address,
+    pub role: Role,
+    pub previous_score: i32,
+    pub new_score: i32,
+    pub recovered_at: u64,
+}
+
 #[contract]
 pub struct ReputationContract;
 
@@ -87,6 +104,8 @@ pub struct ReputationContract;
 impl ReputationContract {
     const INSTANCE_TTL_THRESHOLD: u32 = 50_000;
     const INSTANCE_TTL_EXTEND_TO: u32 = 150_000;
+    const RECOVERY_INACTIVITY_SECONDS: u64 = 90u64 * 24 * 60 * 60;
+    const RECOVERY_STEP_BPS: i32 = 1_000;
 
     fn bump_instance_ttl(env: &Env) {
         env.storage()
@@ -208,6 +227,16 @@ impl ReputationContract {
             MAX_SCORE
         } else {
             score
+        }
+    }
+
+    fn clamp_score_i128(score: i128) -> i32 {
+        if score < MIN_SCORE as i128 {
+            MIN_SCORE
+        } else if score > MAX_SCORE as i128 {
+            MAX_SCORE
+        } else {
+            score as i32
         }
     }
 
@@ -545,6 +574,92 @@ impl ReputationContract {
         }
 
         Ok(())
+    }
+
+    fn compute_recovery_towards_default(env: &Env, score: i32) -> Result<i32, ReputationError> {
+        if score == DEFAULT_SCORE {
+            return Ok(score);
+        }
+
+        let distance = DEFAULT_SCORE as i128 - score as i128;
+        let adjustment = distance
+            .checked_mul(Self::RECOVERY_STEP_BPS as i128)
+            .ok_or(ReputationError::ArithmeticOverflow)?
+            / BPS_SCALE as i128;
+
+        Ok(Self::clamp_score_i128(score as i128 + adjustment))
+    }
+
+    /// Recover a single role score toward the default score after inactivity.
+    pub fn recover_score(
+        env: Env,
+        caller: Address,
+        target_address: Address,
+        role: Role,
+    ) -> Result<i32, ReputationError> {
+        Self::verify_authorized_caller(&env, &caller)?;
+
+        let mut profile = storage::read_profile_or_default(&env, &target_address);
+        let now = env.ledger().timestamp();
+        if now.saturating_sub(profile.last_activity) < Self::RECOVERY_INACTIVITY_SECONDS {
+            return Ok(match role {
+                Role::Client => profile.client.score,
+                Role::Freelancer => profile.freelancer.score,
+            });
+        }
+
+        let role_metrics = match role {
+            Role::Client => &mut profile.client,
+            Role::Freelancer => &mut profile.freelancer,
+        };
+        let previous_score = role_metrics.score;
+        let new_score = Self::compute_recovery_towards_default(&env, previous_score)?;
+        role_metrics.score = new_score;
+
+        let old_client_badge = profile.client_badge.clone();
+        let old_freelancer_badge = profile.freelancer_badge.clone();
+        profile.last_activity = now;
+        profile.refresh_badges();
+        storage::write_profile(&env, &target_address, &profile);
+
+        env.events().publish(
+            ("reputation", "ScoreRecovered"),
+            ScoreRecoveredEvent {
+                address: target_address.clone(),
+                role,
+                previous_score,
+                new_score,
+                recovered_at: now,
+            },
+        );
+
+        if profile.client_badge != old_client_badge {
+            env.events().publish(
+                ("reputation", "BadgeUpgraded"),
+                BadgeUpgradedEvent {
+                    address: target_address.clone(),
+                    role: String::from_str(&env, "client"),
+                    old_badge: old_client_badge,
+                    new_badge: profile.client_badge,
+                    upgraded_at: now,
+                },
+            );
+        }
+
+        if profile.freelancer_badge != old_freelancer_badge {
+            env.events().publish(
+                ("reputation", "BadgeUpgraded"),
+                BadgeUpgradedEvent {
+                    address: target_address,
+                    role: String::from_str(&env, "freelancer"),
+                    old_badge: old_freelancer_badge,
+                    new_badge: profile.freelancer_badge,
+                    upgraded_at: now,
+                },
+            );
+        }
+
+        Ok(new_score)
     }
 
     /// Get the admin address

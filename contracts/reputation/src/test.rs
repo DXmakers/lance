@@ -1,10 +1,10 @@
 #![cfg(test)]
 
 use crate::{
-    AuthorizedCaller, BadgeLevel, ReputationContract, ReputationError,
+    AuthorizedCaller, BadgeLevel, ReputationContract, ReputationError, Role,
 };
 use soroban_sdk::{Address, Env, String};
-use soroban_sdk::testutils::Address as _;
+use soroban_sdk::testutils::{Address as _, Ledger as _};
 
 #[test]
 fn test_fixed_point_zero_division_protection() {
@@ -411,6 +411,80 @@ fn test_score_clamping() {
         ReputationContract::add_review(env.clone(), authorized_escrow, target_address2.clone(), true, 0_i32).unwrap();
         let profile = ReputationContract::get_profile(env, target_address2);
         assert_eq!(profile.client.score, 0);
+    });
+}
+
+#[test]
+fn test_recover_score_after_inactivity() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, ReputationContract);
+    let admin = Address::generate(&env);
+    let authorized_escrow = Address::generate(&env);
+    let target_address = Address::generate(&env);
+
+    env.clone().as_contract(&contract_id, || {
+        env.mock_all_auths();
+        ReputationContract::initialize(env.clone(), admin.clone()).unwrap();
+        ReputationContract::set_authorized_caller(
+            env.clone(),
+            admin,
+            AuthorizedCaller::Escrow,
+            authorized_escrow.clone(),
+        )
+        .unwrap();
+
+        ReputationContract::add_review(
+            env.clone(),
+            authorized_escrow.clone(),
+            target_address.clone(),
+            true,
+            3000_i32,
+        )
+        .unwrap();
+
+        env.ledger().set_timestamp(90u64 * 24 * 60 * 60);
+        let recovered = ReputationContract::recover_score(
+            env.clone(),
+            authorized_escrow,
+            target_address.clone(),
+            Role::Client,
+        )
+        .unwrap();
+
+        assert_eq!(recovered, 3200);
+        let profile = ReputationContract::get_profile(env, target_address);
+        assert_eq!(profile.client.score, 3200);
+    });
+}
+
+#[test]
+fn test_recover_score_requires_authorized_caller() {
+    let env = Env::default();
+    let contract_id = env.register_contract(None, ReputationContract);
+    let admin = Address::generate(&env);
+    let authorized_escrow = Address::generate(&env);
+    let attacker = Address::generate(&env);
+    let target_address = Address::generate(&env);
+
+    env.clone().as_contract(&contract_id, || {
+        env.mock_all_auths();
+        ReputationContract::initialize(env.clone(), admin.clone()).unwrap();
+        ReputationContract::set_authorized_caller(
+            env.clone(),
+            admin,
+            AuthorizedCaller::Escrow,
+            authorized_escrow,
+        )
+        .unwrap();
+
+        let result = ReputationContract::recover_score(
+            env.clone(),
+            attacker,
+            target_address,
+            Role::Freelancer,
+        );
+
+        assert_eq!(result, Err(ReputationError::NotAuthorizedContract));
     });
 }
 

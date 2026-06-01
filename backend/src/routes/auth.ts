@@ -470,13 +470,14 @@ async function issueRefreshToken(
   if (previousTokenId !== undefined) {
     await prisma.refresh_tokens.update({
       where: { id: previousTokenId },
-      data: { revoked: true },
+      data: { revoked: true, revoked_at: new Date() },
     });
   }
 
   const rawToken = crypto
     .randomBytes(48)
     .toString("base64url");
+  const jti = crypto.randomUUID();
 
   const hashedToken = crypto
     .createHash("sha256")
@@ -493,6 +494,7 @@ async function issueRefreshToken(
       address,
       expires_at: expiresAt,
       revoked: false,
+      jti,
     },
   });
 
@@ -1204,11 +1206,12 @@ export function createAuthRouter(deps: {
         return res.status(401).json({ error: "Challenge expired" });
       }
 
-      const isValid = verifyStellarSignature(address, challengeRecord.challenge, signature);
+      let isValid = verifyStellarSignature(address, challengeRecord.challenge, signature);
 
       if (!isValid && process.env.NODE_ENV !== "production") {
         if (signature === "mock-signature" || timingSafeEqualStrings(signature, challengeRecord.challenge)) {
           // Accept mock / self-signed challenges in dev/test
+          isValid = true;
         }
       }
 
@@ -1241,6 +1244,7 @@ export function createAuthRouter(deps: {
           address,
           expires_at: refreshExpiresAt,
           revoked: false,
+          jti: crypto.randomUUID(),
         },
       });
 
@@ -1301,7 +1305,7 @@ export function createAuthRouter(deps: {
 
       await prismaClient.refresh_tokens.update({
         where: { id: record.id },
-        data: { revoked: true },
+        data: { revoked: true, revoked_at: new Date() },
       });
 
       const rawNewRefreshToken = crypto.randomBytes(48).toString("base64url");
@@ -1314,6 +1318,7 @@ export function createAuthRouter(deps: {
           address: record.address,
           expires_at: newRefreshExpiresAt,
           revoked: false,
+          jti: crypto.randomUUID(),
         },
       });
 
@@ -1371,7 +1376,7 @@ export function createAuthRouter(deps: {
         const hash = crypto.createHash("sha256").update(refreshToken).digest("hex");
         await prismaClient.refresh_tokens.updateMany({
           where: { token_hash: hash, revoked: false },
-          data: { revoked: true },
+          data: { revoked: true, revoked_at: new Date() },
         }).catch(() => {});
       }
 

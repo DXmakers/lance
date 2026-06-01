@@ -70,6 +70,26 @@ model auth_challenges {
   @@index([expires_at], map: "idx_auth_challenges_expires_at")
 }
 
+model refresh_tokens {
+  id           Int      @id @default(autoincrement())
+  token_hash   String   @unique
+  address      String
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  expires_at   DateTime @db.Timestamptz(6)
+  revoked      Boolean  @default(false) @map("is_revoked")
+  revoked_at   DateTime? @db.Timestamptz(6)
+  revoke_reason String?
+  jti          String   @unique
+  last_used_at DateTime? @db.Timestamptz(6)
+  ip_address   String?
+  user_agent   String?
+
+  @@index([address], map: "idx_refresh_tokens_address")
+  @@index([expires_at], map: "idx_refresh_tokens_expires_at")
+  @@index([revoked], map: "idx_refresh_tokens_is_revoked")
+  @@index([jti], map: "idx_refresh_tokens_jti")
+}
+
 model bid_status_transitions {
   id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   bid_id          String   @db.Uuid
