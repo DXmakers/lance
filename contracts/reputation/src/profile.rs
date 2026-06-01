@@ -107,7 +107,6 @@ pub struct Profile {
 }
 
 impl Profile {
-    pub fn new(env: &soroban_sdk::Env, address: Address) -> Self {
     pub fn new(env: &Env, address: Address) -> Self {
         Self {
             address,

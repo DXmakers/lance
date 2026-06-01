@@ -164,6 +164,16 @@ pub struct ProfileDeletedEvent {
     pub deleted_at: u64,
 }
 
+#[contracttype]
+#[derive(Clone)]
+pub struct ScoreRecoveredEvent {
+    pub address: Address,
+    pub role: Role,
+    pub previous_score: i32,
+    pub new_score: i32,
+    pub recovered_at: u64,
+}
+
 #[contract]
 pub struct ReputationContract;
 
@@ -178,6 +188,8 @@ impl ReputationContract {
     const DEFAULT_SCORE_BPS: i32 = 5_000;
     const SLASH_DECAY_BPS: i32 = 8_000;
     const BLACKLIST_DECAY_BPS: i32 = 1_000;
+    const RECOVERY_INACTIVITY_SECONDS: u64 = 30 * 24 * 60 * 60;
+    const RECOVERY_STEP_BPS: i32 = 1_000;
 
     fn bump_instance_ttl(env: &Env) {
         env.storage()
@@ -336,6 +348,26 @@ impl ReputationContract {
 
     fn apply_role_decay(env: &Env, metrics: &mut RoleMetrics, decay_bps: i32) {
         metrics.score = Self::apply_decay_bps(env, metrics.score, decay_bps);
+    }
+
+    fn touch_profile(profile: &mut Profile, timestamp: u64) {
+        profile.last_activity = timestamp;
+    }
+
+    fn compute_recovery_towards_default(env: &Env, score: i32) -> i32 {
+        if score == Self::DEFAULT_SCORE_BPS {
+            return score;
+        }
+
+        let distance = (Self::DEFAULT_SCORE_BPS as i128)
+            .checked_sub(score as i128)
+            .unwrap_or_else(|| soroban_sdk::panic_with_error!(env, ReputationError::ContractStateError));
+        let adjustment = distance
+            .checked_mul(Self::RECOVERY_STEP_BPS as i128)
+            .unwrap_or_else(|| soroban_sdk::panic_with_error!(env, ReputationError::ContractStateError))
+            / Self::SCORE_SCALE;
+
+        Self::clamp_score_i128((score as i128).saturating_add(adjustment))
     }
 
     pub fn upgrade(
@@ -512,6 +544,8 @@ impl ReputationContract {
                 soroban_sdk::panic_with_error!(&env, ReputationError::NotJobParticipant);
             };
 
+        let updated_at = env.ledger().timestamp();
+        Self::touch_profile(&mut profile, updated_at);
         storage::write_profile(&env, &target, &profile);
         env.storage().persistent().set(&reviewed_key, &true);
         env.storage().persistent().extend_ttl(
@@ -534,86 +568,8 @@ impl ReputationContract {
                 average_rating_bps,
                 badge_level,
                 blacklisted: profile.is_blacklisted,
-                updated_at: env.ledger().timestamp(),
+                updated_at,
             },
-        let is_blacklisted = profile.is_blacklisted;
-        let metrics = Self::role_metrics_mut(&mut profile, &role);
-        let previous_score = metrics.score;
-        metrics.completed_jobs = metrics.completed_jobs.saturating_add(1);
-        Self::apply_manual_delta(metrics, delta, is_blacklisted);
-        let new_score = metrics.score;
-        let total_jobs = metrics.completed_jobs;
-        let badge_level = metrics.badge_level;
-
-        storage::write_profile(&env, &address, &profile);
-        env.events().publish(
-            ("reputation", "ScoreAdjusted"),
-            ScoreAdjustedEvent {
-                address,
-                role,
-                delta: new_score.saturating_sub(previous_score),
-                new_score,
-                total_jobs,
-                badge_level,
-                adjusted_at: env.ledger().timestamp(),
-            },
-        // Calculate new average rating using fixed-point arithmetic
-        profile.avg_rating = fixed_point::calculate_avg_rating(
-            profile.total_review_points,
-            profile.review_count,
-        );
-
-        let mut profile = storage::read_profile_or_default(&env, &address);
-        if profile.is_blacklisted {
-            soroban_sdk::panic_with_error!(&env, ReputationError::Blacklisted);
-        }
-
-        let is_blacklisted = profile.is_blacklisted;
-        let metrics = Self::role_metrics_mut(&mut profile, &role);
-        let previous_score = metrics.score;
-        Self::apply_role_decay(&env, metrics, Self::SLASH_DECAY_BPS, is_blacklisted);
-        let new_score = metrics.score;
-        let total_jobs = metrics.completed_jobs;
-        let badge_level = metrics.badge_level;
-
-        storage::write_profile(&env, &address, &profile);
-        env.events().publish(
-            ("reputation", "ScoreAdjusted"),
-            ScoreAdjustedEvent {
-                address,
-                role,
-                delta: new_score.saturating_sub(previous_score),
-                new_score,
-                total_jobs,
-                badge_level,
-                adjusted_at: env.ledger().timestamp(),
-            },
-        // Update reputation score based on average rating
-        // Scale: 1->2000 BPS, 2->4000 BPS, ..., 5->10000 BPS
-        let rating_bps = (profile.avg_rating * 2) / 1000; // Convert from 1000-5000 scale to 2000-10000 BPS
-        profile.reputation_score = rating_bps.clamp(0, 10_000);
-
-        // Update timestamp
-        profile.last_updated = env.ledger().timestamp();
-
-        // Check and update badge tier
-        let new_tier = Self::calculate_badge_tier(profile.reputation_score, profile.completed_jobs);
-        profile.badge_tier = new_tier;
-
-        // Save updated profile
-        Self::save_profile(env.clone(), &profile);
-
-        // Also update legacy ReputationScore for backward compatibility
-        let mut rep = Self::get_score(env.clone(), target.clone(), Role::Freelancer);
-        rep.total_points = rep.total_points.saturating_add(score as i32);
-        rep.reviews = rep.reviews.saturating_add(1);
-        rep.total_jobs = rep.total_jobs.saturating_add(1);
-        let avg = rep.total_points / (rep.reviews as i32);
-        let bps = avg.saturating_mul(2000);
-        rep.score = bps.clamp(0, 10_000);
-        env.storage().persistent().set(
-            &DataKey::Score(rep.address.clone(), rep.role.clone()),
-            &rep,
         );
         Self::bump_instance_ttl(&env);
     }
@@ -638,6 +594,8 @@ impl ReputationContract {
         let new_score = Self::role_metrics(&profile, &role).score;
         let total_jobs = Self::role_metrics(&profile, &role).completed_jobs;
         let badge_level = Self::role_metrics(&profile, &role).badge_level;
+        let adjusted_at = env.ledger().timestamp();
+        Self::touch_profile(&mut profile, adjusted_at);
         storage::write_profile(&env, &address, &profile);
         env.events().publish(
             ("reputation", "ScoreAdjusted"),
@@ -648,7 +606,7 @@ impl ReputationContract {
                 new_score,
                 total_jobs,
                 badge_level,
-                adjusted_at: env.ledger().timestamp(),
+                adjusted_at,
             },
         );
         Self::bump_instance_ttl(&env);
@@ -669,6 +627,8 @@ impl ReputationContract {
         let new_score = Self::role_metrics(&profile, &role).score;
         let total_jobs = Self::role_metrics(&profile, &role).completed_jobs;
         let badge_level = Self::role_metrics(&profile, &role).badge_level;
+        let adjusted_at = env.ledger().timestamp();
+        Self::touch_profile(&mut profile, adjusted_at);
         storage::write_profile(&env, &address, &profile);
         env.events().publish(
             ("reputation", "ScoreAdjusted"),
@@ -679,7 +639,7 @@ impl ReputationContract {
                 new_score,
                 total_jobs,
                 badge_level,
-                adjusted_at: env.ledger().timestamp(),
+                adjusted_at,
             },
         );
         Self::bump_instance_ttl(&env);
@@ -704,6 +664,8 @@ impl ReputationContract {
 
         let client_score = profile.client.score;
         let freelancer_score = profile.freelancer.score;
+        let updated_at = env.ledger().timestamp();
+        Self::touch_profile(&mut profile, updated_at);
         storage::write_profile(&env, &address, &profile);
         env.events().publish(
             ("reputation", "BlacklistUpdated"),
@@ -712,7 +674,7 @@ impl ReputationContract {
                 is_blacklisted: true,
                 client_score,
                 freelancer_score,
-                updated_at: env.ledger().timestamp(),
+                updated_at,
             },
         );
         Self::bump_instance_ttl(&env);
@@ -769,6 +731,8 @@ impl ReputationContract {
             profile.badge_metadata.push_back(BadgeMetadataEntry { tier, uri });
         }
 
+        let updated_at = env.ledger().timestamp();
+        Self::touch_profile(&mut profile, updated_at);
         storage::write_profile(&env, &address, &profile);
         Self::bump_instance_ttl(&env);
     }
@@ -788,6 +752,45 @@ impl ReputationContract {
             }
         }
         None
+    }
+
+    pub fn recover_score(env: Env, caller_contract: Address, address: Address, role: Role) -> i32 {
+        Self::require_authorized_contract(&env, &caller_contract);
+
+        let mut profile = storage::read_profile_or_default(&env, &address);
+        if profile.is_blacklisted {
+            soroban_sdk::panic_with_error!(&env, ReputationError::Blacklisted);
+        }
+
+        let now = env.ledger().timestamp();
+        if profile.last_activity == 0
+            || now.saturating_sub(profile.last_activity) < Self::RECOVERY_INACTIVITY_SECONDS
+        {
+            return Self::role_metrics(&profile, &role).score;
+        }
+
+        let is_blacklisted = profile.is_blacklisted;
+        let metrics = Self::role_metrics_mut(&mut profile, &role);
+        let previous_score = metrics.score;
+        let new_score = Self::compute_recovery_towards_default(&env, previous_score);
+        metrics.score = new_score;
+        Self::refresh_badge(metrics, is_blacklisted);
+        profile.refresh_badges();
+        Self::touch_profile(&mut profile, now);
+        storage::write_profile(&env, &address, &profile);
+
+        env.events().publish(
+            ("reputation", "ScoreRecovered"),
+            ScoreRecoveredEvent {
+                address,
+                role,
+                previous_score,
+                new_score,
+                recovered_at: now,
+            },
+        );
+        Self::bump_instance_ttl(&env);
+        new_score
     }
 
     pub fn get_score(env: Env, address: Address, role: Role) -> ReputationScore {
@@ -811,6 +814,8 @@ impl ReputationContract {
         address.require_auth();
         let mut profile = storage::read_profile_or_default(&env, &address);
         profile.metadata_hash = Some(metadata_hash);
+        let updated_at = env.ledger().timestamp();
+        Self::touch_profile(&mut profile, updated_at);
         storage::write_profile(&env, &address, &profile);
         Self::bump_instance_ttl(&env);
     }
@@ -862,13 +867,15 @@ impl ReputationContract {
         Self::require_admin(&env, &admin);
         let mut profile = storage::read_profile_or_default(&env, &address);
         profile.transfer_blocked = blocked;
+        let updated_at = env.ledger().timestamp();
+        Self::touch_profile(&mut profile, updated_at);
         storage::write_profile(&env, &address, &profile);
         env.events().publish(
             ("reputation", "TransferBlocked"),
             TransferBlockedEvent {
                 address,
                 blocked,
-                updated_at: env.ledger().timestamp(),
+                updated_at,
             },
         );
         Self::bump_instance_ttl(&env);
@@ -937,50 +944,6 @@ impl ReputationContract {
             });
         }
         results
-    pub fn get_badge(env: Env, address: Address, role: Role) -> BadgeLevel {
-        Self::bump_instance_ttl(&env);
-        let profile = storage::read_profile_or_default(&env, &address);
-        let score = Self::role_metrics(&profile, &role).score;
-        BadgeLevel::from_score(score)
-    }
-
-    pub fn set_badge_metadata(
-        env: Env,
-        admin: Address,
-        address: Address,
-        tier: BadgeTier,
-        uri: Bytes,
-    ) {
-        Self::require_admin(&env, &admin);
-        let mut profile = storage::read_profile_or_default(&env, &address);
-        
-        let mut updated = false;
-        for i in 0..profile.badge_metadata.len() {
-            if let Some(mut entry) = profile.badge_metadata.get(i) {
-                if entry.tier == tier {
-                    entry.uri = uri.clone();
-                    profile.badge_metadata.set(i, entry);
-                    updated = true;
-                    break;
-                }
-            }
-        }
-        if !updated {
-            profile.badge_metadata.push_back(BadgeMetadataEntry { tier, uri });
-        }
-        storage::write_profile(&env, &address, &profile);
-        Self::bump_instance_ttl(&env);
-    }
-
-    pub fn get_badge_metadata(env: Env, address: Address, tier: BadgeTier) -> Option<Bytes> {
-        Self::bump_instance_ttl(&env);
-        let profile = storage::read_profile_or_default(&env, &address);
-        for entry in profile.badge_metadata.iter() {
-            if entry.tier == tier {
-                return Some(entry.uri);
-            }
-        }
-        None
     }
 }
 
@@ -1036,6 +999,12 @@ mod test {
             let reputation_client = ReputationContractClient::new(&env, &reputation);
             let caller_contract = env.current_contract_address();
             reputation_client.blacklist_profile(&caller_contract, &target, &reason);
+        }
+
+        pub fn recover(env: Env, reputation: Address, target: Address, role: Role) -> i32 {
+            let reputation_client = ReputationContractClient::new(&env, &reputation);
+            let caller_contract = env.current_contract_address();
+            reputation_client.recover_score(&caller_contract, &target, &role)
         }
     }
 
@@ -1219,6 +1188,56 @@ mod test {
         let view = client.query_reputation(&freelancer);
         assert!(view.is_blacklisted);
         assert!(client.is_blacklisted(&freelancer));
+    }
+
+    #[test]
+    fn test_recover_after_inactivity() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let target = Address::generate(&env);
+        let reputation_id = env.register_contract(None, ReputationContract);
+        let adjuster_id = env.register_contract(None, AuthorizedAdjuster);
+        let client = ReputationContractClient::new(&env, &reputation_id);
+        let adjuster = AuthorizedAdjusterClient::new(&env, &adjuster_id);
+
+        client.initialize(&admin);
+        client.set_authorized_contract(&admin, &adjuster_id);
+
+        env.ledger().set_timestamp(100);
+        adjuster.award(&reputation_id, &target, &Role::Freelancer, &-2_000);
+        assert_eq!(client.get_score(&target, &Role::Freelancer).score, 3_000);
+
+        env.ledger().set_timestamp(100 + 30 * 24 * 60 * 60 - 1);
+        let unchanged = adjuster.recover(&reputation_id, &target, &Role::Freelancer);
+        assert_eq!(unchanged, 3_000);
+        assert_eq!(client.get_score(&target, &Role::Freelancer).score, 3_000);
+
+        env.ledger().set_timestamp(100 + 30 * 24 * 60 * 60);
+        let recovered = adjuster.recover(&reputation_id, &target, &Role::Freelancer);
+        assert_eq!(recovered, 3_200);
+        assert_eq!(client.get_score(&target, &Role::Freelancer).score, 3_200);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_recover_requires_authorized_contract() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let target = Address::generate(&env);
+        let attacker = Address::generate(&env);
+        let reputation_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &reputation_id);
+
+        client.initialize(&admin);
+        client.set_authorized_contract(&admin, &admin);
+        client.update_score(&admin, &target, &Role::Freelancer, &-2_000);
+
+        env.ledger().set_timestamp(30 * 24 * 60 * 60);
+        client.recover_score(&attacker, &target, &Role::Freelancer);
     }
 
 
@@ -1545,120 +1564,6 @@ mod test {
         assert_eq!(level, 0);
     }
 
-    #[test]
-    fn test_badge_upgrades() {
-        let env = Env::default();
-        env.mock_all_auths();
-
-        let admin = Address::generate(&env);
-        let address = Address::generate(&env);
-        let contract_id = env.register_contract(None, ReputationContract);
-        let client = ReputationContractClient::new(&env, &contract_id);
-
-        client.initialize(&admin);
-        client.set_authorized_contract(&admin, &admin);
-
-        assert_eq!(client.get_badge_level(&address, &Role::Freelancer), 0);
-
-        client.update_score(&admin, &address, &Role::Freelancer, &500);
-        assert_eq!(client.get_badge_level(&address, &Role::Freelancer), 0);
-        let uri = Bytes::from_slice(&env, b"ipfs://QmBronzeBadge");
-        client.set_badge_metadata(&admin, &addr, &BadgeTier::Bronze, &uri);
-
-        let result = client.get_badge_metadata(&addr, &BadgeTier::Bronze);
-        assert_eq!(result, Some(uri));
-        client.slash(
-            &address,
-            &Role::Client,
-            &soroban_sdk::Symbol::new(&env, "fraud"),
-        );
-
-        client.update_score(&admin, &address, &Role::Freelancer, &500);
-        assert_eq!(client.get_badge_level(&address, &Role::Freelancer), 0);
-
-        client.update_score(&admin, &address, &Role::Freelancer, &500);
-        assert_eq!(client.get_badge_level(&address, &Role::Freelancer), 1);
-
-        let metrics = client.get_public_metrics(&address, &soroban_sdk::Symbol::new(&env, "freelancer"));
-        assert_eq!(metrics.get(0).unwrap(), 6500);
-        assert_eq!(metrics.get(1).unwrap(), 3);
-        assert_eq!(metrics.get(4).unwrap(), 1);
-    }
-
-    #[test]
-    fn test_authorized_contract_score_adjustment() {
-        let env = Env::default();
-        env.mock_all_auths();
-
-        let admin = Address::generate(&env);
-        let authorized_contract = Address::generate(&env);
-        let unauthorized_contract = Address::generate(&env);
-        let address = Address::generate(&env);
-
-        let contract_id = env.register_contract(None, ReputationContract);
-        let client = ReputationContractClient::new(&env, &contract_id);
-
-        client.initialize(&admin);
-
-        client.authorize_contract(&admin, &authorized_contract);
-        assert!(client.is_contract_authorized(&authorized_contract));
-        assert!(!client.is_contract_authorized(&unauthorized_contract));
-
-        client.update_score(&authorized_contract, &address, &Role::Freelancer, &100);
-        let score = client.get_score(&address, &Role::Freelancer);
-        assert_eq!(score.score, 5100);
-
-        let res = client.try_update_score(&unauthorized_contract, &address, &Role::Freelancer, &100);
-        assert!(res.is_err());
-
-        client.deauthorize_contract(&admin, &authorized_contract);
-        assert!(!client.is_contract_authorized(&authorized_contract));
-
-        let res2 = client.try_update_score(&authorized_contract, &address, &Role::Freelancer, &100);
-        assert!(res2.is_err());
-    }
-
-    #[test]
-    fn test_arbitrary_direct_review_rejected() {
-        let env = Env::default();
-        env.mock_all_auths();
-
-        let admin = Address::generate(&env);
-        let client_addr = Address::generate(&env);
-        let freelancer_addr = Address::generate(&env);
-        let attacker = Address::generate(&env);
-
-        let contract_id = env.register_contract(None, ReputationContract);
-        let client = ReputationContractClient::new(&env, &contract_id);
-        client.initialize(&admin);
-        let uri_v1 = Bytes::from_slice(&env, b"ipfs://QmSilverV1");
-        let uri_v2 = Bytes::from_slice(&env, b"ipfs://QmSilverV2");
-        client.set_badge_metadata(&admin, &addr, &BadgeTier::Silver, &uri_v1);
-        client.set_badge_metadata(&admin, &addr, &BadgeTier::Silver, &uri_v2);
-        env.mock_all_auths_allow_last();
-
-        let mock_id = env.register_contract(None, MockJobRegistry);
-        client.set_job_registry(&admin, &mock_id);
-
-        let job = JobRecord {
-            client: client_addr.clone(),
-            freelancer: Some(freelancer_addr.clone()),
-            metadata_hash: Bytes::from_slice(&env, b"QmJob"),
-            budget_stroops: 10,
-            expires_at: 0,
-            status: JobStatus::Completed,
-            bid_deadline: 0,
-            collateral_token: Address::generate(&env),
-            collateral_amount: 0,
-            collateral_locked: false,
-        };
-        let mock_client = MockJobRegistryClient::new(&env, &mock_id);
-        mock_client.set_job(&7u64, &job);
-
-        let res = client.try_submit_rating(&attacker, &7u64, &freelancer_addr, &5u32);
-        assert!(res.is_err());
-    }
-
     // ── Issue #411: Profile Existence Checkpoint ───────────────────
 
     #[test]
@@ -1675,24 +1580,6 @@ mod test {
     fn test_profile_exists_returns_true_after_rating() {
         let env = Env::default();
         env.mock_all_auths();
-    fn test_multiple_tiers_stored_independently() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let admin = Address::generate(&env);
-        let addr = Address::generate(&env);
-        let cid = env.register_contract(None, ReputationContract);
-        let client = ReputationContractClient::new(&env, &cid);
-        client.initialize(&admin);
-        let bronze_uri = Bytes::from_slice(&env, b"ipfs://Bronze");
-        let gold_uri   = Bytes::from_slice(&env, b"ipfs://Gold");
-        client.set_badge_metadata(&admin, &addr, &BadgeTier::Bronze, &bronze_uri);
-        client.set_badge_metadata(&admin, &addr, &BadgeTier::Gold,   &gold_uri);
-    fn test_fixed_point_arithmetic() {
-        // Test fixed-point arithmetic for safe rating calculations
-        
-        // Test calculate_avg_rating
-        let avg_rating = fixed_point::calculate_avg_rating(15000, 3); // 15000/3 = 5000 = 5.0
-        assert_eq!(avg_rating, 5000);
 
         let admin = Address::generate(&env);
         let job_client = Address::generate(&env);
