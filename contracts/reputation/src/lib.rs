@@ -1,5 +1,6 @@
-#![no_std]
+﻿#![no_std]
 
+mod fixed_point;
 mod profile;
 mod storage;
 

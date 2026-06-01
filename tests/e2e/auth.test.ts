@@ -147,7 +147,7 @@ describe("POST /api/v1/auth/challenge", () => {
     const broken = valid.slice(0, -1) + (valid.endsWith("A") ? "B" : "A");
     const res    = await request(app).post("/api/v1/auth/challenge").send({ address: broken });
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/checksum/i);
+    expect(res.body.error).toBe("Invalid Stellar address checksum");
   });
 
   it("200 — returns challenge containing the address", async () => {
@@ -203,12 +203,14 @@ describe("POST /api/v1/auth/verify", () => {
     expect(r2.status).toBe(400);
   });
 
-  it("404 — no pending challenge for address", async () => {
+  it("401 — no pending challenge for address", async () => {
     const res = await request(app).post("/api/v1/auth/verify").send({
       address:   Keypair.random().publicKey(),
       signature: "mock-signature",
     });
-    expect(res.status).toBe(404);
+    // Return 401 (not 404) to avoid leaking whether an address has a pending challenge.
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/invalid credentials/i);
   });
 
   it("401 — expired challenge (BE-W3A-102)", async () => {
@@ -285,7 +287,7 @@ describe("POST /api/v1/auth/verify", () => {
     expect(remainingTTL).toBeLessThanOrEqual(15 * 60);
   });
 
-  it("challenge deleted after verify — replay rejected with 404", async () => {
+  it("challenge deleted after verify — replay rejected with 401", async () => {
     const keypair = Keypair.random();
     const { address, challenge } = await getChallenge(keypair);
     const signature = signChallenge(keypair, challenge);
@@ -295,7 +297,7 @@ describe("POST /api/v1/auth/verify", () => {
     expect(challenges[address]).toBeUndefined();
 
     const replay = await request(app).post("/api/v1/auth/verify").send({ address, signature });
-    expect(replay.status).toBe(404);
+    expect(replay.status).toBe(401);
   });
 
   it("unwraps wallet-kit { signature } object", async () => {

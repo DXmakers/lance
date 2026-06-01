@@ -7,6 +7,33 @@ use soroban_sdk::{Address, Env, String};
 use soroban_sdk::testutils::Address as _;
 
 #[test]
+fn test_fixed_point_zero_division_protection() {
+    // Test calculate_avg_rating with zero review count
+    let avg = crate::fixed_point::calculate_avg_rating(15000, 0);
+    assert_eq!(avg, 0); // Should return 0 instead of panicking
+
+    // Test safe_div_bps with zero denominator
+    let result = crate::fixed_point::safe_div_bps(10000, 0);
+    assert_eq!(result, 0); // Should return 0 instead of panicking
+
+    // Test bps_multiply with zero scale
+    let result = crate::fixed_point::bps_multiply(5000, 2, 0);
+    assert_eq!(result, 0); // Should return 0 instead of panicking
+
+    // Test calculate_avg_rating with valid inputs
+    let avg = crate::fixed_point::calculate_avg_rating(15000, 3);
+    assert_eq!(avg, 5000); // 15000/3 = 5000
+
+    // Test safe_div_bps with valid inputs
+    let result = crate::fixed_point::safe_div_bps(5000, 2);
+    assert_eq!(result, 2500); // 5000/2 = 2500
+
+    // Test bps_multiply with valid inputs
+    let result = crate::fixed_point::bps_multiply(5000, 2, 10000);
+    assert_eq!(result, 1); // (5000*2)/10000 = 1
+}
+
+#[test]
 fn test_initialize() {
     let env = Env::default();
     let contract_id = env.register_contract(None, ReputationContract);
