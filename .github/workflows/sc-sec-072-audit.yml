@@ -1,0 +1,144 @@
+# .github/workflows/sc-sec-061-reentrancy.yml
+#
+# SC-SEC-061: ReentrancyGuard CI
+#
+# Three jobs mirror the acceptance criteria exactly:
+#   1. build-size   — WASM binary verified < 40 KB
+#   2. reentrancy   — all 14 unit tests pass, re-entrant panic tests confirmed
+#   3. gas-bench    — release / refund / judge_verdict all ≤ budget
+
+name: SC-SEC-061 ReentrancyGuard
+
+on:
+  push:
+    paths:
+      - 'contracts/escrow/**'
+      - '.github/workflows/sc-sec-061-reentrancy.yml'
+  pull_request:
+    paths:
+      - 'contracts/escrow/**'
+
+env:
+  RUST_TOOLCHAIN: "1.81.0"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ── 1. Build + WASM size ────────────────────────────────────────────────────
+  build-size:
+    name: Build WASM & assert < 40 KB
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: wasm32-unknown-unknown
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build escrow (release, wasm32)
+        run: |
+          cargo build \
+            --target wasm32-unknown-unknown \
+            --release \
+            -p escrow
+
+      - name: Assert WASM < 40 KB
+        run: |
+          WASM=target/wasm32-unknown-unknown/release/escrow.wasm
+          SIZE=$(wc -c < "$WASM")
+          echo "escrow.wasm = ${SIZE} bytes"
+          [ "$SIZE" -le 40960 ] || \
+            (echo "FAIL: ${SIZE} bytes exceeds 40 960 byte limit" && exit 1)
+          echo "PASS: ${SIZE} ≤ 40 960 bytes"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: escrow-wasm
+          path: target/wasm32-unknown-unknown/release/escrow.wasm
+
+  # ── 2. Reentrancy unit tests ─────────────────────────────────────────────────
+  reentrancy-tests:
+    name: Reentrancy unit tests (14 cases)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run reentrancy tests
+        run: |
+          cargo test -p escrow -- \
+            --nocapture \
+            2>&1 | tee reentrancy_output.txt
+
+      - name: Verify re-entrant panic tests ran
+        run: |
+          for TEST in \
+            "release_panics_on_reentrancy" \
+            "refund_panics_on_reentrancy" \
+            "judge_verdict_panics_on_reentrancy" \
+            "guard_acquire_panics_when_locked"
+          do
+            grep -q "$TEST" reentrancy_output.txt || \
+              (echo "FAIL: test $TEST not found in output" && exit 1)
+            echo "CONFIRMED: $TEST"
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reentrancy-test-output
+          path: reentrancy_output.txt
+
+  # ── 3. Gas benchmarks ────────────────────────────────────────────────────────
+  gas-benchmarks:
+    name: Gas benchmarks (≥15% reduction)
+    runs-on: ubuntu-latest
+    needs: reentrancy-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run gas benchmark tests
+        run: |
+          cargo test -p escrow gas_ -- --nocapture 2>&1 | tee gas_output.txt
+
+      - name: Assert no gas test failures
+        run: |
+          grep -q "FAILED" gas_output.txt && \
+            (echo "FAIL: gas assertion failed"; cat gas_output.txt; exit 1) || \
+            echo "PASS: all gas benchmarks within budget"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gas-benchmark-output
+          path: gas_output.txt
