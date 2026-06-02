@@ -22,6 +22,7 @@ import poolRoutes from "./routes/pool";
 import stateRoutes from "./routes/state";
 import { pool } from "./config/db";
 import { startStorageCleanup, stopStorageCleanup } from "./utils/storage-cleanup";
+import { startNonceCleanup, stopNonceCleanup } from "./utils/nonce-cleanup";
 
 dotenv.config();
 
@@ -151,6 +152,7 @@ app.get("/health", async (req: Request, res: Response) => {
 process.on("SIGTERM", async () => {
   logger.info("SIGTERM received, shutting down gracefully");
   stopStorageCleanup();
+  stopNonceCleanup();
   try {
     await prisma.$disconnect();
     logger.info("Database connection closed");
@@ -172,6 +174,7 @@ async function bootstrap(): Promise<void> {
     await connectWithRetry();
     startPoolHealthCheck();
     startStorageCleanup();
+    startNonceCleanup();
     app.listen(port, () => {
       console.log(`⚡️[server]: Server is running at http://localhost:${port}`);
       // Update pool metrics periodically so the Prometheus scrape has fresh data

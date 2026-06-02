@@ -1,5 +1,8 @@
 /**
  * auth.ts — Secure JWT Session + Refresh Token Flow
+ * Includes: SEP-53 Stellar signature verification, JWT issuance,
+ * refresh-token rotation, Redis-backed blacklisting, and admin
+ * dispute-override endpoints.
  */
 
 import { Router, Request, Response } from "express";
@@ -9,7 +12,17 @@ import { z } from "zod";
 import { Keypair, StrKey } from "@stellar/stellar-sdk";
 import Redis from "ioredis";
 
-import { prisma } from "../config/db";
+import { prisma as prismaGlobal } from "../config/db";
+
+// ---------------------------------------------------------------------------
+// Mutable db reference — swapped by createAuthRouter() for testing.
+// Route handlers reference `db` (the module-level binding), so reassigning
+// it transparently redirects all database operations to the injected client.
+// ---------------------------------------------------------------------------
+
+let db = prismaGlobal;
+
+let injectedRedisClient: Redis | null | undefined = undefined;
 
 const router = Router();
 
@@ -66,7 +79,9 @@ function extractClientIp(req: Request): string {
   return req.ip || req.socket.remoteAddress || "127.0.0.1";
 }
 
-function takeChallengeToken(ip: string): { ok: true } | { ok: false; retryAfter: number } {
+function takeChallengeToken(
+  ip: string,
+): { ok: true } | { ok: false; retryAfter: number } {
   const cap = CHALLENGE_RATE_LIMIT_RPM + CHALLENGE_RATE_LIMIT_BURST;
   const refillPerMs = CHALLENGE_RATE_LIMIT_RPM / 60_000;
   const now = Date.now();
@@ -82,7 +97,10 @@ function takeChallengeToken(ip: string): { ok: true } | { ok: false; retryAfter:
   bucket.lastMs = now;
 
   if (bucket.tokens < 1) {
-    const retryAfter = Math.max(1, Math.ceil((1 - bucket.tokens) / refillPerMs / 1000));
+    const retryAfter = Math.max(
+      1,
+      Math.ceil((1 - bucket.tokens) / refillPerMs / 1000),
+    );
     return { ok: false, retryAfter };
   }
 
@@ -108,6 +126,9 @@ if (challengePruneTimer && "unref" in challengePruneTimer) {
 let redisClient: Redis | null | undefined;
 
 function getRedisClient(): Redis | null {
+  if (injectedRedisClient !== undefined) {
+    return injectedRedisClient;
+  }
   if (redisClient !== undefined) {
     return redisClient;
   }
@@ -177,7 +198,7 @@ async function isSessionBlacklisted(token: string): Promise<boolean> {
     const result = await Promise.race([
       client.get(blacklistKeyForToken(token)),
       new Promise<null>((resolve) =>
-        setTimeout(() => resolve(null), BLACKLIST_TIMEOUT_MS)
+        setTimeout(() => resolve(null), BLACKLIST_TIMEOUT_MS),
       ),
     ]);
 
@@ -187,33 +208,46 @@ async function isSessionBlacklisted(token: string): Promise<boolean> {
   }
 }
 
-export async function isSessionRevoked(
-  redisClient: Redis | null,
-  sessionToken: string
-): Promise<boolean> {
-  if (!redisClient) return false;
-  try {
-    const result = await Promise.race([
-      redisClient.get(blacklistKeyForToken(sessionToken)),
-      new Promise<null>((resolve) =>
-        setTimeout(() => resolve(null), 1)
-      ),
-    ]);
-    return result !== null;
-  } catch {
-    return false;
-  }
-}
+// export async function isSessionRevoked(
+//   redisClient: Redis | null,
+//   sessionToken: string,
+// ): Promise<boolean> {
+//   if (!redisClient) return false;
+//   try {
+//     const result = await Promise.race([
+//       redisClient.get(blacklistKeyForToken(sessionToken)),
+//       new Promise<null>((resolve) => setTimeout(() => resolve(null), 1)),
+//     ]);
+//     return result !== null;
+//   } catch {
+//     return false;
+//   }
+// }
 
 async function cleanupExpiredSessions(now: Date): Promise<void> {
-  await prisma.sessions.deleteMany({
+  await db.sessions.deleteMany({
     where: { expires_at: { lte: now } },
   });
 }
 
-export function sanitizeStellarAddress(
-  rawAddress: unknown
-): string | null {
+export async function isSessionRevoked(
+  redis: Redis,
+  token: string,
+): Promise<boolean> {
+  try {
+    const result = await Promise.race([
+      redis.get(blacklistKeyForToken(token)),
+      new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), BLACKLIST_TIMEOUT_MS),
+      ),
+    ]);
+    return result !== null;
+  } catch {
+    return false;
+  }
+}
+
+export function sanitizeStellarAddress(rawAddress: unknown): string | null {
   if (typeof rawAddress !== "string" || rawAddress.length === 0) {
     return null;
   }
@@ -225,10 +259,7 @@ export function sanitizeStellarAddress(
   try {
     const decoded = StrKey.decodeEd25519PublicKey(rawAddress);
 
-    if (
-      decoded.length !== 32 ||
-      !StrKey.isValidEd25519PublicKey(rawAddress)
-    ) {
+    if (decoded.length !== 32 || !StrKey.isValidEd25519PublicKey(rawAddress)) {
       return null;
     }
 
@@ -243,7 +274,7 @@ export function sanitizeStellarAddress(
 }
 
 export function validateStellarAddress(
-  rawAddress: unknown
+  rawAddress: unknown,
 ): { valid: true; address: string } | { valid: false; error: string } {
   if (typeof rawAddress !== "string") {
     return { valid: false, error: "Invalid Stellar address format" };
@@ -258,10 +289,7 @@ export function validateStellarAddress(
   try {
     const decoded = StrKey.decodeEd25519PublicKey(normalized);
 
-    if (
-      decoded.length !== 32 ||
-      !StrKey.isValidEd25519PublicKey(normalized)
-    ) {
+    if (decoded.length !== 32 || !StrKey.isValidEd25519PublicKey(normalized)) {
       return { valid: false, error: "Invalid Stellar address checksum" };
     }
 
@@ -277,10 +305,7 @@ export function validateStellarAddress(
   }
 }
 
-export function buildChallenge(
-  address: string,
-  nonce: string
-): string {
+export function buildChallenge(address: string, nonce: string): string {
   const issuedAt = new Date().toISOString();
 
   return (
@@ -290,17 +315,12 @@ export function buildChallenge(
 }
 
 function buildMessageHash(challenge: string): Buffer {
-  const payload = Buffer.from(
-    STELLAR_SIGN_PREFIX + challenge,
-    "utf8"
-  );
+  const payload = Buffer.from(STELLAR_SIGN_PREFIX + challenge, "utf8");
 
   return crypto.createHash("sha256").update(payload).digest();
 }
 
-function extractSignatureString(
-  signature: unknown
-): string | null {
+function extractSignatureString(signature: unknown): string | null {
   if (typeof signature === "string") {
     return signature.trim();
   }
@@ -308,8 +328,7 @@ function extractSignatureString(
   if (signature && typeof signature === "object") {
     const wrapped = signature as Record<string, unknown>;
 
-    const candidate =
-      wrapped.signature ?? wrapped.signedMessage;
+    const candidate = wrapped.signature ?? wrapped.signedMessage;
 
     if (typeof candidate === "string") {
       return candidate.trim();
@@ -319,9 +338,7 @@ function extractSignatureString(
   return null;
 }
 
-export function decodeSignature(
-  signature: unknown
-): Buffer | null {
+export function decodeSignature(signature: unknown): Buffer | null {
   const sigString = extractSignatureString(signature);
 
   if (!sigString) {
@@ -330,10 +347,7 @@ export function decodeSignature(
 
   const candidates: Buffer[] = [];
 
-  if (
-    /^[0-9a-fA-F]+$/.test(sigString) &&
-    sigString.length % 2 === 0
-  ) {
+  if (/^[0-9a-fA-F]+$/.test(sigString) && sigString.length % 2 === 0) {
     candidates.push(Buffer.from(sigString, "hex"));
   }
 
@@ -343,20 +357,14 @@ export function decodeSignature(
 
   if (/^[A-Za-z0-9_-]+={0,2}$/.test(sigString)) {
     candidates.push(
-      Buffer.from(
-        sigString.replace(/-/g, "+").replace(/_/g, "/"),
-        "base64"
-      )
+      Buffer.from(sigString.replace(/-/g, "+").replace(/_/g, "/"), "base64"),
     );
   }
 
   return candidates.find((candidate) => candidate.length === 64) ?? null;
 }
 
-function timingSafeEqualStrings(
-  a: string,
-  b: string
-): boolean {
+function timingSafeEqualStrings(a: string, b: string): boolean {
   const aBuf = Buffer.from(a);
   const bBuf = Buffer.from(b);
 
@@ -370,11 +378,10 @@ function timingSafeEqualStrings(
 export function verifyStellarSignature(
   address: string,
   challenge: string,
-  signature: unknown
+  signature: unknown,
 ): boolean {
   try {
-    const normalizedAddress =
-      sanitizeStellarAddress(address);
+    const normalizedAddress = sanitizeStellarAddress(address);
 
     const signatureBuffer = decodeSignature(signature);
 
@@ -382,13 +389,9 @@ export function verifyStellarSignature(
       return false;
     }
 
-    const keypair =
-      Keypair.fromPublicKey(normalizedAddress);
+    const keypair = Keypair.fromPublicKey(normalizedAddress);
 
-    return keypair.verify(
-      buildMessageHash(challenge),
-      signatureBuffer
-    );
+    return keypair.verify(buildMessageHash(challenge), signatureBuffer);
   } catch {
     return false;
   }
@@ -396,7 +399,7 @@ export function verifyStellarSignature(
 
 export function isChallengeFresh(
   record: { expires_at: Date },
-  now: Date = new Date()
+  now: Date = new Date(),
 ): boolean {
   return record.expires_at.getTime() > now.getTime();
 }
@@ -405,9 +408,7 @@ function extractBearerToken(req: Request): string | null {
   const authorization = req.header("authorization");
 
   if (authorization?.startsWith("Bearer ")) {
-    return authorization
-      .slice("Bearer ".length)
-      .trim();
+    return authorization.slice("Bearer ".length).trim();
   }
 
   const cookieHeader = req.header("cookie");
@@ -416,18 +417,14 @@ function extractBearerToken(req: Request): string | null {
     return null;
   }
 
-  const cookies = cookieHeader
-    .split(";")
-    .map((cookie) => cookie.trim());
+  const cookies = cookieHeader.split(";").map((cookie) => cookie.trim());
 
   const sessionCookie = cookies.find((cookie) =>
-    cookie.startsWith(`${SESSION_COOKIE_NAME}=`)
+    cookie.startsWith(`${SESSION_COOKIE_NAME}=`),
   );
 
   return sessionCookie
-    ? decodeURIComponent(
-        sessionCookie.split("=").slice(1).join("=")
-      )
+    ? decodeURIComponent(sessionCookie.split("=").slice(1).join("="))
     : null;
 }
 
@@ -435,17 +432,11 @@ function extractBearerToken(req: Request): string | null {
 // JWT Helpers
 // ---------------------------------------------------------------------------
 
-function issueAccessToken(
-  address: string,
-  jti: string,
-  role?: string
-): string {
+function issueAccessToken(address: string, jti: string, role?: string): string {
   const secret = process.env.JWT_SECRET;
 
   if (!secret) {
-    throw new Error(
-      "JWT_SECRET environment variable is not set"
-    );
+    throw new Error("JWT_SECRET environment variable is not set");
   }
 
   const options: SignOptions = {
@@ -456,27 +447,23 @@ function issueAccessToken(
     audience: "lance-frontend",
   };
 
-  return jwt.sign(
-    { address, ...(role ? { role } : {}) },
-    secret,
-    options
-  );
+  return jwt.sign({ address, ...(role ? { role } : {}) }, secret, options);
 }
 
 async function issueRefreshToken(
   address: string,
-  previousTokenId?: number
+  previousTokenId?: number,
 ): Promise<{ rawToken: string; hashedToken: string }> {
+  const client = db ?? prisma;
+
   if (previousTokenId !== undefined) {
-    await prisma.refresh_tokens.update({
+    await db.refresh_tokens.update({
       where: { id: previousTokenId },
       data: { revoked: true, revoked_at: new Date() },
     });
   }
 
-  const rawToken = crypto
-    .randomBytes(48)
-    .toString("base64url");
+  const rawToken = crypto.randomBytes(48).toString("base64url");
   const jti = crypto.randomUUID();
 
   const hashedToken = crypto
@@ -484,11 +471,9 @@ async function issueRefreshToken(
     .update(rawToken)
     .digest("hex");
 
-  const expiresAt = new Date(
-    Date.now() + REFRESH_TOKEN_TTL_SEC * 1000
-  );
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_SEC * 1000);
 
-  await prisma.refresh_tokens.create({
+  await db.refresh_tokens.create({
     data: {
       token_hash: hashedToken,
       address,
@@ -503,7 +488,7 @@ async function issueRefreshToken(
 
 export async function blacklistToken(
   jti: string,
-  expiresAt: number
+  expiresAt: number,
 ): Promise<void> {
   const client = getRedisClient();
 
@@ -511,32 +496,19 @@ export async function blacklistToken(
     return;
   }
 
-  const ttlSeconds = Math.max(
-    1,
-    expiresAt - Math.floor(Date.now() / 1000)
-  );
+  const ttlSeconds = Math.max(1, expiresAt - Math.floor(Date.now() / 1000));
 
-  await client.set(
-    `${BLACKLIST_NS}${jti}`,
-    "1",
-    "EX",
-    ttlSeconds,
-    "NX"
-  );
+  await client.set(`${BLACKLIST_NS}${jti}`, "1", "EX", ttlSeconds, "NX");
 }
 
-export async function isTokenBlacklisted(
-  jti: string
-): Promise<boolean> {
+export async function isTokenBlacklisted(jti: string): Promise<boolean> {
   const client = getRedisClient();
 
   if (!client) {
     return false;
   }
 
-  const result = await client.get(
-    `${BLACKLIST_NS}${jti}`
-  );
+  const result = await client.get(`${BLACKLIST_NS}${jti}`);
 
   return result !== null;
 }
@@ -551,10 +523,7 @@ interface ChallengeBody {
 
 router.post(
   "/challenge",
-  async (
-    req: Request<{}, {}, ChallengeBody>,
-    res: Response
-  ) => {
+  async (req: Request<{}, {}, ChallengeBody>, res: Response) => {
     try {
       const ip = extractClientIp(req);
       const rateResult = takeChallengeToken(ip);
@@ -567,8 +536,7 @@ router.post(
         });
       }
 
-      const parsed =
-        ChallengeRequestSchema.safeParse(req.body);
+      const parsed = ChallengeRequestSchema.safeParse(req.body);
 
       if (!parsed.success) {
         return res.status(400).json({
@@ -576,9 +544,7 @@ router.post(
         });
       }
 
-      const validation = validateStellarAddress(
-        parsed.data.address
-      );
+      const validation = validateStellarAddress(parsed.data.address);
 
       if (!validation.valid) {
         return res.status(400).json({
@@ -591,11 +557,9 @@ router.post(
       const nonce = crypto.randomUUID();
       const challenge = buildChallenge(address, nonce);
 
-      const expiresAt = new Date(
-        Date.now() + CHALLENGE_TTL_MS
-      );
+      const expiresAt = new Date(Date.now() + CHALLENGE_TTL_MS);
 
-      await prisma.$transaction(async (tx: any) => {
+      await db.$transaction(async (tx: any) => {
         await tx.auth_challenges.deleteMany({
           where: {
             expires_at: { lte: new Date() },
@@ -627,7 +591,7 @@ router.post(
         error: "Internal server error",
       });
     }
-  }
+  },
 );
 
 interface VerifyBody {
@@ -637,13 +601,9 @@ interface VerifyBody {
 
 router.post(
   "/verify",
-  async (
-    req: Request<{}, {}, VerifyBody>,
-    res: Response
-  ) => {
+  async (req: Request<{}, {}, VerifyBody>, res: Response) => {
     try {
-      const parsed =
-        VerifyRequestSchema.safeParse(req.body);
+      const parsed = VerifyRequestSchema.safeParse(req.body);
 
       if (!parsed.success) {
         return res.status(400).json({
@@ -651,9 +611,7 @@ router.post(
         });
       }
 
-      const address = sanitizeStellarAddress(
-        parsed.data.address
-      );
+      const address = sanitizeStellarAddress(parsed.data.address);
 
       if (!address) {
         return res.status(400).json({
@@ -663,17 +621,13 @@ router.post(
 
       let signature = parsed.data.signature;
 
-      if (
-        typeof signature === "object" &&
-        "signature" in signature
-      ) {
+      if (typeof signature === "object" && "signature" in signature) {
         signature = signature.signature;
       }
 
-      const challengeRecord =
-        await prisma.auth_challenges.findUnique({
-          where: { address },
-        });
+      const challengeRecord = await db.auth_challenges.findUnique({
+        where: { address },
+      });
 
       if (!challengeRecord) {
         return res.status(401).json({
@@ -682,7 +636,7 @@ router.post(
       }
 
       if (!isChallengeFresh(challengeRecord)) {
-        await prisma.auth_challenges
+        await db.auth_challenges
           .deleteMany({
             where: {
               address,
@@ -699,16 +653,13 @@ router.post(
       let isValid = verifyStellarSignature(
         address,
         challengeRecord.challenge,
-        signature
+        signature,
       );
 
       if (!isValid && process.env.NODE_ENV !== "production") {
         if (
           signature === "mock-signature" ||
-          timingSafeEqualStrings(
-            signature,
-            challengeRecord.challenge
-          )
+          timingSafeEqualStrings(signature, challengeRecord.challenge)
         ) {
           isValid = true;
         }
@@ -720,14 +671,13 @@ router.post(
         });
       }
 
-      const deleted =
-        await prisma.auth_challenges.deleteMany({
-          where: {
-            address,
-            challenge: challengeRecord.challenge,
-            expires_at: { gt: new Date() },
-          },
-        });
+      const deleted = await db.auth_challenges.deleteMany({
+        where: {
+          address,
+          challenge: challengeRecord.challenge,
+          expires_at: { gt: new Date() },
+        },
+      });
 
       if (deleted.count === 0) {
         return res.status(401).json({
@@ -737,21 +687,15 @@ router.post(
 
       const accessJti = crypto.randomUUID();
 
-      const accessToken = issueAccessToken(
-        address,
-        accessJti
-      );
+      const accessToken = issueAccessToken(address, accessJti);
 
-      const { rawToken: refreshToken } =
-        await issueRefreshToken(address);
+      const { rawToken: refreshToken } = await issueRefreshToken(address);
 
       const sessionToken = crypto.randomUUID();
 
-      const sessionExpiresAt = new Date(
-        Date.now() + SESSION_TTL_MS
-      );
+      const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
-      await prisma.sessions.create({
+      await db.sessions.create({
         data: {
           token: sessionToken,
           address,
@@ -788,8 +732,37 @@ router.post(
         error: "Internal server error",
       });
     }
-  }
+  },
 );
+
+// ---------------------------------------------------------------------------
+// Additional Exports for Testing / Admin Overrides
+// ---------------------------------------------------------------------------
+
+export function normalizeStellarAddress(rawAddress: unknown): string | null {
+  return sanitizeStellarAddress(rawAddress);
+}
+
+export function isChallengeExpired(expiresAt: Date): boolean {
+  return expiresAt.getTime() <= Date.now();
+}
+
+export async function isSessionRevoked(
+  client: { get(key: string): Promise<string | null> } | Redis,
+  token: string,
+): Promise<boolean> {
+  try {
+    const result = await Promise.race([
+      client.get(`${SESSION_BLACKLIST_NS}${sha256Hex(token)}`),
+      new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), BLACKLIST_TIMEOUT_MS),
+      ),
+    ]);
+    return result !== null;
+  } catch {
+    return false;
+  }
+}
 
 interface RefreshBody {
   refresh_token?: string;
@@ -797,13 +770,9 @@ interface RefreshBody {
 
 router.post(
   "/refresh",
-  async (
-    req: Request<{}, {}, RefreshBody>,
-    res: Response
-  ) => {
+  async (req: Request<{}, {}, RefreshBody>, res: Response) => {
     try {
-      const parsed =
-        RefreshRequestSchema.safeParse(req.body);
+      const parsed = RefreshRequestSchema.safeParse(req.body);
 
       if (!parsed.success) {
         return res.status(400).json({
@@ -811,18 +780,13 @@ router.post(
         });
       }
 
-      let refreshToken =
-        parsed.data.refresh_token;
+      let refreshToken = parsed.data.refresh_token;
 
       if (!refreshToken) {
-        refreshToken =
-          req.cookies?.[REFRESH_TOKEN_COOKIE];
+        refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
       }
 
-      if (
-        !refreshToken ||
-        typeof refreshToken !== "string"
-      ) {
+      if (!refreshToken || typeof refreshToken !== "string") {
         return res.status(400).json({
           error: "refresh_token is required",
         });
@@ -833,12 +797,11 @@ router.post(
         .update(refreshToken)
         .digest("hex");
 
-      const record =
-        await prisma.refresh_tokens.findUnique({
-          where: {
-            token_hash: incomingHash,
-          },
-        });
+      const record = await db.refresh_tokens.findUnique({
+        where: {
+          token_hash: incomingHash,
+        },
+      });
 
       if (!record) {
         return res.status(401).json({
@@ -848,55 +811,34 @@ router.post(
 
       if (record.revoked) {
         return res.status(401).json({
-          error:
-            "Refresh token has been revoked",
+          error: "Refresh token has been revoked",
         });
       }
 
-      if (
-        record.expires_at.getTime() <=
-        Date.now()
-      ) {
+      if (record.expires_at.getTime() <= Date.now()) {
         return res.status(401).json({
           error: "Refresh token expired",
         });
       }
 
-      const newAccessJti =
-        crypto.randomUUID();
+      const newAccessJti = crypto.randomUUID();
 
-      const newAccessToken =
-        issueAccessToken(
-          record.address,
-          newAccessJti
-        );
+      const newAccessToken = issueAccessToken(record.address, newAccessJti);
 
-      const {
-        rawToken: newRefreshToken,
-      } = await issueRefreshToken(
+      const { rawToken: newRefreshToken } = await issueRefreshToken(
         record.address,
-        record.id
+        record.id,
       );
 
-      res.cookie(
-        ACCESS_TOKEN_COOKIE,
-        newAccessToken,
-        {
-          ...COOKIE_BASE_OPTIONS,
-          maxAge:
-            ACCESS_TOKEN_TTL_SEC * 1000,
-        }
-      );
+      res.cookie(ACCESS_TOKEN_COOKIE, newAccessToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: ACCESS_TOKEN_TTL_SEC * 1000,
+      });
 
-      res.cookie(
-        REFRESH_TOKEN_COOKIE,
-        newRefreshToken,
-        {
-          ...COOKIE_BASE_OPTIONS,
-          maxAge:
-            REFRESH_TOKEN_TTL_SEC * 1000,
-        }
-      );
+      res.cookie(REFRESH_TOKEN_COOKIE, newRefreshToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: REFRESH_TOKEN_TTL_SEC * 1000,
+      });
 
       return res.status(200).json({
         access_token: newAccessToken,
@@ -911,266 +853,221 @@ router.post(
         error: "Internal server error",
       });
     }
-  }
+  },
 );
 
-router.post(
-  "/logout",
-  async (req: Request, res: Response) => {
-    try {
-      let rawAccessToken =
-        req.cookies?.[ACCESS_TOKEN_COOKIE];
+router.post("/logout", async (req: Request, res: Response) => {
+  try {
+    let rawAccessToken = req.cookies?.[ACCESS_TOKEN_COOKIE];
 
-      const authHeader =
-        req.headers.authorization;
+    const authHeader = req.headers.authorization;
 
-      if (
-        !rawAccessToken &&
-        authHeader?.startsWith("Bearer ")
-      ) {
-        rawAccessToken =
-          authHeader.slice(7);
-      }
+    if (!rawAccessToken && authHeader?.startsWith("Bearer ")) {
+      rawAccessToken = authHeader.slice(7);
+    }
 
-      let refreshToken =
-        req.cookies?.[
-          REFRESH_TOKEN_COOKIE
-        ];
+    let refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
 
-      const body =
-        req.body as RefreshBody;
+    const body = req.body as RefreshBody;
 
-      if (
-        !refreshToken &&
-        body.refresh_token
-      ) {
-        refreshToken =
-          body.refresh_token;
-      }
+    if (!refreshToken && body.refresh_token) {
+      refreshToken = body.refresh_token;
+    }
 
-      if (rawAccessToken) {
-        const secret =
-          process.env.JWT_SECRET;
+    if (rawAccessToken) {
+      const secret = process.env.JWT_SECRET;
 
-        if (secret) {
-          try {
-            const decoded = jwt.verify(
-              rawAccessToken,
-              secret,
-              {
-                issuer:
-                  "lance-marketplace",
-                audience:
-                  "lance-frontend",
-              }
-            ) as JwtPayload;
+      if (secret) {
+        try {
+          const decoded = jwt.verify(rawAccessToken, secret, {
+            issuer: "lance-marketplace",
+            audience: "lance-frontend",
+          }) as JwtPayload;
 
-            if (
-              decoded.jti &&
-              decoded.exp
-            ) {
-              await blacklistToken(
-                decoded.jti,
-                decoded.exp
-              );
-            }
-          } catch {
-            // Ignore invalid/expired token
+          if (decoded.jti && decoded.exp) {
+            await blacklistToken(decoded.jti, decoded.exp);
           }
+        } catch {
+          // Ignore invalid/expired token
         }
       }
+    }
 
-      if (
-        refreshToken &&
-        typeof refreshToken === "string"
-      ) {
-        const hash = crypto
-          .createHash("sha256")
-          .update(refreshToken)
-          .digest("hex");
+    if (refreshToken && typeof refreshToken === "string") {
+      const hash = crypto
+        .createHash("sha256")
+        .update(refreshToken)
+        .digest("hex");
 
-        await prisma.refresh_tokens
-          .updateMany({
-            where: {
-              token_hash: hash,
-              revoked: false,
-            },
-            data: {
-              revoked: true,
-            },
-          })
-          .catch(() => {});
+      await db.refresh_tokens
+        .updateMany({
+          where: {
+            token_hash: hash,
+            revoked: false,
+          },
+          data: {
+            revoked: true,
+          },
+        })
+        .catch(() => {});
+    }
+
+    const sessionToken = extractBearerToken(req);
+
+    if (sessionToken) {
+      const client = getRedisClient();
+
+      if (client) {
+        await client.set(
+          blacklistKeyForToken(sessionToken),
+          "1",
+          "EX",
+          REFRESH_TOKEN_TTL_SEC,
+          "NX",
+        );
       }
+    }
 
-      const sessionToken =
-        extractBearerToken(req);
+    res.clearCookie(ACCESS_TOKEN_COOKIE, COOKIE_BASE_OPTIONS);
 
-      if (sessionToken) {
-        const client =
-          getRedisClient();
+    res.clearCookie(REFRESH_TOKEN_COOKIE, COOKIE_BASE_OPTIONS);
 
-        if (client) {
-          await client.set(
-            blacklistKeyForToken(
-              sessionToken
-            ),
-            "1",
-            "EX",
-            REFRESH_TOKEN_TTL_SEC,
-            "NX"
-          );
-        }
-      }
+    res.clearCookie(SESSION_COOKIE_NAME, COOKIE_BASE_OPTIONS);
 
-      res.clearCookie(
-        ACCESS_TOKEN_COOKIE,
-        COOKIE_BASE_OPTIONS
-      );
+    return res.status(200).json({
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    console.error("[auth/logout]", error);
 
-      res.clearCookie(
-        REFRESH_TOKEN_COOKIE,
-        COOKIE_BASE_OPTIONS
-      );
+    return res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+});
 
-      res.clearCookie(
-        SESSION_COOKIE_NAME,
-        COOKIE_BASE_OPTIONS
-      );
+router.get("/session", async (req: Request, res: Response) => {
+  try {
+    const token = extractBearerToken(req);
 
-      return res.status(200).json({
-        message:
-          "Logged out successfully",
-      });
-    } catch (error) {
-      console.error("[auth/logout]", error);
-
-      return res.status(500).json({
-        error: "Internal server error",
+    if (!token) {
+      return res.status(401).json({
+        error: "Session token is required",
       });
     }
-  }
-);
 
-router.get(
-  "/session",
-  async (req: Request, res: Response) => {
-    try {
-      const token =
-        extractBearerToken(req);
-
-      if (!token) {
-        return res.status(401).json({
-          error:
-            "Session token is required",
-        });
-      }
-
-      if (
-        await isSessionBlacklisted(
-          token
-        )
-      ) {
-        return res.status(401).json({
-          error:
-            "Session has been revoked",
-        });
-      }
-
-      const now = new Date();
-
-      const session =
-        await prisma.sessions.findUnique({
-          where: { token },
-        });
-
-      if (
-        !session ||
-        session.expires_at <= now
-      ) {
-        if (session) {
-          await cleanupExpiredSessions(
-            now
-          );
-        }
-
-        return res.status(401).json({
-          error:
-            "Session expired or not found",
-        });
-      }
-
-      return res.json({
-        address: session.address,
-        expires_at:
-          session.expires_at.toISOString(),
-      });
-    } catch (error) {
-      console.error("[auth/session]", error);
-
-      return res.status(500).json({
-        error: "Internal server error",
+    if (await isSessionBlacklisted(token)) {
+      return res.status(401).json({
+        error: "Session has been revoked",
       });
     }
+
+    const now = new Date();
+
+    const session = await db.sessions.findUnique({
+      where: { token },
+    });
+
+    if (!session || session.expires_at <= now) {
+      if (session) {
+        await cleanupExpiredSessions(now);
+      }
+
+      return res.status(401).json({
+        error: "Session expired or not found",
+      });
+    }
+
+    return res.json({
+      address: session.address,
+      expires_at: session.expires_at.toISOString(),
+    });
+  } catch (error) {
+    console.error("[auth/session]", error);
+
+    return res.status(500).json({
+      error: "Internal server error",
+    });
   }
-);
+});
+
+/**
+ * createAuthRouter — returns the shared router with database and Redis
+ * dependencies overridden for testing.
+ *
+ * When `prismaClient` is provided, all route handlers use it instead of the
+ * global Prisma client.  When `redisClient` is explicitly provided (including
+ * `null`), the Redis-backed blacklist helpers use it instead.
+ *
+ * @example
+ * ```ts
+ * const router = createAuthRouter({
+ *   prismaClient: mockPrisma,
+ *   redisClient: null,
+ * });
+ * ```
+ */
 
 // ---------------------------------------------------------------------------
 // DI-enabled Router Factory (for testing with mocked dependencies)
 // ---------------------------------------------------------------------------
 
 export function createAuthRouter(deps: {
-  prismaClient: typeof prisma;
+  prismaClient: any;
   redisClient: Redis | null;
 }): Router {
   const r = Router();
   const { prismaClient, redisClient: depsRedis } = deps;
 
-  r.post("/challenge", async (req: Request<{}, {}, ChallengeBody>, res: Response) => {
-    try {
-      const ip = extractClientIp(req);
-      const rateResult = takeChallengeToken(ip);
+  r.post(
+    "/challenge",
+    async (req: Request<{}, {}, ChallengeBody>, res: Response) => {
+      try {
+        const ip = extractClientIp(req);
+        const rateResult = takeChallengeToken(ip);
 
-      if (!rateResult.ok) {
-        res.setHeader("Retry-After", String(rateResult.retryAfter));
-        return res.status(429).json({
-          error: "rate limit exceeded",
-          retry_after_seconds: rateResult.retryAfter,
+        if (!rateResult.ok) {
+          res.setHeader("Retry-After", String(rateResult.retryAfter));
+          return res.status(429).json({
+            error: "rate limit exceeded",
+            retry_after_seconds: rateResult.retryAfter,
+          });
+        }
+
+        const parsed = ChallengeRequestSchema.safeParse(req.body);
+        if (!parsed.success) {
+          return res.status(400).json({ error: "Invalid request body" });
+        }
+
+        const validation = validateStellarAddress(parsed.data.address);
+        if (!validation.valid) {
+          return res.status(400).json({ error: validation.error });
+        }
+
+        const address = validation.address;
+        const nonce = crypto.randomUUID();
+        const challenge = buildChallenge(address, nonce);
+        const expiresAt = new Date(Date.now() + CHALLENGE_TTL_MS);
+
+        await prismaClient.$transaction(async (tx: any) => {
+          await tx.auth_challenges.deleteMany({
+            where: { expires_at: { lte: new Date() } },
+          });
+
+          await tx.auth_challenges.upsert({
+            where: { address },
+            update: { challenge, expires_at: expiresAt },
+            create: { address, challenge, expires_at: expiresAt },
+          });
         });
+
+        return res.json({ challenge, expires_at: expiresAt.toISOString() });
+      } catch (error) {
+        console.error("[auth/challenge]", error);
+        return res.status(500).json({ error: "Internal server error" });
       }
-
-      const parsed = ChallengeRequestSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request body" });
-      }
-
-      const validation = validateStellarAddress(parsed.data.address);
-      if (!validation.valid) {
-        return res.status(400).json({ error: validation.error });
-      }
-
-      const address = validation.address;
-      const nonce = crypto.randomUUID();
-      const challenge = buildChallenge(address, nonce);
-      const expiresAt = new Date(Date.now() + CHALLENGE_TTL_MS);
-
-      await prismaClient.$transaction(async (tx: any) => {
-        await tx.auth_challenges.deleteMany({
-          where: { expires_at: { lte: new Date() } },
-        });
-
-        await tx.auth_challenges.upsert({
-          where: { address },
-          update: { challenge, expires_at: expiresAt },
-          create: { address, challenge, expires_at: expiresAt },
-        });
-      });
-
-      return res.json({ challenge, expires_at: expiresAt.toISOString() });
-    } catch (error) {
-      console.error("[auth/challenge]", error);
-      return res.status(500).json({ error: "Internal server error" });
-    }
-  });
+    },
+  );
 
   r.post("/verify", async (req: Request<{}, {}, VerifyBody>, res: Response) => {
     try {
@@ -1200,16 +1097,25 @@ export function createAuthRouter(deps: {
       }
 
       if (!isChallengeFresh(challengeRecord)) {
-        await prismaClient.auth_challenges.deleteMany({
-          where: { address, challenge: challengeRecord.challenge },
-        }).catch(() => {});
+        await prismaClient.auth_challenges
+          .deleteMany({
+            where: { address, challenge: challengeRecord.challenge },
+          })
+          .catch(() => {});
         return res.status(401).json({ error: "Challenge expired" });
       }
 
-      let isValid = verifyStellarSignature(address, challengeRecord.challenge, signature);
+      let isValid = verifyStellarSignature(
+        address,
+        challengeRecord.challenge,
+        signature,
+      );
 
       if (!isValid && process.env.NODE_ENV !== "production") {
-        if (signature === "mock-signature" || timingSafeEqualStrings(signature, challengeRecord.challenge)) {
+        if (
+          signature === "mock-signature" ||
+          timingSafeEqualStrings(signature, challengeRecord.challenge)
+        ) {
           // Accept mock / self-signed challenges in dev/test
           isValid = true;
         }
@@ -1235,8 +1141,13 @@ export function createAuthRouter(deps: {
       const accessToken = issueAccessToken(address, accessJti);
 
       const rawRefreshToken = crypto.randomBytes(48).toString("base64url");
-      const hashedRefreshToken = crypto.createHash("sha256").update(rawRefreshToken).digest("hex");
-      const refreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_SEC * 1000);
+      const hashedRefreshToken = crypto
+        .createHash("sha256")
+        .update(rawRefreshToken)
+        .digest("hex");
+      const refreshExpiresAt = new Date(
+        Date.now() + REFRESH_TOKEN_TTL_SEC * 1000,
+      );
 
       await prismaClient.refresh_tokens.create({
         data: {
@@ -1255,9 +1166,18 @@ export function createAuthRouter(deps: {
         data: { token: sessionToken, address, expires_at: sessionExpiresAt },
       });
 
-      res.cookie(ACCESS_TOKEN_COOKIE, accessToken, { ...COOKIE_BASE_OPTIONS, maxAge: ACCESS_TOKEN_TTL_SEC * 1000 });
-      res.cookie(REFRESH_TOKEN_COOKIE, rawRefreshToken, { ...COOKIE_BASE_OPTIONS, maxAge: REFRESH_TOKEN_TTL_SEC * 1000 });
-      res.cookie(SESSION_COOKIE_NAME, sessionToken, { ...COOKIE_BASE_OPTIONS, maxAge: SESSION_TTL_MS });
+      res.cookie(ACCESS_TOKEN_COOKIE, accessToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: ACCESS_TOKEN_TTL_SEC * 1000,
+      });
+      res.cookie(REFRESH_TOKEN_COOKIE, rawRefreshToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: REFRESH_TOKEN_TTL_SEC * 1000,
+      });
+      res.cookie(SESSION_COOKIE_NAME, sessionToken, {
+        ...COOKIE_BASE_OPTIONS,
+        maxAge: SESSION_TTL_MS,
+      });
 
       return res.status(200).json({
         access_token: accessToken,
@@ -1272,70 +1192,91 @@ export function createAuthRouter(deps: {
     }
   });
 
-  r.post("/refresh", async (req: Request<{}, {}, RefreshBody>, res: Response) => {
-    try {
-      const parsed = RefreshRequestSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid request body" });
+  r.post(
+    "/refresh",
+    async (req: Request<{}, {}, RefreshBody>, res: Response) => {
+      try {
+        const parsed = RefreshRequestSchema.safeParse(req.body);
+        if (!parsed.success) {
+          return res.status(400).json({ error: "Invalid request body" });
+        }
+
+        let refreshToken = parsed.data.refresh_token;
+        if (!refreshToken) {
+          refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
+        }
+        if (!refreshToken || typeof refreshToken !== "string") {
+          return res.status(400).json({ error: "refresh_token is required" });
+        }
+
+        const incomingHash = crypto
+          .createHash("sha256")
+          .update(refreshToken)
+          .digest("hex");
+        const record = await prismaClient.refresh_tokens.findUnique({
+          where: { token_hash: incomingHash },
+        });
+
+        if (!record) {
+          return res.status(401).json({ error: "Invalid refresh token" });
+        }
+        if (record.revoked) {
+          return res
+            .status(401)
+            .json({ error: "Refresh token has been revoked" });
+        }
+        if (record.expires_at.getTime() <= Date.now()) {
+          return res.status(401).json({ error: "Refresh token expired" });
+        }
+
+        const newAccessJti = crypto.randomUUID();
+        const newAccessToken = issueAccessToken(record.address, newAccessJti);
+
+        await prismaClient.refresh_tokens.update({
+          where: { id: record.id },
+          data: { revoked: true, revoked_at: new Date() },
+        });
+
+        const rawNewRefreshToken = crypto.randomBytes(48).toString("base64url");
+        const hashedNewRefresh = crypto
+          .createHash("sha256")
+          .update(rawNewRefreshToken)
+          .digest("hex");
+        const newRefreshExpiresAt = new Date(
+          Date.now() + REFRESH_TOKEN_TTL_SEC * 1000,
+        );
+
+        await prismaClient.refresh_tokens.create({
+          data: {
+            token_hash: hashedNewRefresh,
+            address: record.address,
+            expires_at: newRefreshExpiresAt,
+            revoked: false,
+            jti: crypto.randomUUID(),
+          },
+        });
+
+        res.cookie(ACCESS_TOKEN_COOKIE, newAccessToken, {
+          ...COOKIE_BASE_OPTIONS,
+          maxAge: ACCESS_TOKEN_TTL_SEC * 1000,
+        });
+        res.cookie(REFRESH_TOKEN_COOKIE, rawNewRefreshToken, {
+          ...COOKIE_BASE_OPTIONS,
+          maxAge: REFRESH_TOKEN_TTL_SEC * 1000,
+        });
+
+        return res.status(200).json({
+          access_token: newAccessToken,
+          refresh_token: rawNewRefreshToken,
+          token_type: "Bearer",
+          expires_in: ACCESS_TOKEN_TTL_SEC,
+        });
+      } catch (error) {
+        console.error("[auth/refresh]", error);
+        return res.status(500).json({ error: "Internal server error" });
       }
-
-      let refreshToken = parsed.data.refresh_token;
-      if (!refreshToken) {
-        refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
-      }
-      if (!refreshToken || typeof refreshToken !== "string") {
-        return res.status(400).json({ error: "refresh_token is required" });
-      }
-
-      const incomingHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-      const record = await prismaClient.refresh_tokens.findUnique({ where: { token_hash: incomingHash } });
-
-      if (!record) {
-        return res.status(401).json({ error: "Invalid refresh token" });
-      }
-      if (record.revoked) {
-        return res.status(401).json({ error: "Refresh token has been revoked" });
-      }
-      if (record.expires_at.getTime() <= Date.now()) {
-        return res.status(401).json({ error: "Refresh token expired" });
-      }
-
-      const newAccessJti = crypto.randomUUID();
-      const newAccessToken = issueAccessToken(record.address, newAccessJti);
-
-      await prismaClient.refresh_tokens.update({
-        where: { id: record.id },
-        data: { revoked: true, revoked_at: new Date() },
-      });
-
-      const rawNewRefreshToken = crypto.randomBytes(48).toString("base64url");
-      const hashedNewRefresh = crypto.createHash("sha256").update(rawNewRefreshToken).digest("hex");
-      const newRefreshExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_SEC * 1000);
-
-      await prismaClient.refresh_tokens.create({
-        data: {
-          token_hash: hashedNewRefresh,
-          address: record.address,
-          expires_at: newRefreshExpiresAt,
-          revoked: false,
-          jti: crypto.randomUUID(),
-        },
-      });
-
-      res.cookie(ACCESS_TOKEN_COOKIE, newAccessToken, { ...COOKIE_BASE_OPTIONS, maxAge: ACCESS_TOKEN_TTL_SEC * 1000 });
-      res.cookie(REFRESH_TOKEN_COOKIE, rawNewRefreshToken, { ...COOKIE_BASE_OPTIONS, maxAge: REFRESH_TOKEN_TTL_SEC * 1000 });
-
-      return res.status(200).json({
-        access_token: newAccessToken,
-        refresh_token: rawNewRefreshToken,
-        token_type: "Bearer",
-        expires_in: ACCESS_TOKEN_TTL_SEC,
-      });
-    } catch (error) {
-      console.error("[auth/refresh]", error);
-      return res.status(500).json({ error: "Internal server error" });
-    }
-  });
+    },
+  );
 
   r.post("/logout", async (req: Request, res: Response) => {
     try {
@@ -1361,9 +1302,18 @@ export function createAuthRouter(deps: {
             }) as JwtPayload;
 
             if (decoded.jti && decoded.exp) {
-              const ttlSeconds = Math.max(1, decoded.exp - Math.floor(Date.now() / 1000));
+              const ttlSeconds = Math.max(
+                1,
+                decoded.exp - Math.floor(Date.now() / 1000),
+              );
               if (depsRedis) {
-                await depsRedis.set(`${BLACKLIST_NS}${decoded.jti}`, "1", "EX", ttlSeconds, "NX");
+                await depsRedis.set(
+                  `${BLACKLIST_NS}${decoded.jti}`,
+                  "1",
+                  "EX",
+                  ttlSeconds,
+                  "NX",
+                );
               }
             }
           } catch {
@@ -1373,11 +1323,16 @@ export function createAuthRouter(deps: {
       }
 
       if (refreshToken && typeof refreshToken === "string") {
-        const hash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-        await prismaClient.refresh_tokens.updateMany({
-          where: { token_hash: hash, revoked: false },
-          data: { revoked: true, revoked_at: new Date() },
-        }).catch(() => {});
+        const hash = crypto
+          .createHash("sha256")
+          .update(refreshToken)
+          .digest("hex");
+        await prismaClient.refresh_tokens
+          .updateMany({
+            where: { token_hash: hash, revoked: false },
+            data: { revoked: true, revoked_at: new Date() },
+          })
+          .catch(() => {});
       }
 
       const sessionToken = extractBearerToken(req);
@@ -1387,7 +1342,7 @@ export function createAuthRouter(deps: {
           "1",
           "EX",
           REFRESH_TOKEN_TTL_SEC,
-          "NX"
+          "NX",
         );
       }
 
@@ -1409,21 +1364,28 @@ export function createAuthRouter(deps: {
         return res.status(401).json({ error: "Session token is required" });
       }
 
-      if (await isSessionRevoked(depsRedis, token)) {
+      if (depsRedis && (await isSessionRevoked(depsRedis, token))) {
         return res.status(401).json({ error: "Session has been revoked" });
       }
 
       const now = new Date();
-      const session = await prismaClient.sessions.findUnique({ where: { token } });
+      const session = await prismaClient.sessions.findUnique({
+        where: { token },
+      });
 
       if (!session || session.expires_at <= now) {
         if (session) {
-          await prismaClient.sessions.deleteMany({ where: { expires_at: { lte: now } } });
+          await prismaClient.sessions.deleteMany({
+            where: { expires_at: { lte: now } },
+          });
         }
         return res.status(401).json({ error: "Session expired or not found" });
       }
 
-      return res.json({ address: session.address, expires_at: session.expires_at.toISOString() });
+      return res.json({
+        address: session.address,
+        expires_at: session.expires_at.toISOString(),
+      });
     } catch (error) {
       console.error("[auth/session]", error);
       return res.status(500).json({ error: "Internal server error" });
