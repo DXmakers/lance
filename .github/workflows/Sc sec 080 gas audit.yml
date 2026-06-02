@@ -1,0 +1,162 @@
+# .github/workflows/sc-sec-080-gas-audit.yml
+#
+# SC-SEC-080 — Smart Contract Gas Audit CI
+# Runs on every push to main and on PRs that touch the contracts/ directory.
+
+name: SC-SEC-080 Gas Audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "contracts/**"
+      - ".github/workflows/sc-sec-080-gas-audit.yml"
+  pull_request:
+    paths:
+      - "contracts/**"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Job 1: Unit tests (including reentrancy + migration tests)
+  # --------------------------------------------------------------------------
+  unit-tests:
+    name: Unit Tests (escrow, reputation, job_registry)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable + wasm32 target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run escrow unit tests (with testutils)
+        run: |
+          cargo test \
+            --features testutils \
+            -p escrow \
+            -- --nocapture
+
+      - name: Reentrancy tests must all pass
+        run: |
+          cargo test \
+            --features testutils \
+            -p escrow \
+            test_reentrancy \
+            -- --nocapture
+
+      - name: Migration tests must all pass
+        run: |
+          cargo test \
+            --features testutils \
+            -p escrow \
+            test_migration \
+            -- --nocapture
+
+  # --------------------------------------------------------------------------
+  # Job 2: Gas benchmark tests
+  # --------------------------------------------------------------------------
+  gas-benchmarks:
+    name: Gas Benchmarks (≥15% reduction verified)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run gas benchmark tests
+        run: |
+          cargo test \
+            --features testutils \
+            --test gas_benchmarks \
+            -p escrow \
+            -- --nocapture
+
+  # --------------------------------------------------------------------------
+  # Job 3: WASM size verification (must be <40 KB)
+  # --------------------------------------------------------------------------
+  wasm-size-check:
+    name: WASM Size Check (<40 KB)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable + wasm32 target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+          key: ${{ runner.os }}-cargo-wasm-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build contracts with release-wasm profile
+        run: |
+          cargo build \
+            --profile release-wasm \
+            --target wasm32-unknown-unknown \
+            -p escrow
+
+      - name: Verify WASM sizes are under 40 KB
+        run: |
+          chmod +x scripts/verify_wasm_size.sh
+          ./scripts/verify_wasm_size.sh
+
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-contracts
+          path: target/wasm32-unknown-unknown/release-wasm/*.wasm
+          retention-days: 14
+
+  # --------------------------------------------------------------------------
+  # Job 4: Clippy lint (catches unsafe patterns and dead code)
+  # --------------------------------------------------------------------------
+  clippy:
+    name: Clippy Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable + clippy
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Run clippy on contracts
+        run: |
+          cargo clippy \
+            -p escrow \
+            --features testutils \
+            -- -D warnings
