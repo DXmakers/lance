@@ -7,6 +7,20 @@ mod storage;
 #[cfg(test)]
 mod test;
 
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReputationScore {
+    pub address: Address,
+    pub role: Role,
+    /// Score in basis points (0\u201310000 = 0\u2013100%)
+    pub score: i32,
+    pub total_jobs: u32,
+    pub total_points: i128,
+    pub reviews: u32,
+    pub average_rating_bps: i32,
+    pub badge_level: u32,
+    pub blacklisted: bool,
+}
 use profile::{BadgeLevel, Profile};
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, Address, Env, String,
@@ -246,6 +260,24 @@ impl ReputationContract {
         storage::read_profile_or_default(&env, &address)
     }
 
+    fn score_from_profile(address: &Address, role: Role, profile: &profile::Profile) -> ReputationScore {
+    fn score_from_profile(
+        address: &Address,
+        role: Role,
+        profile: &Profile,
+    ) -> ReputationScore {
+        let metrics = Self::role_metrics(profile, &role);
+        ReputationScore {
+            address: address.clone(),
+            role,
+            score: metrics.score,
+            total_jobs: metrics.completed_jobs,
+            total_points: metrics.review.total_points,
+            reviews: metrics.review.reviews,
+            average_rating_bps: metrics.review.average_rating_bps,
+            badge_level: metrics.badge_level,
+            blacklisted: profile.is_blacklisted,
+        }
     /// Get client badge level for an address
     pub fn get_client_badge(env: Env, address: Address) -> BadgeLevel {
         Self::bump_instance_ttl(&env);
@@ -459,6 +491,47 @@ impl ReputationContract {
             },
         );
 
+        let mut profile = storage::read_profile_or_default(&env, &address);
+        let (new_score, total_jobs) = match role {
+            Role::Client => {
+                profile.client_score = Self::clamp_score(profile.client_score.saturating_add(delta));
+                profile.client_jobs = profile.client_jobs.saturating_add(1);
+                (profile.client_score, profile.client_jobs)
+            }
+            Role::Freelancer => {
+                profile.freelancer_score =
+                    Self::clamp_score(profile.freelancer_score.saturating_add(delta));
+                profile.freelancer_jobs = profile.freelancer_jobs.saturating_add(1);
+                (profile.freelancer_score, profile.freelancer_jobs)
+            }
+        };
+        if profile.is_blacklisted {
+            soroban_sdk::panic_with_error!(&env, ReputationError::Blacklisted);
+        }
+
+        let is_blacklisted = profile.is_blacklisted;
+        let metrics = Self::role_metrics_mut(&mut profile, &role);
+        let previous_score = metrics.score;
+        Self::apply_manual_delta(metrics, delta, is_blacklisted);
+        let new_score = metrics.score;
+        let total_jobs = metrics.completed_jobs;
+        let badge_level = metrics.badge_level;
+
+        profile.refresh_badges();
+        storage::write_profile(&env, &address, &profile);
+        env.events().publish(
+            ("reputation", "ScoreAdjusted"),
+            ScoreAdjustedEvent {
+                address,
+                role,
+                delta: new_score.saturating_sub(previous_score),
+                new_score,
+                total_jobs,
+                badge_level,
+                adjusted_at: env.ledger().timestamp(),
+            },
+        );
+        Self::bump_instance_ttl(&env);
         Ok(())
     }
 
@@ -509,6 +582,14 @@ impl ReputationContract {
         profile.freelancer.score =
             Self::clamp_score(Self::apply_decay(profile.freelancer.score)?);
 
+    #[contractimpl]
+    impl MockJobRegistry {
+        pub fn set_job(env: Env, job_id: u64, job: JobRecord) {
+            env.storage()
+                .persistent()
+                .set(&MockKey::Job(job_id), &job);
+            env.storage().persistent().set(&MockKey::Job(job_id), &job);
+        }
         profile.last_activity = now;
 
         let old_client_badge = profile.client_badge.clone();
@@ -560,6 +641,155 @@ impl ReputationContract {
             );
         }
 
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_direct_reviews_from_unverified_public_keys_are_rejected() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let attacker = Address::generate(&env);
+        let job_client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+        let registry_id = env.register_contract(None, MockJobRegistry);
+        client.set_job_registry(&admin, &registry_id);
+        setup_job(&env, &registry_id, 33, &job_client, &freelancer);
+
+        client.submit_rating(&attacker, &33, &freelancer, &5);
+    }
+
+    #[test]
+    fn test_profile_metadata() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let address = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        let hash = Bytes::from_slice(&env, b"QmProfileHash");
+        client.update_profile_metadata(&address, &hash);
+
+        let saved_hash = client.get_profile_metadata(&address);
+        assert_eq!(saved_hash, Some(hash));
+    }
+
+    // ── Issue #402: badge minting ──
+
+    #[test]
+    fn test_badge_starts_at_bronze_for_default_score() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let admin = Address::generate(&env);
+        let addr = Address::generate(&env);
+        let cid = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &cid);
+        client.initialize(&admin);
+
+        // Default score is 5000 → Bronze
+        let badge = client.get_badge(&addr, &Role::Freelancer);
+        assert_eq!(badge, BadgeLevel::Bronze);
+    }
+
+    #[test]
+    fn test_badge_upgrades_to_silver_at_6000() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let admin = Address::generate(&env);
+        let addr = Address::generate(&env);
+        let cid = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &cid);
+        client.initialize(&admin);
+
+        // Raise score by 1000 → 5000+1000 = 6000 → Silver
+        client.update_score(&addr, &Role::Freelancer, &1000);
+        let badge = client.get_badge(&addr, &Role::Freelancer);
+        assert_eq!(badge, BadgeLevel::Silver);
+    }
+
+    #[test]
+    fn test_badge_upgrades_to_gold_at_8000() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let admin = Address::generate(&env);
+        let addr = Address::generate(&env);
+        let cid = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &cid);
+        client.initialize(&admin);
+
+        client.update_score(&addr, &Role::Freelancer, &3000); // 5000+3000=8000
+        assert_eq!(client.get_badge(&addr, &Role::Freelancer), BadgeLevel::Gold);
+    }
+
+    #[test]
+    fn test_slash_downgrades_badge() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let admin = Address::generate(&env);
+        let addr = Address::generate(&env);
+        let cid = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &cid);
+        client.initialize(&admin);
+
+        let view = client.query_reputation(&address);
+        assert_eq!(view.address, address);
+        assert_eq!(view.client.score, 5500);
+        assert_eq!(view.client.total_jobs, 1);
+        assert_eq!(view.client.total_points, 500);
+        assert_eq!(view.freelancer.score, 6000);
+        assert_eq!(view.freelancer.total_jobs, 1);
+        assert_eq!(view.freelancer.total_points, 1000);
+    }
+
+    #[test]
+    #[should_panic(expected = "Error(Contract, #3)")] 
+        assert_eq!(view.client.total_points, 0);
+        assert_eq!(view.freelancer.score, 6000);
+        assert_eq!(view.freelancer.total_jobs, 1);
+        assert_eq!(view.freelancer.total_points, 0);
+        // Bring to Gold first, then slash twice to drop back to Bronze
+        client.update_score(&addr, &Role::Client, &3000); // 8000 → Gold
+        assert_eq!(client.get_badge(&addr, &Role::Client), BadgeLevel::Gold);
+        client.slash(&addr, &Role::Client, &soroban_sdk::Symbol::new(&env, "fraud")); // 6000 → Silver
+        assert_eq!(client.get_badge(&addr, &Role::Client), BadgeLevel::Silver);
+        client.slash(&addr, &Role::Client, &soroban_sdk::Symbol::new(&env, "fraud")); // 4000 → Bronze
+        assert_eq!(client.get_badge(&addr, &Role::Client), BadgeLevel::Bronze);
+    }
+
+    // ── Issue #406: badge metadata mapping ──
+
+    #[test]
+    fn test_set_and_get_badge_metadata() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let admin = Address::generate(&env);
+        let addr = Address::generate(&env);
+        let cid = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &cid);
+        client.initialize(&admin);
+
+        let uri = Bytes::from_slice(&env, b"ipfs://QmBronzeBadge");
+        client.set_badge_metadata(&admin, &addr, &BadgeTier::Bronze, &uri);
+
+        let result = client.get_badge_metadata(&addr, &BadgeTier::Bronze);
+        assert_eq!(result, Some(uri));
+    }
+
+    #[test]
+    fn test_badge_metadata_returns_none_when_unset() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let addr = Address::generate(&env);
+        let cid = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &cid);
+
+        let result = client.get_badge_metadata(&addr, &BadgeTier::Gold);
+        assert_eq!(result, None);
+    }
         if profile.freelancer_badge != old_freelancer_badge {
             env.events().publish(
                 ("reputation", "BadgeUpgraded"),
@@ -671,6 +901,21 @@ impl ReputationContract {
             .ok_or(ReputationError::ProfileNotFound)
     }
 
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")] 
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_upgrade_requires_admin() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let attacker = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+        let wasm_hash = BytesN::from_array(&env, &[0; 32]);
+        client.upgrade(&attacker, &wasm_hash);
     /// Check if a caller is authorized
     pub fn is_authorized_caller(env: Env, caller: Address) -> bool {
         Self::verify_authorized_caller(&env, &caller).is_ok()
