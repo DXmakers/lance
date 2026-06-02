@@ -1,15 +1,23 @@
 import express, { Express, Request, Response, NextFunction } from "express";
+import type { Server } from "node:http";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import crypto from "crypto";
 import dotenv from "dotenv";
-import { prisma, connectWithRetry, startPoolHealthCheck } from "./config/db";
+import {
+  connectWithRetry,
+  drainDatabasePool,
+  pool,
+  startPoolHealthCheck,
+  stopPoolHealthCheck,
+} from "./config/db";
 import { trace } from "./config/tracing";
 import { intakeRateLimit } from "./middleware/intakeRateLimit";
 import { sqlInjectionGuard } from "./middleware/sanitize";
 import { tracingMiddleware } from "./utils/tracing";
 import { metricsMiddleware } from "./middleware/metrics";
 import { createMetricsRouter, updatePoolMetrics } from "./utils/metrics";
+import { closeHttpServer, createGracefulShutdownHandler } from "./utils/graceful-shutdown";
 import authRoutes from "./routes/auth";
 import jobsRoutes from "./routes/jobs";
 import disputesRoutes from "./routes/disputes";
@@ -20,7 +28,6 @@ import uploadsRoutes from "./routes/uploads";
 import bulkRoutes from "./routes/bulk";
 import poolRoutes from "./routes/pool";
 import stateRoutes from "./routes/state";
-import { pool } from "./config/db";
 import { startStorageCleanup, stopStorageCleanup } from "./utils/storage-cleanup";
 import { startNonceCleanup, stopNonceCleanup } from "./utils/nonce-cleanup";
 
@@ -31,6 +38,16 @@ const port = process.env.PORT || 3001;
 const logger = trace.getLogger("server");
 const isProduction = process.env.NODE_ENV === "production";
 const CSRF_COOKIE_NAME = "lance-csrf-token";
+let isShuttingDown = false;
+let server: Server | null = null;
+let poolMetricsInterval: NodeJS.Timeout | null = null;
+
+function positiveIntEnv(name: string, fallback: number): number {
+  const parsed = Number.parseInt(process.env[name] || String(fallback), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const SHUTDOWN_TIMEOUT_MS = positiveIntEnv("SHUTDOWN_TIMEOUT_MS", 10_000);
 
 // Enable CORS for frontend requests with credentials support
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -74,6 +91,19 @@ app.get("/api/v1/auth/csrf", (req: Request, res: Response) => {
   });
 
   res.json({ csrfToken });
+});
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (!isShuttingDown) {
+    return next();
+  }
+
+  logger.warn("Request rejected during graceful shutdown", {
+    method: req.method,
+    path: req.path,
+  });
+  res.setHeader("Connection", "close");
+  return res.status(503).json({ error: "Server is shutting down" });
 });
 
 app.use(csrfMiddleware);
@@ -148,22 +178,33 @@ app.get("/health", async (req: Request, res: Response) => {
   }
 });
 
-// Graceful shutdown handler
-process.on("SIGTERM", async () => {
-  logger.info("SIGTERM received, shutting down gracefully");
-  stopStorageCleanup();
-  stopNonceCleanup();
-  try {
-    await prisma.$disconnect();
-    logger.info("Database connection closed");
-    process.exit(0);
-  } catch (error) {
-    logger.error("Error during shutdown", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    process.exit(1);
-  }
+const shutdown = createGracefulShutdownHandler({
+  logger,
+  timeoutMs: SHUTDOWN_TIMEOUT_MS,
+  markShuttingDown: () => {
+    isShuttingDown = true;
+  },
+  closeServer: () => closeHttpServer(server),
+  stopBackgroundTasks: [
+    () => {
+      stopStorageCleanup();
+      stopNonceCleanup();
+      stopPoolHealthCheck();
+      if (poolMetricsInterval) {
+        clearInterval(poolMetricsInterval);
+        poolMetricsInterval = null;
+      }
+    },
+  ],
+  drainDatabase: drainDatabasePool,
+  exit: (code) => process.exit(code),
 });
+
+for (const signal of ["SIGINT", "SIGTERM"] as NodeJS.Signals[]) {
+  process.once(signal, () => {
+    void shutdown(signal);
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Start the server — validate the DB connection with retry backoff first,
@@ -175,10 +216,10 @@ async function bootstrap(): Promise<void> {
     startPoolHealthCheck();
     startStorageCleanup();
     startNonceCleanup();
-    app.listen(port, () => {
+    server = app.listen(port, () => {
       console.log(`⚡️[server]: Server is running at http://localhost:${port}`);
       // Update pool metrics periodically so the Prometheus scrape has fresh data
-      setInterval(() => {
+      poolMetricsInterval = setInterval(() => {
         updatePoolMetrics(pool.totalCount, pool.idleCount, pool.waitingCount);
       }, 15_000).unref();
     });

@@ -125,6 +125,9 @@ async fn main() -> anyhow::Result<()> {
         "Dispute file analysis queue initialised"
     );
 
+    let shutdown_pool = pool.clone();
+    let shutdown_queue = queue_tx.clone();
+
     // ── 4. Application state ────────────────────────────────────────────────
     let state = Arc::new(AppState {
         db: pool,
@@ -149,6 +152,11 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await?;
+
+    info!("HTTP listener stopped; closing dispute queue and draining database pool");
+    shutdown_queue.close();
+    shutdown_pool.close().await;
+    info!("Axum server shutdown completed");
 
     Ok(())
 }
