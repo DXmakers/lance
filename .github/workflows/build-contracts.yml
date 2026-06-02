@@ -31,10 +31,10 @@ jobs:
           targets: wasm32-unknown-unknown
           toolchain: stable
       
-      - name: Install Soroban CLI
+      - name: Install Stellar CLI
         run: |
-          cargo install --locked --version 22.0.0 soroban-cli
-          soroban --version
+          cargo install --locked --version 22.0.0 stellar-cli
+          stellar --version
       
       - name: Install binaryen (wasm-opt)
         run: sudo apt-get update && sudo apt-get install -y binaryen
@@ -94,10 +94,10 @@ jobs:
           targets: wasm32-unknown-unknown
           toolchain: stable
       
-      - name: Install Soroban CLI
+      - name: Install Stellar CLI
         run: |
-          cargo install --locked --version 22.0.0 soroban-cli
-          soroban --version
+          cargo install --locked --version 22.0.0 stellar-cli
+          stellar --version
       
       - name: Run contract tests
         run: |

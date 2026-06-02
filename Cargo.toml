@@ -7,8 +7,8 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-soroban-sdk        = { version = "21.0.0" }
-stellar-xdr        = "21.0.0"
+soroban-sdk        = { version = "22.0.0" }
+stellar-xdr        = "22.0.0"
 tokio              = { version = "1", features = ["full"] }
 axum               = { version = "0.7", features = ["macros", "multipart"] }
 bytes              = "1"
