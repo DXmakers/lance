@@ -33,35 +33,6 @@ These functions use `JobRegistryError` to return structured error information:
 
 These functions perform strict validation on inputs to prevent issues like overflow and oversized metadata. All CID inputs are bounded, ensuring minimal on-chain footprint and deterministic behavior.
 
-## `accept_bid`
-
-### Purpose
-
-`accept_bid` is called by a job client to accept one freelancer's bid and move the job into the assigned state.
-
-### Behavior
-
-- Authenticates the caller with `client.require_auth()`.
-- Verifies the job exists and is currently in the `Open` state.
-- Confirms the caller is the job's client.
-- Validates that the selected freelancer previously submitted a bid for the job.
-- Credits collateral from non-selected bids to each losing freelancer's refund balance.
-- Compacts bid storage down to the accepted bid.
-- Updates the job status to `Assigned` and records the accepted freelancer.
-- Emits a `BidAccepted` event for on-chain auditing.
-
-### Errors
-
-`accept_bid` uses `JobRegistryError` to return structured error information:
-
-- `JobNotFound` (7): job does not exist.
-- `JobNotOpen` (8): job is not open for bid acceptance.
-- `Unauthorized` (9): caller is not the job's client.
-- `BidNotFound` (11): selected freelancer did not submit a bid.
-
-This implementation strengthens trustlessness by ensuring bid acceptance can only succeed for bidders who actually participated in the auction.
-The bid lookup is keyed by `(job_id, freelancer)`, so acceptance does not deserialize the full bid collection.
-
 ## `submit_bid` and `submit_bid_with_collateral`
 
 ### Purpose
@@ -107,6 +78,35 @@ These functions let freelancers submit compact CID-backed proposals. `submit_bid
 - `BidNotFound` (11): the freelancer has no active bid for the job.
 - `Overflow` (14): refund balance addition overflowed.
 - `NoRefund` (17): the freelancer has no refundable balance to claim.
+
+## `accept_bid`
+
+### Purpose
+
+`accept_bid` is called by a job client to accept one freelancer's bid and move the job into the assigned state.
+
+### Behavior
+
+- Authenticates the caller with `client.require_auth()`.
+- Verifies the job exists and is currently in the `Open` state.
+- Confirms the caller is the job's client.
+- Validates that the selected freelancer previously submitted a bid for the job.
+- Credits collateral from non-selected bids to each losing freelancer's refund balance.
+- Compacts bid storage down to the accepted bid.
+- Updates the job status to `Assigned` and records the accepted freelancer.
+- Emits a `BidAccepted` event for on-chain auditing.
+
+### Errors
+
+`accept_bid` uses `JobRegistryError` to return structured error information:
+
+- `JobNotFound` (7): job does not exist.
+- `JobNotOpen` (8): job is not open for bid acceptance.
+- `Unauthorized` (9): caller is not the job's client.
+- `BidNotFound` (11): selected freelancer did not submit a bid.
+
+This implementation strengthens trustlessness by ensuring bid acceptance can only succeed for bidders who actually participated in the auction.
+The bid lookup is keyed by `(job_id, freelancer)`, so acceptance does not deserialize the full bid collection.
 
 ## `get_job`
 

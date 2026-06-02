@@ -148,6 +148,14 @@
                           },
                           {
                             "key": {
+                              "symbol": "dispute_failures"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
                               "symbol": "review"
                             },
                             "val": {
@@ -189,6 +197,18 @@
                             "val": {
                               "i32": 5000
                             }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "client_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
                           }
                         ]
                       }
@@ -217,6 +237,14 @@
                           },
                           {
                             "key": {
+                              "symbol": "dispute_failures"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
                               "symbol": "review"
                             },
                             "val": {
@@ -264,10 +292,30 @@
                     },
                     {
                       "key": {
+                        "symbol": "freelancer_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "is_blacklisted"
                       },
                       "val": {
                         "bool": false
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "last_activity"
+                      },
+                      "val": {
+                        "u64": 0
                       }
                     },
                     {
