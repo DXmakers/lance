@@ -1,6 +1,10 @@
 {
   "generators": {
+<<<<<<< HEAD
     "address": 4,
+=======
+    "address": 3,
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
     "nonce": 0
   },
   "auth": [
@@ -18,7 +22,43 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 },
                 {
+<<<<<<< HEAD
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+=======
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                }
+              ]
+            }
+          },
+          "sub_invocations": []
+        }
+      ]
+    ],
+    [
+      [
+        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+        {
+          "function": {
+            "contract_fn": {
+              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+              "function_name": "update_score",
+              "args": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                },
+                {
+                  "vec": [
+                    {
+                      "symbol": "Client"
+                    }
+                  ]
+                },
+                {
+                  "i32": 3000
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 }
               ]
             }
@@ -28,10 +68,78 @@
       ]
     ],
     [],
+<<<<<<< HEAD
     [],
     [],
     [],
     [],
+=======
+    [
+      [
+        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+        {
+          "function": {
+            "contract_fn": {
+              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+              "function_name": "slash",
+              "args": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                },
+                {
+                  "vec": [
+                    {
+                      "symbol": "Client"
+                    }
+                  ]
+                },
+                {
+                  "symbol": "fraud"
+                }
+              ]
+            }
+          },
+          "sub_invocations": []
+        }
+      ]
+    ],
+    [],
+    [
+      [
+        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+        {
+          "function": {
+            "contract_fn": {
+              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+              "function_name": "slash",
+              "args": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                },
+                {
+                  "vec": [
+                    {
+                      "symbol": "Client"
+                    }
+                  ]
+                },
+                {
+                  "symbol": "fraud"
+                }
+              ]
+            }
+          },
+          "sub_invocations": []
+        }
+      ]
+    ],
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
     []
   ],
   "ledger": {
@@ -80,6 +188,108 @@
       [
         {
           "contract_data": {
+<<<<<<< HEAD
+=======
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+            "key": {
+              "ledger_key_nonce": {
+                "nonce": 1033654523790656264
+              }
+            },
+            "durability": "temporary"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+                "key": {
+                  "ledger_key_nonce": {
+                    "nonce": 1033654523790656264
+                  }
+                },
+                "durability": "temporary",
+                "val": "void"
+              }
+            },
+            "ext": "v0"
+          },
+          6311999
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+            "key": {
+              "ledger_key_nonce": {
+                "nonce": 4837995959683129791
+              }
+            },
+            "durability": "temporary"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+                "key": {
+                  "ledger_key_nonce": {
+                    "nonce": 4837995959683129791
+                  }
+                },
+                "durability": "temporary",
+                "val": "void"
+              }
+            },
+            "ext": "v0"
+          },
+          6311999
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+            "key": {
+              "ledger_key_nonce": {
+                "nonce": 5541220902715666415
+              }
+            },
+            "durability": "temporary"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+                "key": {
+                  "ledger_key_nonce": {
+                    "nonce": 5541220902715666415
+                  }
+                },
+                "durability": "temporary",
+                "val": "void"
+              }
+            },
+            "ext": "v0"
+          },
+          6311999
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
             "key": {
               "vec": [
@@ -141,7 +351,11 @@
                               "symbol": "badge_level"
                             },
                             "val": {
+<<<<<<< HEAD
                               "u32": 1
+=======
+                              "u32": 0
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                             }
                           },
                           {
@@ -149,6 +363,17 @@
                               "symbol": "completed_jobs"
                             },
                             "val": {
+<<<<<<< HEAD
+=======
+                              "u32": 1
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "dispute_failures"
+                            },
+                            "val": {
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                               "u32": 0
                             }
                           },
@@ -201,6 +426,21 @@
                     },
                     {
                       "key": {
+<<<<<<< HEAD
+=======
+                        "symbol": "client_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                         "symbol": "freelancer"
                       },
                       "val": {
@@ -210,7 +450,11 @@
                               "symbol": "badge_level"
                             },
                             "val": {
+<<<<<<< HEAD
                               "u32": 1
+=======
+                              "u32": 0
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                             }
                           },
                           {
@@ -223,6 +467,17 @@
                           },
                           {
                             "key": {
+<<<<<<< HEAD
+=======
+                              "symbol": "dispute_failures"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                               "symbol": "review"
                             },
                             "val": {
@@ -270,6 +525,21 @@
                     },
                     {
                       "key": {
+<<<<<<< HEAD
+=======
+                        "symbol": "freelancer_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                         "symbol": "is_blacklisted"
                       },
                       "val": {
@@ -278,9 +548,31 @@
                     },
                     {
                       "key": {
+<<<<<<< HEAD
                         "symbol": "metadata_hash"
                       },
                       "val": "void"
+=======
+                        "symbol": "last_activity"
+                      },
+                      "val": {
+                        "u64": 0
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "metadata_hash"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
+                        "symbol": "transfer_blocked"
+                      },
+                      "val": {
+                        "bool": true
+                      }
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                     }
                   ]
                 }
@@ -330,12 +622,34 @@
                         "key": {
                           "vec": [
                             {
+<<<<<<< HEAD
+=======
+                              "symbol": "AuthorizedContract"
+                            },
+                            {
+                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "bool": true
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                               "symbol": "AuthorizedUpdater"
                             }
                           ]
                         },
                         "val": {
+<<<<<<< HEAD
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+=======
+                          "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                         }
                       }
                     ]
@@ -350,6 +664,7 @@
       ],
       [
         {
+<<<<<<< HEAD
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
             "key": "ledger_key_contract_instance",
@@ -382,6 +697,8 @@
       ],
       [
         {
+=======
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
           "contract_code": {
             "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
           }
@@ -475,7 +792,11 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 },
                 {
+<<<<<<< HEAD
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+=======
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 }
               ]
             }
@@ -514,7 +835,11 @@
                     "symbol": "contract_address"
                   },
                   "val": {
+<<<<<<< HEAD
                     "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+=======
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                   }
                 },
                 {
@@ -565,6 +890,7 @@
                 "symbol": "fn_call"
               },
               {
+<<<<<<< HEAD
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000004"
               },
               {
@@ -608,6 +934,8 @@
                 "symbol": "fn_call"
               },
               {
+=======
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
@@ -617,7 +945,11 @@
             "data": {
               "vec": [
                 {
+<<<<<<< HEAD
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+=======
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -677,7 +1009,11 @@
                     "symbol": "badge_level"
                   },
                   "val": {
+<<<<<<< HEAD
                     "u32": 3
+=======
+                    "u32": 0
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                   }
                 },
                 {
@@ -713,7 +1049,11 @@
                     "symbol": "total_jobs"
                   },
                   "val": {
+<<<<<<< HEAD
                     "u32": 0
+=======
+                    "u32": 1
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                   }
                 }
               ]
@@ -747,6 +1087,7 @@
     {
       "event": {
         "ext": "v0",
+<<<<<<< HEAD
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
         "type_": "diagnostic",
         "body": {
@@ -768,6 +1109,8 @@
     {
       "event": {
         "ext": "v0",
+=======
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         "contract_id": null,
         "type_": "diagnostic",
         "body": {
@@ -841,6 +1184,7 @@
                 "symbol": "fn_call"
               },
               {
+<<<<<<< HEAD
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000004"
               },
               {
@@ -884,6 +1228,8 @@
                 "symbol": "fn_call"
               },
               {
+=======
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
@@ -893,7 +1239,11 @@
             "data": {
               "vec": [
                 {
+<<<<<<< HEAD
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+=======
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -953,7 +1303,11 @@
                     "symbol": "badge_level"
                   },
                   "val": {
+<<<<<<< HEAD
                     "u32": 2
+=======
+                    "u32": 0
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                   }
                 },
                 {
@@ -989,7 +1343,11 @@
                     "symbol": "total_jobs"
                   },
                   "val": {
+<<<<<<< HEAD
                     "u32": 0
+=======
+                    "u32": 1
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                   }
                 }
               ]
@@ -1023,6 +1381,7 @@
     {
       "event": {
         "ext": "v0",
+<<<<<<< HEAD
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
         "type_": "diagnostic",
         "body": {
@@ -1044,6 +1403,8 @@
     {
       "event": {
         "ext": "v0",
+=======
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         "contract_id": null,
         "type_": "diagnostic",
         "body": {
@@ -1117,6 +1478,7 @@
                 "symbol": "fn_call"
               },
               {
+<<<<<<< HEAD
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000004"
               },
               {
@@ -1160,6 +1522,8 @@
                 "symbol": "fn_call"
               },
               {
+=======
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
@@ -1169,7 +1533,11 @@
             "data": {
               "vec": [
                 {
+<<<<<<< HEAD
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+=======
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -1229,7 +1597,11 @@
                     "symbol": "badge_level"
                   },
                   "val": {
+<<<<<<< HEAD
                     "u32": 1
+=======
+                    "u32": 0
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                   }
                 },
                 {
@@ -1265,7 +1637,11 @@
                     "symbol": "total_jobs"
                   },
                   "val": {
+<<<<<<< HEAD
                     "u32": 0
+=======
+                    "u32": 1
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                   }
                 }
               ]
@@ -1299,6 +1675,7 @@
     {
       "event": {
         "ext": "v0",
+<<<<<<< HEAD
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
         "type_": "diagnostic",
         "body": {
@@ -1320,6 +1697,8 @@
     {
       "event": {
         "ext": "v0",
+=======
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         "contract_id": null,
         "type_": "diagnostic",
         "body": {

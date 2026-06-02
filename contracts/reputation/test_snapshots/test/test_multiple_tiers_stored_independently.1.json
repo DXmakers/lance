@@ -262,7 +262,11 @@
                               "symbol": "badge_level"
                             },
                             "val": {
+<<<<<<< HEAD
                               "u32": 1
+=======
+                              "u32": 0
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                             }
                           },
                           {
@@ -275,6 +279,17 @@
                           },
                           {
                             "key": {
+<<<<<<< HEAD
+=======
+                              "symbol": "dispute_failures"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                               "symbol": "review"
                             },
                             "val": {
@@ -322,6 +337,21 @@
                     },
                     {
                       "key": {
+<<<<<<< HEAD
+=======
+                        "symbol": "client_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                         "symbol": "freelancer"
                       },
                       "val": {
@@ -331,7 +361,11 @@
                               "symbol": "badge_level"
                             },
                             "val": {
+<<<<<<< HEAD
                               "u32": 1
+=======
+                              "u32": 0
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                             }
                           },
                           {
@@ -344,6 +378,17 @@
                           },
                           {
                             "key": {
+<<<<<<< HEAD
+=======
+                              "symbol": "dispute_failures"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                               "symbol": "review"
                             },
                             "val": {
@@ -391,6 +436,21 @@
                     },
                     {
                       "key": {
+<<<<<<< HEAD
+=======
+                        "symbol": "freelancer_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                         "symbol": "is_blacklisted"
                       },
                       "val": {
@@ -399,9 +459,31 @@
                     },
                     {
                       "key": {
+<<<<<<< HEAD
                         "symbol": "metadata_hash"
                       },
                       "val": "void"
+=======
+                        "symbol": "last_activity"
+                      },
+                      "val": {
+                        "u64": 0
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "metadata_hash"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
+                        "symbol": "transfer_blocked"
+                      },
+                      "val": {
+                        "bool": true
+                      }
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                     }
                   ]
                 }
