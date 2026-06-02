@@ -4,6 +4,7 @@
     "nonce": 0
   },
   "auth": [
+    [],
     []
   ],
   "ledger": {
@@ -38,7 +39,20 @@
                     "executable": {
                       "wasm": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
                     },
-                    "storage": null
+                    "storage": [
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "Admin"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                        }
+                      }
+                    ]
                   }
                 }
               }
@@ -87,13 +101,64 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
+<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_starts_at_bronze_for_default_score.1.json
+                "symbol": "initialize"
+              }
+            ],
+            "data": {
+              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_return"
+              },
+              {
+                "symbol": "initialize"
+              }
+            ],
+            "data": "void"
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": null,
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_call"
+              },
+              {
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
+              },
+              {
+                "symbol": "get_badge"
+========
                 "symbol": "get_validator_stake"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_empty_validator_stake_reads_are_safe.1.json
               }
             ],
             "data": {
               "vec": [
                 {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -124,12 +189,19 @@
                 "symbol": "fn_return"
               },
               {
+<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_starts_at_bronze_for_default_score.1.json
+                "symbol": "get_badge"
+========
                 "symbol": "get_validator_stake"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_empty_validator_stake_reads_are_safe.1.json
               }
             ],
             "data": {
-              "map": [
+              "vec": [
                 {
+<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_starts_at_bronze_for_default_score.1.json
+                  "symbol": "Bronze"
+========
                   "key": {
                     "symbol": "adjustment_count"
                   },
@@ -191,6 +263,7 @@
                   "val": {
                     "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                   }
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_empty_validator_stake_reads_are_safe.1.json
                 }
               ]
             }

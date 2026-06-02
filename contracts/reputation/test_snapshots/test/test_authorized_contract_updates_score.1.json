@@ -137,7 +137,7 @@
                               "symbol": "badge_level"
                             },
                             "val": {
-                              "u32": 0
+                              "u32": 1
                             }
                           },
                           {
@@ -226,7 +226,7 @@
                               "symbol": "badge_level"
                             },
                             "val": {
-                              "u32": 0
+                              "u32": 2
                             }
                           },
                           {
@@ -234,7 +234,7 @@
                               "symbol": "completed_jobs"
                             },
                             "val": {
-                              "u32": 1
+                              "u32": 0
                             }
                           },
                           {
@@ -744,7 +744,7 @@
                     "symbol": "badge_level"
                   },
                   "val": {
-                    "u32": 0
+                    "u32": 2
                   }
                 },
                 {
@@ -780,7 +780,7 @@
                     "symbol": "total_jobs"
                   },
                   "val": {
-                    "u32": 1
+                    "u32": 0
                   }
                 }
               ]
@@ -907,7 +907,7 @@
                     "symbol": "badge_level"
                   },
                   "val": {
-                    "u32": 0
+                    "u32": 2
                   }
                 },
                 {
@@ -951,7 +951,7 @@
                     "symbol": "total_jobs"
                   },
                   "val": {
-                    "u32": 1
+                    "u32": 0
                   }
                 },
                 {

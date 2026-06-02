@@ -18,14 +18,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 },
                 {
-<<<<<<< HEAD
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
-=======
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-========
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 }
               ]
             }
@@ -34,48 +27,9 @@
         }
       ]
     ],
-    [
-      [
-        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-        {
-          "function": {
-            "contract_fn": {
-              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
-              "function_name": "update_score",
-              "args": [
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                },
-                {
-                  "vec": [
-                    {
-                      "symbol": "Freelancer"
-                    }
-                  ]
-                },
-                {
-<<<<<<< HEAD
-                  "i32": 1000
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-=======
-                  "i32": 3000
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
-                }
-              ]
-            }
-          },
-          "sub_invocations": []
-        }
-      ]
-    ],
-<<<<<<< HEAD
     [],
-=======
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
+    [],
+    [],
     []
   ],
   "ledger": {
@@ -185,19 +139,7 @@
                               "symbol": "badge_level"
                             },
                             "val": {
-<<<<<<< HEAD
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
                               "u32": 1
-========
-                              "u32": 0
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-=======
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-                              "u32": 1
-========
-                              "u32": 0
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                             }
                           },
                           {
@@ -210,25 +152,6 @@
                           },
                           {
                             "key": {
-<<<<<<< HEAD
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
-=======
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
-========
-                              "symbol": "dispute_failures"
-                            },
-                            "val": {
-                              "u32": 0
-                            }
-                          },
-                          {
-                            "key": {
-<<<<<<< HEAD
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-=======
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                               "symbol": "review"
                             },
                             "val": {
@@ -276,11 +199,6 @@
                     },
                     {
                       "key": {
-<<<<<<< HEAD
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
-=======
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                         "symbol": "freelancer"
                       },
                       "val": {
@@ -290,202 +208,12 @@
                               "symbol": "badge_level"
                             },
                             "val": {
-<<<<<<< HEAD
                               "u32": 3
-=======
-                              "u32": 2
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                             }
                           },
                           {
                             "key": {
                               "symbol": "completed_jobs"
-                            },
-                            "val": {
-                              "u32": 0
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "review"
-                            },
-                            "val": {
-                              "map": [
-                                {
-                                  "key": {
-                                    "symbol": "average_rating_bps"
-                                  },
-                                  "val": {
-                                    "i32": 5000
-                                  }
-                                },
-                                {
-                                  "key": {
-                                    "symbol": "reviews"
-                                  },
-                                  "val": {
-                                    "u32": 0
-                                  }
-                                },
-                                {
-                                  "key": {
-                                    "symbol": "total_points"
-                                  },
-                                  "val": {
-                                    "i128": {
-                                      "hi": 0,
-                                      "lo": 0
-                                    }
-                                  }
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "score"
-                            },
-                            "val": {
-<<<<<<< HEAD
-                              "i32": 8000
-                            }
-========
-                        "symbol": "client_badge"
-                      },
-                      "val": {
-                        "vec": [
-                          {
-                            "symbol": "Bronze"
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
-                        "symbol": "is_blacklisted"
-                      },
-                      "val": {
-                        "bool": false
-========
-                        "symbol": "freelancer"
-                      },
-                      "val": {
-                        "map": [
-                          {
-                            "key": {
-                              "symbol": "badge_level"
-                            },
-                            "val": {
-                              "u32": 0
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "completed_jobs"
-                            },
-                            "val": {
-                              "u32": 1
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "dispute_failures"
-                            },
-                            "val": {
-                              "u32": 0
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "review"
-                            },
-                            "val": {
-                              "map": [
-                                {
-                                  "key": {
-                                    "symbol": "average_rating_bps"
-                                  },
-                                  "val": {
-                                    "i32": 5000
-                                  }
-                                },
-                                {
-                                  "key": {
-                                    "symbol": "reviews"
-                                  },
-                                  "val": {
-                                    "u32": 0
-                                  }
-                                },
-                                {
-                                  "key": {
-                                    "symbol": "total_points"
-                                  },
-                                  "val": {
-                                    "i128": {
-                                      "hi": 0,
-                                      "lo": 0
-                                    }
-                                  }
-                                }
-                              ]
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "score"
-                            },
-                            "val": {
-                              "i32": 6000
-                            }
-=======
-                              "i32": 6000
-                            }
-========
-                        "symbol": "client_badge"
-                      },
-                      "val": {
-                        "vec": [
-                          {
-                            "symbol": "Bronze"
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-                        "symbol": "is_blacklisted"
-                      },
-                      "val": {
-                        "bool": false
-========
-                        "symbol": "freelancer"
-                      },
-                      "val": {
-                        "map": [
-                          {
-                            "key": {
-                              "symbol": "badge_level"
-                            },
-                            "val": {
-                              "u32": 0
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "completed_jobs"
-                            },
-                            "val": {
-                              "u32": 1
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "dispute_failures"
                             },
                             "val": {
                               "u32": 0
@@ -534,23 +262,6 @@
                             "val": {
                               "i32": 8000
                             }
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "freelancer_badge"
-                      },
-                      "val": {
-                        "vec": [
-                          {
-<<<<<<< HEAD
-                            "symbol": "Silver"
-=======
-                            "symbol": "Gold"
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                           }
                         ]
                       }
@@ -561,19 +272,6 @@
                       },
                       "val": {
                         "bool": false
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "last_activity"
-                      },
-                      "val": {
-                        "u64": 0
-<<<<<<< HEAD
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-=======
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                       }
                     },
                     {
@@ -581,14 +279,6 @@
                         "symbol": "metadata_hash"
                       },
                       "val": "void"
-                    },
-                    {
-                      "key": {
-                        "symbol": "transfer_blocked"
-                      },
-                      "val": {
-                        "bool": true
-                      }
                     }
                   ]
                 }
@@ -638,50 +328,12 @@
                         "key": {
                           "vec": [
                             {
-<<<<<<< HEAD
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
-=======
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
-========
-                              "symbol": "AuthorizedContract"
-                            },
-                            {
-                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                            }
-                          ]
-                        },
-                        "val": {
-                          "bool": true
-                        }
-                      },
-                      {
-                        "key": {
-                          "vec": [
-                            {
-<<<<<<< HEAD
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-=======
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                               "symbol": "AuthorizedUpdater"
                             }
                           ]
                         },
                         "val": {
-<<<<<<< HEAD
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-========
-                          "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-=======
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-                          "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-========
-                          "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                         }
                       }
                     ]
@@ -813,11 +465,6 @@
               },
               {
                 "symbol": "set_authorized_contract"
-<<<<<<< HEAD
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
-========
-=======
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
               }
             ],
             "data": {
@@ -826,8 +473,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 },
                 {
-<<<<<<< HEAD
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 }
               ]
             }
@@ -866,7 +512,7 @@
                     "symbol": "contract_address"
                   },
                   "val": {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                   }
                 },
                 {
@@ -917,129 +563,6 @@
                 "symbol": "fn_call"
               },
               {
-                "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
-              },
-              {
-                "symbol": "update_score"
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-              }
-            ],
-            "data": {
-              "vec": [
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                },
-                {
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-=======
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-========
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
-        "type_": "contract",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "string": "reputation"
-              },
-              {
-                "string": "AuthorizedContractUpdated"
-              }
-            ],
-            "data": {
-              "map": [
-                {
-                  "key": {
-                    "symbol": "by_admin"
-                  },
-                  "val": {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "contract_address"
-                  },
-                  "val": {
-<<<<<<< HEAD
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-=======
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-========
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "updated_at"
-                  },
-                  "val": {
-                    "u64": 0
-                  }
-                }
-              ]
-            }
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
-        "type_": "diagnostic",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "fn_return"
-              },
-              {
-                "symbol": "set_authorized_contract"
-              }
-            ],
-            "data": "void"
-          }
-        }
-      },
-      "failed_call": false
-    },
-    {
-      "event": {
-        "ext": "v0",
-        "contract_id": null,
-        "type_": "diagnostic",
-        "body": {
-          "v0": {
-            "topics": [
-              {
-                "symbol": "fn_call"
-              },
-              {
-<<<<<<< HEAD
-=======
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000004"
               },
               {
@@ -1052,11 +575,6 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                 },
                 {
-<<<<<<< HEAD
-========
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-=======
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
@@ -1067,11 +585,7 @@
                   ]
                 },
                 {
-<<<<<<< HEAD
-                  "i32": 3000
-=======
-                  "i32": 1000
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
+                  "i32": 5000
                 }
               ]
             }
@@ -1092,11 +606,6 @@
                 "symbol": "fn_call"
               },
               {
-<<<<<<< HEAD
-=======
-========
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
@@ -1106,15 +615,7 @@
             "data": {
               "vec": [
                 {
-<<<<<<< HEAD
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-=======
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-========
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -1127,7 +628,7 @@
                   ]
                 },
                 {
-                  "i32": 3000
+                  "i32": 5000
                 }
               ]
             }
@@ -1174,19 +675,7 @@
                     "symbol": "badge_level"
                   },
                   "val": {
-<<<<<<< HEAD
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
-                    "u32": 3
-========
-                    "u32": 0
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-=======
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-                    "u32": 2
-========
-                    "u32": 0
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
+                    "u32": 4
                   }
                 },
                 {
@@ -1194,7 +683,7 @@
                     "symbol": "delta"
                   },
                   "val": {
-                    "i32": 3000
+                    "i32": 5000
                   }
                 },
                 {
@@ -1202,7 +691,7 @@
                     "symbol": "new_score"
                   },
                   "val": {
-                    "i32": 8000
+                    "i32": 10000
                   }
                 },
                 {
@@ -1256,10 +745,6 @@
     {
       "event": {
         "ext": "v0",
-<<<<<<< HEAD
-=======
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
         "type_": "diagnostic",
         "body": {
@@ -1281,11 +766,6 @@
     {
       "event": {
         "ext": "v0",
-<<<<<<< HEAD
-=======
-========
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         "contract_id": null,
         "type_": "diagnostic",
         "body": {
@@ -1298,7 +778,7 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
-                "symbol": "get_badge"
+                "symbol": "get_score"
               }
             ],
             "data": {
@@ -1332,25 +812,441 @@
                 "symbol": "fn_return"
               },
               {
-                "symbol": "get_badge"
+                "symbol": "get_score"
+              }
+            ],
+            "data": {
+              "map": [
+                {
+                  "key": {
+                    "symbol": "address"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "average_rating_bps"
+                  },
+                  "val": {
+                    "i32": 5000
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "badge_level"
+                  },
+                  "val": {
+                    "u32": 4
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "blacklisted"
+                  },
+                  "val": {
+                    "bool": false
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "reviews"
+                  },
+                  "val": {
+                    "u32": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "role"
+                  },
+                  "val": {
+                    "vec": [
+                      {
+                        "symbol": "Freelancer"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "score"
+                  },
+                  "val": {
+                    "i32": 10000
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "total_jobs"
+                  },
+                  "val": {
+                    "u32": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "total_points"
+                  },
+                  "val": {
+                    "i128": {
+                      "hi": 0,
+                      "lo": 0
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": null,
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_call"
+              },
+              {
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000004"
+              },
+              {
+                "symbol": "slash"
               }
             ],
             "data": {
               "vec": [
                 {
-<<<<<<< HEAD
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
-                  "symbol": "Gold"
-========
-                  "symbol": "Silver"
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-=======
-<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_silver_at_6000.1.json
-                  "symbol": "Silver"
-========
-                  "symbol": "Gold"
->>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_badge_upgrades_to_gold_at_8000.1.json
->>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                },
+                {
+                  "vec": [
+                    {
+                      "symbol": "Freelancer"
+                    }
+                  ]
+                },
+                {
+                  "symbol": "test"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_call"
+              },
+              {
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
+              },
+              {
+                "symbol": "slash"
+              }
+            ],
+            "data": {
+              "vec": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                },
+                {
+                  "vec": [
+                    {
+                      "symbol": "Freelancer"
+                    }
+                  ]
+                },
+                {
+                  "symbol": "test"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
+        "type_": "contract",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "string": "reputation"
+              },
+              {
+                "string": "ScoreAdjusted"
+              }
+            ],
+            "data": {
+              "map": [
+                {
+                  "key": {
+                    "symbol": "address"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "adjusted_at"
+                  },
+                  "val": {
+                    "u64": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "badge_level"
+                  },
+                  "val": {
+                    "u32": 3
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "delta"
+                  },
+                  "val": {
+                    "i32": -2000
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "new_score"
+                  },
+                  "val": {
+                    "i32": 8000
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "role"
+                  },
+                  "val": {
+                    "vec": [
+                      {
+                        "symbol": "Freelancer"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "total_jobs"
+                  },
+                  "val": {
+                    "u32": 0
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_return"
+              },
+              {
+                "symbol": "slash"
+              }
+            ],
+            "data": "void"
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000004",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_return"
+              },
+              {
+                "symbol": "slash"
+              }
+            ],
+            "data": "void"
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": null,
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_call"
+              },
+              {
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
+              },
+              {
+                "symbol": "get_score"
+              }
+            ],
+            "data": {
+              "vec": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                },
+                {
+                  "vec": [
+                    {
+                      "symbol": "Freelancer"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "fn_return"
+              },
+              {
+                "symbol": "get_score"
+              }
+            ],
+            "data": {
+              "map": [
+                {
+                  "key": {
+                    "symbol": "address"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "average_rating_bps"
+                  },
+                  "val": {
+                    "i32": 5000
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "badge_level"
+                  },
+                  "val": {
+                    "u32": 3
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "blacklisted"
+                  },
+                  "val": {
+                    "bool": false
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "reviews"
+                  },
+                  "val": {
+                    "u32": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "role"
+                  },
+                  "val": {
+                    "vec": [
+                      {
+                        "symbol": "Freelancer"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "score"
+                  },
+                  "val": {
+                    "i32": 8000
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "total_jobs"
+                  },
+                  "val": {
+                    "u32": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "total_points"
+                  },
+                  "val": {
+                    "i128": {
+                      "hi": 0,
+                      "lo": 0
+                    }
+                  }
                 }
               ]
             }
