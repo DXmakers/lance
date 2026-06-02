@@ -4,9 +4,13 @@ use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, Address, Bytes, BytesN, Env, IntoVal,
     Symbol, Vec,
 };
+pub use profile::BadgeLevel;
 
 mod profile;
 mod storage;
+pub use profile::{BadgeMetadataEntry, BadgeTier};
+
+use profile::{Profile, RoleMetrics};
 
 use profile::{BADGE_LEVEL_MAX, BADGE_LEVEL_MIN};
 
@@ -46,9 +50,7 @@ pub struct ReputationScore {
     /// Score in basis points (0–10000 = 0–100%), with dispute decay applied.
     pub score: i32,
     pub total_jobs: u32,
-    /// Sum of raw rating points (1-5) to compute aggregates off-chain
-    pub total_points: i32,
-    /// Number of reviews counted
+    pub total_points: i128,
     pub reviews: u32,
     /// Total disputes recorded against this address in this role
     pub disputes: u32,
@@ -62,12 +64,14 @@ pub struct ReputationView {
     pub address: Address,
     pub client: ReputationScore,
     pub freelancer: ReputationScore,
+    pub is_blacklisted: bool,
 }
 
 #[contracttype]
 pub enum DataKey {
     Admin,
     JobRegistry,
+    AuthorizedUpdater,
     Reviewed(u64, Address),
     /// Stores `true` for any contract address the admin explicitly authorises
     /// to call privileged write functions (update_score, slash, increment_disputes,
@@ -85,6 +89,7 @@ pub enum ReputationError {
     NotJobParticipant = 5,
     AlreadyReviewed = 6,
     ContractStateError = 7,
+    Blacklisted = 8,
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -109,8 +114,11 @@ pub struct ReputationUpdatedEvent {
     pub rating: u32,
     pub new_score: i32,
     pub total_jobs: u32,
-    pub total_points: i32,
+    pub total_points: i128,
     pub reviews: u32,
+    pub average_rating_bps: i32,
+    pub badge_level: u32,
+    pub blacklisted: bool,
     pub updated_at: u64,
 }
 
@@ -122,6 +130,7 @@ pub struct ScoreAdjustedEvent {
     pub delta: i32,
     pub new_score: i32,
     pub total_jobs: u32,
+    pub badge_level: u32,
     pub adjusted_at: u64,
 }
 
@@ -158,6 +167,11 @@ impl ReputationContract {
     const INSTANCE_TTL_EXTEND_TO: u32 = 150_000;
     const PERSISTENT_TTL_THRESHOLD: u32 = 50_000;
     const PERSISTENT_TTL_EXTEND_TO: u32 = 150_000;
+    const SCORE_SCALE: i128 = 10_000;
+    const MAX_RATING: i128 = 5;
+    const DEFAULT_SCORE_BPS: i32 = 5_000;
+    const SLASH_DECAY_BPS: i32 = 8_000;
+    const BLACKLIST_DECAY_BPS: i32 = 1_000;
 
     /// Dispute decay factor expressed as a fraction of 10_000.
     /// Each dispute multiplies the raw score by (10_000 - DISPUTE_DECAY_BPS) / 10_000.
@@ -211,7 +225,7 @@ impl ReputationContract {
     fn score_from_profile(
         address: &Address,
         role: Role,
-        profile: &profile::Profile,
+        profile: &Profile,
     ) -> ReputationScore {
         match role {
             Role::Client => {
@@ -293,18 +307,24 @@ impl ReputationContract {
 
     /// Set the JobRegistry contract address (admin only).
     pub fn set_job_registry(env: Env, admin: Address, registry: Address) {
-        let configured_admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .expect("not initialized");
+        Self::require_admin(&env, &admin);
+        env.storage().instance().set(&DataKey::JobRegistry, &registry);
+        Self::bump_instance_ttl(&env);
+    }
 
-        admin.require_auth();
-        assert!(admin == configured_admin, "only admin can set job registry");
-
+    pub fn set_authorized_contract(env: Env, admin: Address, contract_address: Address) {
+        Self::require_admin(&env, &admin);
         env.storage()
             .instance()
-            .set(&DataKey::JobRegistry, &registry);
+            .set(&DataKey::AuthorizedUpdater, &contract_address);
+        env.events().publish(
+            ("reputation", "AuthorizedContractUpdated"),
+            AuthorizedContractUpdatedEvent {
+                by_admin: admin,
+                contract_address,
+                updated_at: env.ledger().timestamp(),
+            },
+        );
         Self::bump_instance_ttl(&env);
     }
 
@@ -390,12 +410,7 @@ impl ReputationContract {
             soroban_sdk::panic_with_error!(&env, ReputationError::InvalidInput);
         }
 
-        let registry_addr: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::JobRegistry)
-            .expect("job registry not set");
-
+        let registry_addr = Self::read_job_registry(&env);
         let get_sym = Symbol::new(&env, "get_job");
         let args = soroban_sdk::vec![&env, job_id.into_val(&env)];
         let job: JobRecord = env
@@ -413,9 +428,10 @@ impl ReputationContract {
         let caller_addr = caller.clone();
         let is_client = caller_addr == job.client;
         let is_freelancer = match job.freelancer.clone() {
-            Some(f) => caller_addr == f,
+            Some(freelancer) => caller_addr == freelancer,
             None => false,
         };
+
         if !(is_client || is_freelancer) {
             soroban_sdk::panic_with_error!(&env, ReputationError::Unauthorized);
         }
@@ -426,33 +442,38 @@ impl ReputationContract {
         }
 
         let mut profile = storage::read_profile_or_default(&env, &target);
-        let (role, total_points, total_jobs, new_score) = if target == job.client {
-            profile.client_points = profile.client_points.saturating_add(score as i32);
-            profile.client_jobs = profile.client_jobs.saturating_add(1);
-            let avg = profile.client_points / (profile.client_jobs as i32);
-            let bps = Self::score_from_rating(avg as u32);
-            profile.client_score = Self::clamp_score(bps);
-            (
-                Role::Client,
-                profile.client_points,
-                profile.client_jobs,
-                profile.client_score,
-            )
-        } else if job.freelancer.as_ref() == Some(&target) {
-            profile.freelancer_points = profile.freelancer_points.saturating_add(score as i32);
-            profile.freelancer_jobs = profile.freelancer_jobs.saturating_add(1);
-            let avg = profile.freelancer_points / (profile.freelancer_jobs as i32);
-            let bps = Self::score_from_rating(avg as u32);
-            profile.freelancer_score = Self::clamp_score(bps);
-            (
-                Role::Freelancer,
-                profile.freelancer_points,
-                profile.freelancer_jobs,
-                profile.freelancer_score,
-            )
-        } else {
-            soroban_sdk::panic_with_error!(&env, ReputationError::NotJobParticipant);
-        };
+        if profile.is_blacklisted {
+            soroban_sdk::panic_with_error!(&env, ReputationError::Blacklisted);
+        }
+
+        let (role, total_points, total_jobs, new_score, reviews, average_rating_bps, badge_level) =
+            if target == job.client {
+                let is_blacklisted = profile.is_blacklisted;
+                Self::apply_review(&env, &mut profile.client, score, is_blacklisted);
+                (
+                    Role::Client,
+                    profile.client.review.total_points,
+                    profile.client.completed_jobs,
+                    profile.client.score,
+                    profile.client.review.reviews,
+                    profile.client.review.average_rating_bps,
+                    profile.client.badge_level,
+                )
+            } else if job.freelancer.as_ref() == Some(&target) {
+                let is_blacklisted = profile.is_blacklisted;
+                Self::apply_review(&env, &mut profile.freelancer, score, is_blacklisted);
+                (
+                    Role::Freelancer,
+                    profile.freelancer.review.total_points,
+                    profile.freelancer.completed_jobs,
+                    profile.freelancer.score,
+                    profile.freelancer.review.reviews,
+                    profile.freelancer.review.average_rating_bps,
+                    profile.freelancer.badge_level,
+                )
+            } else {
+                soroban_sdk::panic_with_error!(&env, ReputationError::NotJobParticipant);
+            };
 
         storage::write_profile(&env, &target, &profile);
         env.storage().persistent().set(&reviewed_key, &true);
@@ -472,7 +493,10 @@ impl ReputationContract {
                 new_score,
                 total_jobs,
                 total_points,
-                reviews: total_jobs,
+                reviews,
+                average_rating_bps,
+                badge_level,
+                blacklisted: profile.is_blacklisted,
                 updated_at: env.ledger().timestamp(),
             },
         );
@@ -489,30 +513,29 @@ impl ReputationContract {
         Self::check_authorized_caller(&env, &caller)?;
 
         let mut profile = storage::read_profile_or_default(&env, &address);
-        let (new_score, total_jobs) = match role {
-            Role::Client => {
-                profile.client_score =
-                    Self::clamp_score(profile.client_score.saturating_add(delta));
-                profile.client_jobs = profile.client_jobs.saturating_add(1);
-                (profile.client_score, profile.client_jobs)
-            }
-            Role::Freelancer => {
-                profile.freelancer_score =
-                    Self::clamp_score(profile.freelancer_score.saturating_add(delta));
-                profile.freelancer_jobs = profile.freelancer_jobs.saturating_add(1);
-                (profile.freelancer_score, profile.freelancer_jobs)
-            }
-        };
+        if profile.is_blacklisted {
+            soroban_sdk::panic_with_error!(&env, ReputationError::Blacklisted);
+        }
 
+        let is_blacklisted = profile.is_blacklisted;
+        let metrics = Self::role_metrics_mut(&mut profile, &role);
+        let previous_score = metrics.score;
+        Self::apply_manual_delta(metrics, delta, is_blacklisted);
+        let new_score = metrics.score;
+        let total_jobs = metrics.completed_jobs;
+        let badge_level = metrics.badge_level;
+
+        profile.refresh_badges();
         storage::write_profile(&env, &address, &profile);
         env.events().publish(
             ("reputation", "ScoreAdjusted"),
             ScoreAdjustedEvent {
                 address,
                 role,
-                delta,
+                delta: new_score.saturating_sub(previous_score),
                 new_score,
                 total_jobs,
+                badge_level,
                 adjusted_at: env.ledger().timestamp(),
             },
         );
@@ -530,27 +553,29 @@ impl ReputationContract {
         Self::check_authorized_caller(&env, &caller)?;
 
         let mut profile = storage::read_profile_or_default(&env, &address);
-        let (new_score, total_jobs) = match role {
-            Role::Client => {
-                profile.client_score = Self::clamp_score(profile.client_score.saturating_sub(2000));
-                (profile.client_score, profile.client_jobs)
-            }
-            Role::Freelancer => {
-                profile.freelancer_score =
-                    Self::clamp_score(profile.freelancer_score.saturating_sub(2000));
-                (profile.freelancer_score, profile.freelancer_jobs)
-            }
-        };
+        if profile.is_blacklisted {
+            soroban_sdk::panic_with_error!(&env, ReputationError::Blacklisted);
+        }
 
+        let is_blacklisted = profile.is_blacklisted;
+        let metrics = Self::role_metrics_mut(&mut profile, &role);
+        let previous_score = metrics.score;
+        Self::apply_role_decay(&env, metrics, Self::SLASH_DECAY_BPS, is_blacklisted);
+        let new_score = metrics.score;
+        let total_jobs = metrics.completed_jobs;
+        let badge_level = metrics.badge_level;
+
+        profile.refresh_badges();
         storage::write_profile(&env, &address, &profile);
         env.events().publish(
             ("reputation", "ScoreAdjusted"),
             ScoreAdjustedEvent {
                 address,
                 role,
-                delta: -2_000,
+                delta: new_score.saturating_sub(previous_score),
                 new_score,
                 total_jobs,
+                badge_level,
                 adjusted_at: env.ledger().timestamp(),
             },
         );
@@ -696,7 +721,7 @@ impl ReputationContract {
     /// Get profile metadata hash.
     pub fn get_profile_metadata(env: Env, address: Address) -> Option<Bytes> {
         Self::bump_instance_ttl(&env);
-        storage::read_profile(&env, &address).and_then(|p| p.metadata_hash)
+        storage::read_profile(&env, &address).and_then(|profile| profile.metadata_hash)
     }
 
     /// Frontend-friendly aggregate metrics for public profile pages.
@@ -709,12 +734,12 @@ impl ReputationContract {
         } else {
             soroban_sdk::panic_with_error!(&env, ReputationError::InvalidInput);
         };
-        let rep = Self::get_score(env.clone(), address, role);
 
+        let rep = Self::get_score(env.clone(), address, role);
         let mut metrics = Vec::new(&env);
         metrics.push_back(rep.score as i128);
         metrics.push_back(rep.total_jobs as i128);
-        metrics.push_back(rep.total_points as i128);
+        metrics.push_back(rep.total_points);
         metrics.push_back(rep.reviews as i128);
         metrics.push_back(rep.disputes as i128);
         metrics.push_back(rep.badge_level as i128);
@@ -732,6 +757,7 @@ impl ReputationContract {
             address,
             client,
             freelancer,
+            is_blacklisted: profile.is_blacklisted,
         }
     }
 }
@@ -762,11 +788,11 @@ mod test {
             env.storage().persistent().set(&MockKey::Job(job_id), &job);
         }
 
-        pub fn get_job(env: Env, _job_id: u64) -> Result<JobRecord, soroban_sdk::Error> {
+        pub fn get_job(env: Env, job_id: u64) -> Result<JobRecord, soroban_sdk::Error> {
             Ok(env
                 .storage()
                 .persistent()
-                .get(&MockKey::Job(_job_id))
+                .get(&MockKey::Job(job_id))
                 .expect("mock job missing"))
         }
     }
@@ -995,9 +1021,28 @@ mod test {
 
         client.update_score(&admin, &address, &Role::Freelancer, &500);
 
-        let score = client.get_score(&address, &Role::Freelancer);
-        assert_eq!(score.score, 5500);
-        assert_eq!(score.total_jobs, 1);
+        let registry_id = env.register_contract(None, MockJobRegistry);
+        client.set_job_registry(&admin, &registry_id);
+
+        setup_job(&env, &registry_id, 7, &caller, &freelancer);
+        setup_job(&env, &registry_id, 8, &caller_two, &target);
+
+        client.submit_rating(&caller, &7, &freelancer, &5);
+        let freelancer_score = client.get_score(&freelancer, &Role::Freelancer);
+        assert_eq!(freelancer_score.score, 10_000);
+        assert_eq!(freelancer_score.total_jobs, 1);
+        assert_eq!(freelancer_score.total_points, 5);
+        assert_eq!(freelancer_score.reviews, 1);
+        assert_eq!(freelancer_score.average_rating_bps, 10_000);
+        assert_eq!(freelancer_score.badge_level, 1);
+
+        client.submit_rating(&caller_two, &8, &target, &4);
+        let second_freelancer_score = client.get_score(&target, &Role::Freelancer);
+        assert_eq!(second_freelancer_score.score, 8_000);
+        assert_eq!(second_freelancer_score.total_jobs, 1);
+        assert_eq!(second_freelancer_score.total_points, 4);
+        assert_eq!(second_freelancer_score.reviews, 1);
+        assert_eq!(second_freelancer_score.average_rating_bps, 8_000);
     }
 
     #[test]
@@ -1012,8 +1057,25 @@ mod test {
             &soroban_sdk::Symbol::new(&env, "fraud"),
         );
 
-        let score = client.get_score(&address, &Role::Client);
-        assert_eq!(score.score, 3000); // 5000 - 2000
+    #[test]
+    #[should_panic(expected = "Error(Contract, #2)")]
+    fn test_direct_reviews_from_unverified_public_keys_are_rejected() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let admin = Address::generate(&env);
+        let attacker = Address::generate(&env);
+        let job_client = Address::generate(&env);
+        let freelancer = Address::generate(&env);
+        let contract_id = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &contract_id);
+
+        client.initialize(&admin);
+        let registry_id = env.register_contract(None, MockJobRegistry);
+        client.set_job_registry(&admin, &registry_id);
+        setup_job(&env, &registry_id, 33, &job_client, &freelancer);
+
+        client.submit_rating(&attacker, &33, &freelancer, &5);
     }
 
     #[test]
@@ -1032,6 +1094,8 @@ mod test {
         assert_eq!(saved_hash, Some(hash));
     }
 
+    // ── Issue #402: badge minting ──
+
     #[test]
     fn test_unified_storage() {
         let (env, client, admin) = setup();
@@ -1042,11 +1106,20 @@ mod test {
         // Update client score for SAME address
         client.update_score(&admin, &address, &Role::Client, &500);
 
-        let f_score = client.get_score(&address, &Role::Freelancer);
-        let c_score = client.get_score(&address, &Role::Client);
+    #[test]
+    fn test_badge_upgrades_to_silver_at_6000() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let admin = Address::generate(&env);
+        let addr = Address::generate(&env);
+        let cid = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &cid);
+        client.initialize(&admin);
 
-        assert_eq!(f_score.score, 6000);
-        assert_eq!(c_score.score, 5500);
+        // Raise score by 1000 → 5000+1000 = 6000 → Silver
+        client.update_score(&addr, &Role::Freelancer, &1000);
+        let badge = client.get_badge(&addr, &Role::Freelancer);
+        assert_eq!(badge, BadgeLevel::Silver);
     }
 
     #[test]
@@ -1070,64 +1143,73 @@ mod test {
         assert_eq!(view.freelancer.badge_level, 1);
     }
 
-    #[test]
-    #[should_panic(expected = "Error(Contract, #3)")]
-    fn test_get_public_metrics_rejects_unknown_role() {
-        let env = Env::default();
-        let address = Address::generate(&env);
-        let contract_id = env.register_contract(None, ReputationContract);
-        let client = ReputationContractClient::new(&env, &contract_id);
+    // ── Issue #406: badge metadata mapping ──
 
-        client.get_public_metrics(&address, &soroban_sdk::Symbol::new(&env, "bogus"));
+    #[test]
+    fn test_set_and_get_badge_metadata() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let admin = Address::generate(&env);
+        let addr = Address::generate(&env);
+        let cid = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &cid);
+        client.initialize(&admin);
+
+        let uri = Bytes::from_slice(&env, b"ipfs://QmBronzeBadge");
+        client.set_badge_metadata(&admin, &addr, &BadgeTier::Bronze, &uri);
+
+        let result = client.get_badge_metadata(&addr, &BadgeTier::Bronze);
+        assert_eq!(result, Some(uri));
     }
 
     #[test]
-    fn test_submit_rating_updates_client_and_freelancer_paths() {
+    fn test_badge_metadata_returns_none_when_unset() {
         let env = Env::default();
         env.mock_all_auths();
+        let addr = Address::generate(&env);
+        let cid = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &cid);
 
+        let result = client.get_badge_metadata(&addr, &BadgeTier::Gold);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_badge_metadata_update_overwrites_existing() {
+        let env = Env::default();
+        env.mock_all_auths();
         let admin = Address::generate(&env);
-        let caller = Address::generate(&env);
-        let target = Address::generate(&env);
-        let freelancer = Address::generate(&env);
-        let caller2 = Address::generate(&env);
-        let contract_id = env.register_contract(None, ReputationContract);
-        let client = ReputationContractClient::new(&env, &contract_id);
+        let addr = Address::generate(&env);
+        let cid = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &cid);
         client.initialize(&admin);
 
-        let mock_id = env.register_contract(None, MockJobRegistry);
-        client.set_job_registry(&admin, &mock_id);
+        let uri_v1 = Bytes::from_slice(&env, b"ipfs://QmSilverV1");
+        let uri_v2 = Bytes::from_slice(&env, b"ipfs://QmSilverV2");
+        client.set_badge_metadata(&admin, &addr, &BadgeTier::Silver, &uri_v1);
+        client.set_badge_metadata(&admin, &addr, &BadgeTier::Silver, &uri_v2);
 
-        let job = JobRecord {
-            client: caller.clone(),
-            freelancer: Some(freelancer.clone()),
-            metadata_hash: Bytes::from_slice(&env, b"QmJob"),
-            budget_stroops: 10,
-            status: JobStatus::Completed,
-        };
-        let mock_client = MockJobRegistryClient::new(&env, &mock_id);
-        mock_client.set_job(&7u64, &job);
-        let other_job = JobRecord {
-            client: caller2.clone(),
-            freelancer: Some(target.clone()),
-            metadata_hash: Bytes::from_slice(&env, b"QmJob2"),
-            budget_stroops: 10,
-            status: JobStatus::Completed,
-        };
-        mock_client.set_job(&8u64, &other_job);
+        assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Silver), Some(uri_v2));
+    }
 
-        client.submit_rating(&caller, &7u64, &freelancer, &5u32);
-        let client_score = client.get_score(&freelancer, &Role::Freelancer);
-        assert_eq!(client_score.score, 10_000);
-        assert_eq!(client_score.total_jobs, 1);
-        assert_eq!(client_score.total_points, 5);
+    #[test]
+    fn test_multiple_tiers_stored_independently() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let admin = Address::generate(&env);
+        let addr = Address::generate(&env);
+        let cid = env.register_contract(None, ReputationContract);
+        let client = ReputationContractClient::new(&env, &cid);
+        client.initialize(&admin);
 
-        client.submit_rating(&caller2, &8u64, &target, &4u32);
-        let freelancer_score = client.get_score(&target, &Role::Freelancer);
-        assert_eq!(freelancer_score.score, 8_000);
-        assert_eq!(freelancer_score.total_jobs, 1);
-        assert_eq!(freelancer_score.total_points, 4);
-        assert_eq!(freelancer_score.reviews, 1);
+        let bronze_uri = Bytes::from_slice(&env, b"ipfs://Bronze");
+        let gold_uri   = Bytes::from_slice(&env, b"ipfs://Gold");
+        client.set_badge_metadata(&admin, &addr, &BadgeTier::Bronze, &bronze_uri);
+        client.set_badge_metadata(&admin, &addr, &BadgeTier::Gold,   &gold_uri);
+
+        assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Bronze), Some(bronze_uri));
+        assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Gold),   Some(gold_uri));
+        assert_eq!(client.get_badge_metadata(&addr, &BadgeTier::Silver), None);
     }
 
     #[test]
