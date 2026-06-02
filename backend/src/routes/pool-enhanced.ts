@@ -60,7 +60,7 @@ router.get("/health", async (req: Request, res: Response) => {
     const uptime = stats.uptimeSeconds || 0;
 
     // Determine overall health status
-    const isPrimary Healthy = stats.primaryStatus === "healthy";
+    const isPrimaryHealthy = stats.primaryStatus === "healthy";
     const hasHealthyReplicas = (stats.replicaStatuses || []).some(
       (s: string) => s === "healthy"
     );

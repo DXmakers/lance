@@ -346,20 +346,12 @@ export const prisma = globalForPrisma.prisma || createPrismaClient();
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 // ---------------------------------------------------------------------------
-// Graceful shutdown — release pool connections on process exit signals
+// Graceful pool draining — called by the server-level shutdown handler
 // ---------------------------------------------------------------------------
-async function gracefulShutdown(signal: string): Promise<void> {
+export async function drainDatabasePool(signal = "shutdown"): Promise<void> {
   console.log(`[POOL] Received ${signal}. Draining connection pool...`);
   stopPoolHealthCheck();
-  try {
-    await prisma.$disconnect();
-    await pool.end();
-    console.log("[POOL] Connection pool drained successfully.");
-  } catch (err: any) {
-    console.error("[POOL] Error during pool shutdown:", err.message);
-  }
-  process.exit(0);
+  await prisma.$disconnect();
+  await pool.end();
+  console.log("[POOL] Connection pool drained successfully.");
 }
-
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
