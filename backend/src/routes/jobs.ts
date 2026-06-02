@@ -104,9 +104,9 @@ router.get("/", async (req: Request, res: Response) => {
         items,
         next_cursor: cursorSource
           ? {
-              created_at: cursorSource.created_at,
-              id: cursorSource.id,
-            }
+            created_at: cursorSource.created_at,
+            id: cursorSource.id,
+          }
           : null,
         limit: query.limit,
       });

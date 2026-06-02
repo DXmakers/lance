@@ -11,6 +11,7 @@
         {
           "function": {
             "contract_fn": {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
               "function_name": "post_job",
               "args": [
@@ -34,6 +35,26 @@
                 },
                 {
                   "u64": 0
+========
+              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+              "function_name": "set_badge_metadata",
+              "args": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                },
+                {
+                  "vec": [
+                    {
+                      "symbol": "Bronze"
+                    }
+                  ]
+                },
+                {
+                  "bytes": "697066733a2f2f516d42726f6e7a654261646765"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
                 }
               ]
             }
@@ -101,6 +122,7 @@
                     },
                     {
                       "key": {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
                         "symbol": "budget_stroops"
                       },
                       "val": {
@@ -108,6 +130,37 @@
                           "hi": 0,
                           "lo": 1000
                         }
+========
+                        "symbol": "badge_metadata"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "tier"
+                                },
+                                "val": {
+                                  "vec": [
+                                    {
+                                      "symbol": "Bronze"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "uri"
+                                },
+                                "val": {
+                                  "bytes": "697066733a2f2f516d42726f6e7a654261646765"
+                                }
+                              }
+                            ]
+                          }
+                        ]
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
                       }
                     },
                     {
@@ -115,27 +168,215 @@
                         "symbol": "client"
                       },
                       "val": {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+========
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "badge_level"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "completed_jobs"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "dispute_failures"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "review"
+                            },
+                            "val": {
+                              "map": [
+                                {
+                                  "key": {
+                                    "symbol": "average_rating_bps"
+                                  },
+                                  "val": {
+                                    "i32": 5000
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "reviews"
+                                  },
+                                  "val": {
+                                    "u32": 0
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "total_points"
+                                  },
+                                  "val": {
+                                    "i128": {
+                                      "hi": 0,
+                                      "lo": 0
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "score"
+                            },
+                            "val": {
+                              "i32": 5000
+                            }
+                          }
+                        ]
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
                       }
                     },
                     {
                       "key": {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
                         "symbol": "expires_at"
                       },
                       "val": {
                         "u64": 0
+========
+                        "symbol": "client_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
+                          }
+                        ]
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
                       }
                     },
                     {
                       "key": {
                         "symbol": "freelancer"
                       },
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
                       "val": "void"
+========
+                      "val": {
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "badge_level"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "completed_jobs"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "dispute_failures"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "review"
+                            },
+                            "val": {
+                              "map": [
+                                {
+                                  "key": {
+                                    "symbol": "average_rating_bps"
+                                  },
+                                  "val": {
+                                    "i32": 5000
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "reviews"
+                                  },
+                                  "val": {
+                                    "u32": 0
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "total_points"
+                                  },
+                                  "val": {
+                                    "i128": {
+                                      "hi": 0,
+                                      "lo": 0
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "score"
+                            },
+                            "val": {
+                              "i32": 5000
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "freelancer_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "is_blacklisted"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "last_activity"
+                      },
+                      "val": {
+                        "u64": 0
+                      }
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
                     },
                     {
                       "key": {
                         "symbol": "metadata_hash"
                       },
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
                       "val": {
                         "bytes": "516d48617368"
                       }
@@ -150,6 +391,16 @@
                             "symbol": "Open"
                           }
                         ]
+========
+                      "val": "void"
+                    },
+                    {
+                      "key": {
+                        "symbol": "transfer_blocked"
+                      },
+                      "val": {
+                        "bool": true
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
                       }
                     }
                   ]
@@ -337,12 +588,17 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000001"
               },
               {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
                 "symbol": "post_job"
+========
+                "symbol": "set_badge_metadata"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
               }
             ],
             "data": {
               "vec": [
                 {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
                   "u64": 1
                 },
                 {
@@ -362,6 +618,22 @@
                 },
                 {
                   "u64": 0
+========
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                },
+                {
+                  "vec": [
+                    {
+                      "symbol": "Bronze"
+                    }
+                  ]
+                },
+                {
+                  "bytes": "697066733a2f2f516d42726f6e7a654261646765"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
                 }
               ]
             }
@@ -373,7 +645,11 @@
     {
       "event": {
         "ext": "v0",
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000001",
+========
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
         "type_": "diagnostic",
         "body": {
           "v0": {
@@ -382,7 +658,11 @@
                 "symbol": "fn_return"
               },
               {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
                 "symbol": "post_job"
+========
+                "symbol": "set_badge_metadata"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
               }
             ],
             "data": "void"
@@ -406,7 +686,11 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000001"
               },
               {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
                 "symbol": "cancel_bid"
+========
+                "symbol": "get_badge_metadata"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
               }
             ],
             "data": {
@@ -534,10 +818,14 @@
                 {
                   "vec": [
                     {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
                       "u64": 1
                     },
                     {
                       "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+========
+                      "symbol": "Bronze"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
                     }
                   ]
                 }
@@ -560,6 +848,7 @@
                 "symbol": "error"
               },
               {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
                 "error": {
                   "contract": 11
                 }
@@ -567,6 +856,13 @@
             ],
             "data": {
               "string": "escalating error to panic"
+========
+                "symbol": "get_badge_metadata"
+              }
+            ],
+            "data": {
+              "bytes": "697066733a2f2f516d42726f6e7a654261646765"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
             }
           }
         }

@@ -22,6 +22,7 @@ import poolRoutes from "./routes/pool";
 import stateRoutes from "./routes/state";
 import { pool } from "./config/db";
 import { startStorageCleanup, stopStorageCleanup } from "./utils/storage-cleanup";
+import { startNonceCleanup, stopNonceCleanup } from "./utils/nonce-cleanup";
 
 dotenv.config();
 
@@ -118,39 +119,30 @@ app.use("/api/v1/pool", poolRoutes);
 app.use("/api/v1/state", stateRoutes);
 app.use("/api/v1/metrics", createMetricsRouter());
 
-// Health check endpoint with database connectivity verification
+// Enhanced health check endpoint with comprehensive diagnostics
 app.get("/health", async (req: Request, res: Response) => {
-  const startTime = Date.now();
-  logger.debug("Health check requested");
+  logger.debug("Enhanced health check requested");
 
   try {
-    // Ping DB to ensure it's alive
-    await prisma.$queryRaw`SELECT 1`;
-    const duration = Date.now() - startTime;
+    const healthResult = await performHealthCheck();
 
-    logger.info("Health check passed", {
-      status: "ok",
-      db: "connected",
-      duration,
+    const statusCode = healthResult.status === "healthy" ? 200 :
+                       healthResult.status === "degraded" ? 200 : 503;
+
+    logger.info("Health check completed", {
+      status: healthResult.status,
+      dbLatency: healthResult.database.latencyMs,
     });
 
-    res.status(200).json({
-      status: "ok",
-      db: "connected",
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-    });
+    res.status(statusCode).json(healthResult);
   } catch (error) {
-    const duration = Date.now() - startTime;
-    logger.error("Health check failed", {
+    logger.error("Health check failed critically", {
       error: error instanceof Error ? error.message : String(error),
-      duration,
     });
 
     res.status(503).json({
-      status: "error",
-      db: "disconnected",
-      error: error instanceof Error ? error.message : "Unknown error",
+      status: "unhealthy",
+      error: "Health check system failed",
       timestamp: new Date().toISOString(),
     });
   }
@@ -160,6 +152,7 @@ app.get("/health", async (req: Request, res: Response) => {
 process.on("SIGTERM", async () => {
   logger.info("SIGTERM received, shutting down gracefully");
   stopStorageCleanup();
+  stopNonceCleanup();
   try {
     await prisma.$disconnect();
     logger.info("Database connection closed");
@@ -181,6 +174,7 @@ async function bootstrap(): Promise<void> {
     await connectWithRetry();
     startPoolHealthCheck();
     startStorageCleanup();
+    startNonceCleanup();
     app.listen(port, () => {
       console.log(`⚡️[server]: Server is running at http://localhost:${port}`);
       // Update pool metrics periodically so the Prometheus scrape has fresh data

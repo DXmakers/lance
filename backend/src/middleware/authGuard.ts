@@ -39,8 +39,9 @@ export async function authGuard(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  // Try to get token from cookie first, then from Authorization header
-  let token = req.cookies[ACCESS_TOKEN_COOKIE];
+  // Try to get token from cookie first (cookie-parser adds req.cookies;
+  // when unavailable, skip gracefully), then from Authorization header.
+  let token = req.cookies?.[ACCESS_TOKEN_COOKIE];
   const header = req.headers.authorization;
   if (!token && header?.startsWith("Bearer ")) {
     token = header.slice(7);

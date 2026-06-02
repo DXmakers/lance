@@ -1,16 +1,52 @@
 {
   "generators": {
+<<<<<<< HEAD
     "address": 3,
+=======
+    "address": 4,
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
     "nonce": 0
   },
   "auth": [
     [],
     [
       [
+<<<<<<< HEAD
         "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
         {
           "function": {
             "contract_fn": {
+=======
+        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+        {
+          "function": {
+            "contract_fn": {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
+              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+              "function_name": "post_job",
+              "args": [
+                {
+                  "u64": 1
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                },
+                {
+                  "bytes": "516d48617368"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 1000
+                  }
+                },
+                {
+                  "u64": 0
+                },
+                {
+                  "u64": 0
+========
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
               "function_name": "set_badge_metadata",
               "args": [
@@ -29,6 +65,10 @@
                 },
                 {
                   "bytes": "697066733a2f2f516d42726f6e7a654261646765"
+<<<<<<< HEAD
+=======
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 }
               ]
             }
@@ -42,7 +82,11 @@
   "ledger": {
     "protocol_version": 21,
     "sequence_number": 0,
+<<<<<<< HEAD
     "timestamp": 0,
+=======
+    "timestamp": 1700000000,
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
     "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
     "base_reserve": 0,
     "min_persistent_entry_ttl": 4096,
@@ -54,6 +98,7 @@
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
             "key": {
+<<<<<<< HEAD
               "ledger_key_nonce": {
                 "nonce": 801925984706572462
               }
@@ -93,6 +138,14 @@
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+=======
+              "vec": [
+                {
+                  "symbol": "Job"
+                },
+                {
+                  "u64": 1
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 }
               ]
             },
@@ -105,6 +158,7 @@
             "data": {
               "contract_data": {
                 "ext": "v0",
+<<<<<<< HEAD
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
                 "key": {
                   "vec": [
@@ -113,6 +167,16 @@
                     },
                     {
                       "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+=======
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+                "key": {
+                  "vec": [
+                    {
+                      "symbol": "Job"
+                    },
+                    {
+                      "u64": 1
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                     }
                   ]
                 },
@@ -121,14 +185,33 @@
                   "map": [
                     {
                       "key": {
+<<<<<<< HEAD
                         "symbol": "address"
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+=======
+                        "symbol": "bidding_deadline"
+                      },
+                      "val": {
+                        "u64": 0
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                       }
                     },
                     {
                       "key": {
+<<<<<<< HEAD
+=======
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
+                        "symbol": "budget_stroops"
+                      },
+                      "val": {
+                        "i128": {
+                          "hi": 0,
+                          "lo": 1000
+                        }
+========
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                         "symbol": "badge_metadata"
                       },
                       "val": {
@@ -158,6 +241,10 @@
                             ]
                           }
                         ]
+<<<<<<< HEAD
+=======
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                       }
                     },
                     {
@@ -165,18 +252,38 @@
                         "symbol": "client"
                       },
                       "val": {
+<<<<<<< HEAD
+=======
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+========
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                         "map": [
                           {
                             "key": {
                               "symbol": "badge_level"
                             },
                             "val": {
+<<<<<<< HEAD
                               "u32": 1
+=======
+                              "u32": 0
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                             }
                           },
                           {
                             "key": {
                               "symbol": "completed_jobs"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+<<<<<<< HEAD
+=======
+                              "symbol": "dispute_failures"
                             },
                             "val": {
                               "u32": 0
@@ -227,10 +334,112 @@
                             }
                           }
                         ]
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
                       }
                     },
                     {
                       "key": {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
+                        "symbol": "expires_at"
+                      },
+                      "val": {
+                        "u64": 0
+========
+                        "symbol": "client_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
+                          }
+                        ]
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "freelancer"
+                      },
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
+                      "val": "void"
+========
+                      "val": {
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "badge_level"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "completed_jobs"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "dispute_failures"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
+                              "symbol": "review"
+                            },
+                            "val": {
+                              "map": [
+                                {
+                                  "key": {
+                                    "symbol": "average_rating_bps"
+                                  },
+                                  "val": {
+                                    "i32": 5000
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "reviews"
+                                  },
+                                  "val": {
+                                    "u32": 0
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "total_points"
+                                  },
+                                  "val": {
+                                    "i128": {
+                                      "hi": 0,
+                                      "lo": 0
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "score"
+                            },
+                            "val": {
+                              "i32": 5000
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+<<<<<<< HEAD
                         "symbol": "freelancer"
                       },
                       "val": {
@@ -294,6 +503,14 @@
                             "val": {
                               "i32": 5000
                             }
+=======
+                        "symbol": "freelancer_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                           }
                         ]
                       }
@@ -308,9 +525,49 @@
                     },
                     {
                       "key": {
+<<<<<<< HEAD
                         "symbol": "metadata_hash"
                       },
                       "val": "void"
+=======
+                        "symbol": "last_activity"
+                      },
+                      "val": {
+                        "u64": 0
+                      }
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
+                    },
+                    {
+                      "key": {
+                        "symbol": "metadata_hash"
+                      },
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
+                      "val": {
+                        "bytes": "516d48617368"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "status"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Open"
+                          }
+                        ]
+========
+                      "val": "void"
+                    },
+                    {
+                      "key": {
+                        "symbol": "transfer_blocked"
+                      },
+                      "val": {
+                        "bool": true
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
+                      }
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                     }
                   ]
                 }
@@ -318,13 +575,21 @@
             },
             "ext": "v0"
           },
+<<<<<<< HEAD
           150000
+=======
+          4095
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         ]
       ],
       [
         {
           "contract_data": {
+<<<<<<< HEAD
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+=======
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
             "key": "ledger_key_contract_instance",
             "durability": "persistent"
           }
@@ -335,7 +600,11 @@
             "data": {
               "contract_data": {
                 "ext": "v0",
+<<<<<<< HEAD
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+=======
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 "key": "ledger_key_contract_instance",
                 "durability": "persistent",
                 "val": {
@@ -353,7 +622,23 @@
                           ]
                         },
                         "val": {
+<<<<<<< HEAD
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+=======
+                          "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "NextJobId"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "u64": 2
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                         }
                       }
                     ]
@@ -363,7 +648,44 @@
             },
             "ext": "v0"
           },
+<<<<<<< HEAD
           150000
+=======
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+            "key": {
+              "ledger_key_nonce": {
+                "nonce": 801925984706572462
+              }
+            },
+            "durability": "temporary"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+                "key": {
+                  "ledger_key_nonce": {
+                    "nonce": 801925984706572462
+                  }
+                },
+                "durability": "temporary",
+                "val": "void"
+              }
+            },
+            "ext": "v0"
+          },
+          6311999
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         ]
       ],
       [
@@ -384,7 +706,11 @@
             },
             "ext": "v0"
           },
+<<<<<<< HEAD
           150000
+=======
+          4095
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         ]
       ]
     ]
@@ -402,14 +728,22 @@
                 "symbol": "fn_call"
               },
               {
+<<<<<<< HEAD
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
+=======
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000001"
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
               },
               {
                 "symbol": "initialize"
               }
             ],
             "data": {
+<<<<<<< HEAD
               "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+=======
+              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
             }
           }
         }
@@ -419,7 +753,11 @@
     {
       "event": {
         "ext": "v0",
+<<<<<<< HEAD
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
+=======
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000001",
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         "type_": "diagnostic",
         "body": {
           "v0": {
@@ -449,15 +787,50 @@
                 "symbol": "fn_call"
               },
               {
+<<<<<<< HEAD
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
                 "symbol": "set_badge_metadata"
+=======
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000001"
+              },
+              {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
+                "symbol": "post_job"
+========
+                "symbol": "set_badge_metadata"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
               }
             ],
             "data": {
               "vec": [
                 {
+<<<<<<< HEAD
+=======
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
+                  "u64": 1
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                },
+                {
+                  "bytes": "516d48617368"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 1000
+                  }
+                },
+                {
+                  "u64": 0
+                },
+                {
+                  "u64": 0
+========
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 },
                 {
@@ -472,6 +845,10 @@
                 },
                 {
                   "bytes": "697066733a2f2f516d42726f6e7a654261646765"
+<<<<<<< HEAD
+=======
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 }
               ]
             }
@@ -483,7 +860,15 @@
     {
       "event": {
         "ext": "v0",
+<<<<<<< HEAD
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
+=======
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000001",
+========
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         "type_": "diagnostic",
         "body": {
           "v0": {
@@ -492,7 +877,15 @@
                 "symbol": "fn_return"
               },
               {
+<<<<<<< HEAD
                 "symbol": "set_badge_metadata"
+=======
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
+                "symbol": "post_job"
+========
+                "symbol": "set_badge_metadata"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
               }
             ],
             "data": "void"
@@ -513,21 +906,164 @@
                 "symbol": "fn_call"
               },
               {
+<<<<<<< HEAD
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
                 "symbol": "get_badge_metadata"
+=======
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000001"
+              },
+              {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
+                "symbol": "cancel_bid"
+========
+                "symbol": "get_badge_metadata"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
               }
             ],
             "data": {
               "vec": [
                 {
+<<<<<<< HEAD
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+=======
+                  "u64": 1
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": false
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000001",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "error"
+              },
+              {
+                "error": {
+                  "contract": 11
+                }
+              }
+            ],
+            "data": {
+              "vec": [
+                {
+                  "string": "failing with contract error"
+                },
+                {
+                  "u32": 11
+                }
+              ]
+            }
+          }
+        }
+      },
+      "failed_call": true
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000001",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "error"
+              },
+              {
+                "error": {
+                  "contract": 11
+                }
+              }
+            ],
+            "data": {
+              "string": "escalating error to panic"
+            }
+          }
+        }
+      },
+      "failed_call": true
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000001",
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "error"
+              },
+              {
+                "error": {
+                  "contract": 11
+                }
+              }
+            ],
+            "data": {
+              "string": "caught error from function"
+            }
+          }
+        }
+      },
+      "failed_call": true
+    },
+    {
+      "event": {
+        "ext": "v0",
+        "contract_id": null,
+        "type_": "diagnostic",
+        "body": {
+          "v0": {
+            "topics": [
+              {
+                "symbol": "error"
+              },
+              {
+                "error": {
+                  "contract": 11
+                }
+              }
+            ],
+            "data": {
+              "vec": [
+                {
+                  "string": "contract call failed"
+                },
+                {
+                  "symbol": "cancel_bid"
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 },
                 {
                   "vec": [
                     {
+<<<<<<< HEAD
                       "symbol": "Bronze"
+=======
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
+                      "u64": 1
+                    },
+                    {
+                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+========
+                      "symbol": "Bronze"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                     }
                   ]
                 }
@@ -541,20 +1077,43 @@
     {
       "event": {
         "ext": "v0",
+<<<<<<< HEAD
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
+=======
+        "contract_id": null,
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         "type_": "diagnostic",
         "body": {
           "v0": {
             "topics": [
               {
+<<<<<<< HEAD
                 "symbol": "fn_return"
               },
               {
+=======
+                "symbol": "error"
+              },
+              {
+<<<<<<<< HEAD:contracts/job_registry/test_snapshots/test/test_cancel_nonexistent_bid.1.json
+                "error": {
+                  "contract": 11
+                }
+              }
+            ],
+            "data": {
+              "string": "escalating error to panic"
+========
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 "symbol": "get_badge_metadata"
               }
             ],
             "data": {
               "bytes": "697066733a2f2f516d42726f6e7a654261646765"
+<<<<<<< HEAD
+=======
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_set_and_get_badge_metadata.1.json
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
             }
           }
         }

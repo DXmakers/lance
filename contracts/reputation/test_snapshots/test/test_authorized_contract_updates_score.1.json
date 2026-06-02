@@ -150,6 +150,14 @@
                           },
                           {
                             "key": {
+                              "symbol": "dispute_failures"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
                               "symbol": "review"
                             },
                             "val": {
@@ -197,6 +205,18 @@
                     },
                     {
                       "key": {
+                        "symbol": "client_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Bronze"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "freelancer"
                       },
                       "val": {
@@ -212,6 +232,14 @@
                           {
                             "key": {
                               "symbol": "completed_jobs"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "dispute_failures"
                             },
                             "val": {
                               "u32": 0
@@ -266,6 +294,18 @@
                     },
                     {
                       "key": {
+                        "symbol": "freelancer_badge"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Silver"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "is_blacklisted"
                       },
                       "val": {
@@ -274,9 +314,25 @@
                     },
                     {
                       "key": {
+                        "symbol": "last_activity"
+                      },
+                      "val": {
+                        "u64": 0
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "metadata_hash"
                       },
                       "val": "void"
+                    },
+                    {
+                      "key": {
+                        "symbol": "transfer_blocked"
+                      },
+                      "val": {
+                        "bool": true
+                      }
                     }
                   ]
                 }
@@ -320,6 +376,21 @@
                         },
                         "val": {
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "AuthorizedContract"
+                            },
+                            {
+                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "bool": true
                         }
                       },
                       {
