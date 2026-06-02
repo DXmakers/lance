@@ -1,10 +1,17 @@
 {
   "generators": {
+<<<<<<< HEAD
     "address": 3,
     "nonce": 0
   },
   "auth": [
     [],
+=======
+    "address": 2,
+    "nonce": 0
+  },
+  "auth": [
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
     []
   ],
   "ledger": {
@@ -20,7 +27,11 @@
       [
         {
           "contract_data": {
+<<<<<<< HEAD
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+=======
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
             "key": "ledger_key_contract_instance",
             "durability": "persistent"
           }
@@ -31,7 +42,11 @@
             "data": {
               "contract_data": {
                 "ext": "v0",
+<<<<<<< HEAD
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+=======
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 "key": "ledger_key_contract_instance",
                 "durability": "persistent",
                 "val": {
@@ -39,6 +54,7 @@
                     "executable": {
                       "wasm": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
                     },
+<<<<<<< HEAD
                     "storage": [
                       {
                         "key": {
@@ -53,6 +69,9 @@
                         }
                       }
                     ]
+=======
+                    "storage": null
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                   }
                 }
               }
@@ -98,6 +117,7 @@
                 "symbol": "fn_call"
               },
               {
+<<<<<<< HEAD
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
@@ -146,6 +166,9 @@
               },
               {
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
+=======
+                "bytes": "0000000000000000000000000000000000000000000000000000000000000002"
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
               },
               {
                 "symbol": "get_badge_metadata"
@@ -154,7 +177,11 @@
             "data": {
               "vec": [
                 {
+<<<<<<< HEAD
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+=======
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
                 },
                 {
                   "vec": [
@@ -173,7 +200,11 @@
     {
       "event": {
         "ext": "v0",
+<<<<<<< HEAD
         "contract_id": "0000000000000000000000000000000000000000000000000000000000000003",
+=======
+        "contract_id": "0000000000000000000000000000000000000000000000000000000000000002",
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         "type_": "diagnostic",
         "body": {
           "v0": {

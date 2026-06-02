@@ -68,6 +68,9 @@ pub struct Milestone {
     pub status: MilestoneStatus,
 }
 
+/// `EscrowJob` places dynamic fields at the end of the serialized state.
+/// This keeps the fixed-size prefix compact and reduces the size impact
+/// of the variable-length `milestones` vector on Soroban serialization.
 #[contracttype]
 #[derive(Clone)]
 pub struct EscrowJob {
@@ -79,11 +82,11 @@ pub struct EscrowJob {
     pub status: EscrowStatus,
     pub created_at: u64,
     pub expires_at: u64,
-    pub milestones: Vec<Milestone>,
-    pub requires_multisig: bool,
-    pub token_decimals: u32, // populated during deposit via token::Client::decimals()
-    pub dispute_deadline: u64, // 0 = no active dispute; set when dispute is raised/opened
     pub funded_ledger_seq: u32, // ledger sequence at funding time; used for flash-loan resistance
+    pub dispute_deadline: u64, // 0 = no active dispute; set when dispute is raised/opened
+    pub token_decimals: u32, // populated during deposit via token::Client::decimals()
+    pub requires_multisig: bool,
+    pub milestones: Vec<Milestone>,
 }
 
 /// Packs admin and agent_judge under one instance storage entry to cut ledger footprint.
@@ -97,16 +100,65 @@ pub struct ContractConfig {
 #[contracttype]
 pub enum DataKey {
     Job(u64),
+    Config, // Replaces separate Admin + AgentJudge entries
     JobLock(u64),
+<<<<<<< HEAD
     Config,
     Admin,
     AgentJudge,
+=======
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
     JobRegistry,
     Locked,
-    Treasury,
-    FeeBps,
     MultisigConfig(u64), // Per-job multisig configuration
     UpgradeAdmin,
+<<<<<<< HEAD
+=======
+    Treasury,
+    Amended(u64),
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct TreasuryConfig {
+    pub routing_address: Address,
+    pub fee_bps: u32,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct FeeConfigUpdatedEvent {
+    pub treasury: Address,
+    pub fee_bps: u32,
+    pub updated_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct LockupUpdatedEvent {
+    pub job_id: u64,
+    pub expires_at: u64,
+    pub updated_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct EmergencySweepEvent {
+    pub job_id: u64,
+    pub admin: Address,
+    pub rescue_address: Address,
+    pub amount: i128,
+    pub swept_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct MilestonesAmendedEvent {
+    pub job_id: u64,
+    pub milestone_count: u32,
+    pub remaining_amount: i128,
+    pub amended_at: u64,
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
 }
 
 #[contracttype]
@@ -266,40 +318,6 @@ pub struct DisputeExpiredEvent {
     pub expired_at: u64,
 }
 
-#[contracttype]
-#[derive(Clone)]
-pub struct FeeConfigUpdatedEvent {
-    pub treasury: Address,
-    pub fee_bps: u32,
-    pub updated_at: u64,
-}
-
-#[contracttype]
-#[derive(Clone)]
-pub struct LockupUpdatedEvent {
-    pub job_id: u64,
-    pub expires_at: u64,
-    pub updated_at: u64,
-}
-
-#[contracttype]
-#[derive(Clone)]
-pub struct EmergencySweepEvent {
-    pub job_id: u64,
-    pub admin: Address,
-    pub rescue_address: Address,
-    pub amount: i128,
-    pub swept_at: u64,
-}
-
-#[contracttype]
-#[derive(Clone)]
-pub struct MilestonesAmendedEvent {
-    pub job_id: u64,
-    pub milestone_count: u32,
-    pub remaining_amount: i128,
-    pub amended_at: u64,
-}
 
 struct ReentrancyGuard<'a> {
     env: &'a Env,
@@ -338,6 +356,8 @@ impl EscrowContract {
     const PERSISTENT_TTL_EXTEND_TO: u32 = 150_000;
     const MAX_JOB_BUDGET: i128 = 10_000_000_000;
     const MAX_MILESTONE_AMOUNT: i128 = 10_000_000_000;
+    /// Fixed hard cap on milestone count to bound both storage footprint and
+    /// iteration cost during escrow lifecycle operations.
     const MAX_MILESTONES_PER_JOB: u32 = 32;
     const DISPUTE_RESOLUTION_WINDOW: u64 = 7 * 24 * 60 * 60;
 
@@ -370,6 +390,7 @@ impl EscrowContract {
         env.storage().temporary().remove(&lock_key);
     }
 
+<<<<<<< HEAD
     fn checked_sub_i128(env: &Env, a: i128, b: i128) -> Result<i128, EscrowError> {
         a.checked_sub(b).ok_or_else(|| {
             log!(env, "checked_sub_i128 underflow: {} - {}", a, b);
@@ -391,6 +412,46 @@ impl EscrowContract {
         Ok(())
     }
 
+=======
+    fn payout_with_fee(env: &Env, _job_id: u64, job: &EscrowJob, amount: i128) -> Result<(), EscrowError> {
+        let token_client = token::Client::new(env, &job.token);
+        let mut freelancer_amount = amount;
+
+        if let Some(treasury_config) = env.storage().instance().get::<_, TreasuryConfig>(&DataKey::Treasury) {
+            let fee = amount
+                .checked_mul(treasury_config.fee_bps as i128)
+                .ok_or(EscrowError::ArithmeticError)?
+                .checked_div(10000)
+                .ok_or(EscrowError::ArithmeticError)?;
+
+            if fee > 0 {
+                freelancer_amount = amount
+                    .checked_sub(fee)
+                    .ok_or(EscrowError::ArithmeticError)?;
+
+                token_client.transfer(
+                    &env.current_contract_address(),
+                    &treasury_config.routing_address,
+                    &fee,
+                );
+            }
+        }
+
+        if freelancer_amount > 0 {
+            token_client.transfer(
+                &env.current_contract_address(),
+                &job.freelancer,
+                &freelancer_amount,
+            );
+        }
+
+        Ok(())
+    }
+    
+    fn assert_not_same_ledger_as_funding(_env: &Env, _job: &EscrowJob) -> Result<(), EscrowError> {
+        Ok(())
+    }
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
     fn sync_dispute_to_job_registry(env: &Env, job_id: u64) -> Result<(), EscrowError> {
         Self::bump_instance_ttl(env);
         let Some(registry_contract) = env
@@ -436,7 +497,6 @@ impl EscrowContract {
             return Err(EscrowError::InvalidInput);
         }
 
-        admin.require_auth();
 
         env.storage().instance().set(
             &DataKey::Config,
@@ -640,7 +700,11 @@ impl EscrowContract {
             .checked_mul(24)
             .and_then(|h| h.checked_mul(60))
             .and_then(|m| m.checked_mul(60))
+<<<<<<< HEAD
             .ok_or(EscrowError::ArithmeticError)?;
+=======
+    .ok_or(EscrowError::ArithmeticError)?;
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
 
         let expires_at = now
             .checked_add(expires_duration)
@@ -817,7 +881,7 @@ impl EscrowContract {
         milestone.status = MilestoneStatus::Released;
         job.milestones.set(idx, milestone.clone());
 
-        job.released_amount = Self::checked_add_i128(&env, job.released_amount, milestone.amount)?;
+        job.released_amount = checked_i128_add(job.released_amount, milestone.amount)?;
 
         let next_status = if job.released_amount == job.total_amount {
             EscrowStatus::Completed
@@ -830,7 +894,7 @@ impl EscrowContract {
         let _guard = enter_reentrancy_guard(&env);
         env.storage().persistent().set(&key, &job);
 
-        Self::payout_with_fee(&env, &job, milestone.amount);
+        Self::payout_with_fee(&env, job_id, &job, milestone.amount)?;
 
         log!(
             &env,
@@ -842,7 +906,7 @@ impl EscrowContract {
         Self::bump_job_ttl(&env, &key);
         Self::exit_job_lock(&env, lock_key);
 
-        exit_reentrancy_guard(&env);
+        Self::exit_reentrancy_guard(&env);
 
         // Emit event
         env.events().publish(
@@ -898,7 +962,7 @@ impl EscrowContract {
         milestone.status = MilestoneStatus::Released;
         job.milestones.set(milestone_index, milestone.clone());
 
-        job.released_amount = Self::checked_add_i128(&env, job.released_amount, milestone.amount)?;
+        job.released_amount = checked_i128_add(job.released_amount, milestone.amount)?;
         assert!(
             job.released_amount <= job.total_amount,
             "double-spend: released exceeds total"
@@ -914,7 +978,7 @@ impl EscrowContract {
         let _guard = enter_reentrancy_guard(&env);
         env.storage().persistent().set(&key, &job);
 
-        Self::payout_with_fee(&env, &job, milestone.amount);
+        Self::payout_with_fee(&env, job_id, &job, milestone.amount)?;
 
         log!(
             &env,
@@ -925,7 +989,10 @@ impl EscrowContract {
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
         Self::exit_job_lock(&env, lock_key);
+<<<<<<< HEAD
 
+=======
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         Ok(())
     }
 
@@ -1084,9 +1151,9 @@ impl EscrowContract {
             panic_with_error!(&env, EscrowError::DisputeResolutionExpired);
         }
 
-        let remaining = Self::checked_sub_i128(&env, job.total_amount, job.released_amount)
+        let remaining = job.total_amount.checked_sub(job.released_amount)
             .expect("invalid escrow balance state");
-        let total_payout = Self::checked_add_i128(&env, payee_amount, payer_amount)
+        let total_payout = checked_i128_add(payee_amount, payer_amount)
             .expect("invalid dispute payout state");
         assert!(total_payout <= remaining, "payout exceeds remaining funds");
         let lock_key = Self::enter_job_lock(&env, job_id).expect("reentrant job operation");
@@ -1095,7 +1162,7 @@ impl EscrowContract {
         job.status
             .validate_transition(&next_status)
             .expect("invalid state transition");
-        job.released_amount = Self::checked_add_i128(&env, job.released_amount, total_payout)
+        job.released_amount = checked_i128_add(job.released_amount, total_payout)
             .expect("released amount overflow");
         job.status = next_status;
 
@@ -1103,11 +1170,33 @@ impl EscrowContract {
         env.storage().persistent().set(&key, &job);
 
         let token_client = token::Client::new(&env, &job.token);
-        if payee_amount > 0 {
+        let mut freelancer_amount = payee_amount;
+
+        if let Some(treasury_config) = env.storage().instance().get::<_, TreasuryConfig>(&DataKey::Treasury) {
+            let fee = payee_amount
+                .checked_mul(treasury_config.fee_bps as i128)
+                .ok_or(EscrowError::ArithmeticError)?
+                .checked_div(10000)
+                .ok_or(EscrowError::ArithmeticError)?;
+
+            if fee > 0 {
+                freelancer_amount = payee_amount
+                    .checked_sub(fee)
+                    .ok_or(EscrowError::ArithmeticError)?;
+
+                token_client.transfer(
+                    &env.current_contract_address(),
+                    &treasury_config.routing_address,
+                    &fee,
+                );
+            }
+        }
+
+        if freelancer_amount > 0 {
             token_client.transfer(
                 &env.current_contract_address(),
                 &job.freelancer,
-                &payee_amount,
+                &freelancer_amount,
             );
         }
         if payer_amount > 0 {
@@ -1124,7 +1213,10 @@ impl EscrowContract {
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
         Self::exit_job_lock(&env, lock_key);
+<<<<<<< HEAD
 
+=======
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         Ok(())
     }
 
@@ -1152,17 +1244,21 @@ impl EscrowContract {
 
         let remaining = job.total_amount - job.released_amount;
         let lock_key = Self::enter_job_lock(&env, job_id)?;
+        let _guard = enter_reentrancy_guard(&env);
         if remaining > 0 {
             let token_client = token::Client::new(&env, &job.token);
             token_client.transfer(&env.current_contract_address(), &job.client, &remaining);
         }
+
+        let next_status = EscrowStatus::Refunded;
+        job.status = next_status;
 
         log!(&env, "refund: job {} amount {}", job_id, remaining);
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
         Self::exit_job_lock(&env, lock_key);
 
-        exit_reentrancy_guard(&env);
+        Self::exit_reentrancy_guard(&env);
 
         env.events().publish(
             ("escrow", "Refunded"),
@@ -1365,7 +1461,11 @@ impl EscrowContract {
         env.storage().persistent().set(&key, &job);
         Self::bump_job_ttl(&env, &key);
 
+<<<<<<< HEAD
         exit_reentrancy_guard(&env);
+=======
+Self::exit_reentrancy_guard(&env);
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         env.events().publish(
             ("escrow", "DisputeExpired"),
             DisputeExpiredEvent {
@@ -1422,6 +1522,11 @@ impl EscrowContract {
         Ok((config.admin, config.agent_judge, job_registry))
     }
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
     /// Configure multisig for a job. Only callable by client during Setup phase.
     pub fn configure_multisig(
         env: Env,
@@ -1579,8 +1684,11 @@ impl EscrowContract {
             return Err(EscrowError::FeeTooHigh);
         }
 
-        env.storage().instance().set(&DataKey::Treasury, &treasury);
-        env.storage().instance().set(&DataKey::FeeBps, &fee_bps);
+        let t_config = TreasuryConfig {
+            routing_address: treasury.clone(),
+            fee_bps,
+        };
+        env.storage().instance().set(&DataKey::Treasury, &t_config);
         Self::bump_instance_ttl(&env);
 
         env.events().publish(
@@ -1597,11 +1705,21 @@ impl EscrowContract {
 
     /// Returns the active platform fee in basis points (0 when unset).
     pub fn get_fee_bps(env: Env) -> u32 {
+<<<<<<< HEAD
         env.storage().instance().get(&DataKey::FeeBps).unwrap_or(0)
+=======
+        Self::bump_instance_ttl(&env);
+        if let Some(config) = env.storage().instance().get::<_, TreasuryConfig>(&DataKey::Treasury) {
+            config.fee_bps
+        } else {
+            0
+        }
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
     }
 
     /// Returns the configured treasury address, if any.
     pub fn get_treasury(env: Env) -> Option<Address> {
+<<<<<<< HEAD
         env.storage().instance().get(&DataKey::Treasury)
     }
 
@@ -1640,6 +1758,13 @@ impl EscrowContract {
                 &job.freelancer,
                 &payout_amount,
             );
+=======
+        Self::bump_instance_ttl(&env);
+        if let Some(config) = env.storage().instance().get::<_, TreasuryConfig>(&DataKey::Treasury) {
+            Some(config.routing_address)
+        } else {
+            None
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         }
     }
 
@@ -1853,6 +1978,11 @@ impl EscrowContract {
 
         Ok(())
     }
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
 }
 
 #[cfg(test)]
@@ -2575,7 +2705,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #23)")]
     fn test_refund_reentrant_lock_panics() {
         let env = Env::default();
         env.mock_all_auths();
@@ -2601,10 +2731,7 @@ mod test {
     }
 
     #[test]
-    // Deposit now returns EscrowError::AmountMismatch which surfaces as host
-    // error code #7.
-    #[should_panic(expected = "Error(Contract, #7)")]
-    fn test_deposit_with_wrong_total_panics() {
+    fn test_release_funds_out_of_order() {
         let env = Env::default();
         env.mock_all_auths();
 
@@ -2912,7 +3039,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #11)")]
+    #[should_panic(expected = "Error(Contract, #23)")]
     fn test_release_milestone_reentrant_lock_panics() {
         let env = Env::default();
         env.mock_all_auths();
@@ -2938,8 +3065,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #6)")]
-    fn test_release_milestone_no_pending_milestones() {
+    fn test_resolve_dispute_success() {
         let env = Env::default();
         env.mock_all_auths();
 
@@ -3072,8 +3198,8 @@ mod test {
     }
 
     #[test]
-    #[should_panic(expected = "invalid milestone index")]
-    fn test_release_funds_invalid_index_panics() {
+    #[should_panic(expected = "Error(Contract, #6)")]
+    fn test_resolve_dispute_invalid_state_panics() {
         let env = Env::default();
         env.mock_all_auths();
 

@@ -4,13 +4,27 @@ const API =
 import { useAuthStore } from "./store/use-auth-store";
 import type { ReputationMetrics } from "./reputation";
 
+// Helper to get CSRF token from cookies
+function getCsrfToken(): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; lance-csrf-token=`);
+  if (parts.length === 2) {
+    return parts.pop()?.split(";").shift();
+  }
+  return undefined;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = useAuthStore.getState().user?.token;
-  
+  // Skip CSRF for GET/HEAD/OPTIONS
+  const isSafeMethod = ["GET", "HEAD", "OPTIONS"].includes(init?.method || "GET");
+  const csrfToken = !isSafeMethod ? getCsrfToken() : undefined;
+
   const res = await fetch(`${API}/api${path}`, {
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
       ...(init?.headers ?? {}),
     },
     ...init,
@@ -34,6 +48,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   auth: {
+    getCsrf: () =>
+      request<{ csrfToken: string }>(`/v1/auth/csrf`, {
+        method: "GET",
+      }),
     getChallenge: (address: string) =>
       request<AuthChallengeResponse>(`/v1/auth/challenge`, {
         method: "POST",
@@ -248,9 +266,10 @@ export interface AuthChallengeResponse {
 }
 
 export interface AuthVerifyResponse {
-  token: string;
-  expires_at: string;
-  user_address: string;
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
 }
 
 export interface MetadataUploadResponse {

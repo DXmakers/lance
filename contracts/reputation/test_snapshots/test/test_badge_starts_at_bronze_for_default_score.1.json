@@ -101,6 +101,7 @@
                 "bytes": "0000000000000000000000000000000000000000000000000000000000000003"
               },
               {
+<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_starts_at_bronze_for_default_score.1.json
                 "symbol": "initialize"
               }
             ],
@@ -149,10 +150,16 @@
               },
               {
                 "symbol": "get_badge"
+========
+                "symbol": "get_validator_stake"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_empty_validator_stake_reads_are_safe.1.json
               }
             ],
             "data": {
               "vec": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
@@ -182,13 +189,81 @@
                 "symbol": "fn_return"
               },
               {
+<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_starts_at_bronze_for_default_score.1.json
                 "symbol": "get_badge"
+========
+                "symbol": "get_validator_stake"
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_empty_validator_stake_reads_are_safe.1.json
               }
             ],
             "data": {
               "vec": [
                 {
+<<<<<<<< HEAD:contracts/reputation/test_snapshots/test/test_badge_starts_at_bronze_for_default_score.1.json
                   "symbol": "Bronze"
+========
+                  "key": {
+                    "symbol": "adjustment_count"
+                  },
+                  "val": {
+                    "u32": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "last_updated"
+                  },
+                  "val": {
+                    "u64": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "role"
+                  },
+                  "val": {
+                    "vec": [
+                      {
+                        "symbol": "Freelancer"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "staked_amount"
+                  },
+                  "val": {
+                    "i128": {
+                      "hi": 0,
+                      "lo": 0
+                    }
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "target"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "total_adjustment_bps"
+                  },
+                  "val": {
+                    "i32": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "validator"
+                  },
+                  "val": {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                  }
+>>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c:contracts/reputation/test_snapshots/test/test_empty_validator_stake_reads_are_safe.1.json
                 }
               ]
             }

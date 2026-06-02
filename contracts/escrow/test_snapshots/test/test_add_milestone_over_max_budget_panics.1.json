@@ -407,6 +407,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "funded_ledger_seq"
+                      },
+                      "val": {
+                        "u32": 0
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "milestones"
                       },
                       "val": {
@@ -1339,7 +1347,7 @@
             "data": {
               "vec": [
                 {
-                  "string": "caught panic 'job budget exceeds maximum' from contract function 'Symbol(obj#299)'"
+                  "string": "caught panic 'job budget exceeds maximum' from contract function 'Symbol(obj#305)'"
                 },
                 {
                   "u64": 1
