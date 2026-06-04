@@ -1,4 +1,4 @@
-﻿use soroban_sdk::{contracttype, Address, Bytes, Env};
+use soroban_sdk::{contracttype, Address, Bytes, Env};
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
@@ -35,8 +35,7 @@ impl RoleMetrics {
             score: 5_000,
             completed_jobs: 0,
             review: ReviewAggregate::new(),
-            badge_level: 0,
-            dispute_failures: 0,
+            badge_level: BadgeLevel::from_score(5_000).to_u32(),
         }
     }
 }
@@ -67,6 +66,16 @@ impl BadgeLevel {
             s if s >= 6_000 => BadgeLevel::Silver,
             s if s >= 4_000 => BadgeLevel::Bronze,
             _ => BadgeLevel::None,
+        }
+    }
+
+    pub fn to_u32(&self) -> u32 {
+        match self {
+            BadgeLevel::None => 0,
+            BadgeLevel::Bronze => 1,
+            BadgeLevel::Silver => 2,
+            BadgeLevel::Gold => 3,
+            BadgeLevel::Platinum => 4,
         }
     }
 }
@@ -107,7 +116,7 @@ pub struct Profile {
 }
 
 impl Profile {
-    pub fn new(env: &Env, address: Address) -> Self {
+    pub fn new(env: &soroban_sdk::Env, address: Address) -> Self {
         Self {
             address,
             client: RoleMetrics::new(),
@@ -116,14 +125,26 @@ impl Profile {
             metadata_hash: None,
             last_activity: 0,
             badge_metadata: soroban_sdk::Vec::new(env),
+<<<<<<< HEAD
+=======
             transfer_blocked: true,
             client_badge: BadgeLevel::Bronze,
             freelancer_badge: BadgeLevel::Bronze,
+>>>>>>> 5a2cc8d9734783cc04369634a657f1bd96408f1c
         }
     }
 
     pub fn refresh_badges(&mut self) {
-        self.client_badge = BadgeLevel::from_score(self.client.score);
-        self.freelancer_badge = BadgeLevel::from_score(self.freelancer.score);
+        let blacklisted = self.is_blacklisted;
+        self.client.badge_level = if blacklisted {
+            0
+        } else {
+            BadgeLevel::from_score(self.client.score).to_u32()
+        };
+        self.freelancer.badge_level = if blacklisted {
+            0
+        } else {
+            BadgeLevel::from_score(self.freelancer.score).to_u32()
+        };
     }
 }
